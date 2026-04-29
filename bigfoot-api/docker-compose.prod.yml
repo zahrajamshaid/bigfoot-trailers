@@ -1,0 +1,48 @@
+###############################################################################
+# BIGFOOT TRAILERS — Production overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+###############################################################################
+
+version: '3.9'
+
+services:
+  postgres:
+    ports: []                # do NOT expose Postgres to the public internet
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+  redis:
+    ports: []                # do NOT expose Redis to the public internet
+    command: ['redis-server', '--requirepass', '${REDIS_PASSWORD}']
+
+  api:
+    ports:
+      - '127.0.0.1:3000:3000'   # only bind to localhost; Caddy proxies to it
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_PREFIX: v1
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      DO_SPACES_ENDPOINT: ${DO_SPACES_ENDPOINT}
+      DO_SPACES_REGION: ${DO_SPACES_REGION}
+      DO_SPACES_BUCKET: ${DO_SPACES_BUCKET}
+      DO_SPACES_ACCESS_KEY: ${DO_SPACES_ACCESS_KEY}
+      DO_SPACES_SECRET_KEY: ${DO_SPACES_SECRET_KEY}
+      DO_SPACES_CDN_URL: ${DO_SPACES_CDN_URL}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      THROTTLE_TTL: ${THROTTLE_TTL}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT}

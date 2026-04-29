@@ -1,0 +1,451 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { WorkflowGeneratorService } from './workflow-generator.service';
+import { AppError, ErrorCode } from '../../common/errors';
+import { CreateTrailerDto } from './dto/create-trailer.dto';
+import { UpdateTrailerDto } from './dto/update-trailer.dto';
+import { QueryTrailersDto } from './dto/query-trailers.dto';
+import { CreateAddonDto } from './dto/addon.dto';
+import { SetPriorityDto } from './dto/priority.dto';
+import { ToggleHotDto } from './dto/hot.dto';
+import { UploadQbPdfDto } from './dto/qb-pdf.dto';
+import { Prisma, TrailerStatus } from '@prisma/client';
+
+/** Select shape for trailer detail — includes model, customer, location, and current step info. */
+const TRAILER_DETAIL_SELECT = {
+  id: true,
+  soNumber: true,
+  vinNumber: true,
+  trailerModelId: true,
+  customerId: true,
+  currentLocationId: true,
+  createdByUserId: true,
+  color: true,
+  sizeFt: true,
+  optionsNotes: true,
+  qbSoPdfStorageUrl: true,
+  qbSoPdfStorageKey: true,
+  qbSoId: true,
+  qbInvoicedAt: true,
+  status: true,
+  globalPriority: true,
+  isStockBuild: true,
+  isHot: true,
+  customerLocked: true,
+  createdAt: true,
+  updatedAt: true,
+  trailerModel: {
+    select: { id: true, code: true, displayName: true, series: true, weightRating: true },
+  },
+  customer: {
+    select: { id: true, name: true, company: true, smsPhone: true, customerType: true },
+  },
+  currentLocation: {
+    select: { id: true, code: true, name: true },
+  },
+  addons: {
+    select: { id: true, addonName: true, notes: true, addedAt: true },
+    orderBy: { addedAt: 'asc' as const },
+  },
+} satisfies Prisma.TrailerSelect;
+
+/** Lighter select for list views. */
+const TRAILER_LIST_SELECT = {
+  id: true,
+  soNumber: true,
+  color: true,
+  sizeFt: true,
+  status: true,
+  globalPriority: true,
+  isStockBuild: true,
+  isHot: true,
+  createdAt: true,
+  trailerModel: {
+    select: { id: true, code: true, displayName: true, series: true },
+  },
+  customer: {
+    select: { id: true, name: true, company: true },
+  },
+  currentLocation: {
+    select: { id: true, code: true, name: true },
+  },
+} satisfies Prisma.TrailerSelect;
+
+@Injectable()
+export class TrailersService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workflowGenerator: WorkflowGeneratorService,
+  ) {}
+
+  // ---------------------------------------------------------------------------
+  // GET /trailers — list with pagination + filters
+  // ---------------------------------------------------------------------------
+  async findAll(query: QueryTrailersDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 25;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.TrailerWhereInput = {};
+    if (query.status) where.status = query.status as TrailerStatus;
+    if (query.isHot !== undefined) where.isHot = query.isHot;
+    if (query.customerId) where.customerId = BigInt(query.customerId);
+    if (query.series) {
+      where.trailerModel = { series: query.series };
+    }
+    if (query.search) {
+      where.soNumber = { contains: query.search, mode: 'insensitive' };
+    }
+
+    const [trailers, total] = await this.prisma.$transaction([
+      this.prisma.trailer.findMany({
+        where,
+        select: TRAILER_LIST_SELECT,
+        orderBy: [{ isHot: 'desc' }, { globalPriority: 'asc' }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+      }),
+      this.prisma.trailer.count({ where }),
+    ]);
+
+    return { trailers, total, page, limit };
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /trailers — create + generate workflow steps atomically
+  // ---------------------------------------------------------------------------
+  async create(dto: CreateTrailerDto, createdByUserId: bigint) {
+    // Validate SO number uniqueness
+    const existingSo = await this.prisma.trailer.findUnique({
+      where: { soNumber: dto.soNumber },
+      select: { id: true },
+    });
+    if (existingSo) {
+      throw new AppError(ErrorCode.SO_NUMBER_EXISTS, `A trailer with SO number "${dto.soNumber}" already exists`);
+    }
+
+    // Validate trailer model exists
+    const model = await this.prisma.trailerModel.findUnique({
+      where: { id: dto.trailerModelId },
+      select: { id: true, series: true },
+    });
+    if (!model) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer model with id ${dto.trailerModelId} not found`);
+    }
+
+    // Validate customer exists if provided
+    if (dto.customerId) {
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: BigInt(dto.customerId) },
+        select: { id: true },
+      });
+      if (!customer) {
+        throw new AppError(ErrorCode.NOT_FOUND, `Customer with id ${dto.customerId} not found`);
+      }
+    }
+
+    // Find Mulberry factory location
+    const factory = await this.prisma.location.findFirst({
+      where: { isFactory: true },
+      select: { id: true },
+    });
+    if (!factory) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'No factory location found in the system');
+    }
+
+    // Atomic transaction: create trailer + generate all 12 workflow steps
+    const result = await this.prisma.$transaction(async (tx) => {
+      const trailer = await tx.trailer.create({
+        data: {
+          soNumber: dto.soNumber,
+          trailerModelId: dto.trailerModelId,
+          customerId: dto.customerId ? BigInt(dto.customerId) : null,
+          currentLocationId: factory.id,
+          createdByUserId,
+          color: dto.color ?? null,
+          sizeFt: dto.sizeFt ?? null,
+          optionsNotes: dto.optionsNotes ?? null,
+          isStockBuild: dto.isStockBuild ?? false,
+          qbSoId: dto.qbSoId ?? null,
+          status: TrailerStatus.pending_production,
+        },
+        select: TRAILER_DETAIL_SELECT,
+      });
+
+      const stepsSummary = await this.workflowGenerator.generateSteps(
+        trailer.id,
+        model.series,
+        tx,
+      );
+
+      return { trailer, stepsSummary };
+    });
+
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /trailers/:id — full detail
+  // ---------------------------------------------------------------------------
+  async findOne(id: bigint) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id },
+      select: {
+        ...TRAILER_DETAIL_SELECT,
+        productionSteps: {
+          select: {
+            id: true,
+            departmentId: true,
+            stepOrder: true,
+            status: true,
+            isRework: true,
+            reworkCount: true,
+            becameActiveAt: true,
+            completedAt: true,
+            department: { select: { id: true, code: true, displayName: true, isQcStep: true } },
+          },
+          orderBy: { stepOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    return trailer;
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id — update color, notes, status
+  // ---------------------------------------------------------------------------
+  async update(id: bigint, dto: UpdateTrailerDto) {
+    const existing = await this.prisma.trailer.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    const data: Prisma.TrailerUpdateInput = {};
+    if (dto.color !== undefined) data.color = dto.color;
+    if (dto.optionsNotes !== undefined) data.optionsNotes = dto.optionsNotes;
+    if (dto.status !== undefined) data.status = dto.status as TrailerStatus;
+
+    return this.prisma.trailer.update({
+      where: { id },
+      data,
+      select: TRAILER_DETAIL_SELECT,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/priority — set global_priority
+  // ---------------------------------------------------------------------------
+  async setPriority(id: bigint, dto: SetPriorityDto) {
+    const existing = await this.prisma.trailer.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    return this.prisma.trailer.update({
+      where: { id },
+      data: { globalPriority: dto.globalPriority },
+      select: TRAILER_DETAIL_SELECT,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/hot — toggle is_hot
+  // ---------------------------------------------------------------------------
+  async toggleHot(id: bigint, dto: ToggleHotDto) {
+    const existing = await this.prisma.trailer.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    return this.prisma.trailer.update({
+      where: { id },
+      data: { isHot: dto.isHot },
+      select: TRAILER_DETAIL_SELECT,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /trailers/:id/addons — add addon
+  // ---------------------------------------------------------------------------
+  async addAddon(trailerId: bigint, dto: CreateAddonDto) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id: trailerId },
+      select: { id: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
+    }
+
+    return this.prisma.trailerAddon.create({
+      data: {
+        trailerId,
+        addonName: dto.addonName,
+        notes: dto.notes ?? null,
+      },
+      select: { id: true, addonName: true, notes: true, addedAt: true },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE /trailers/:id/addons/:addon_id — remove addon
+  // ---------------------------------------------------------------------------
+  async removeAddon(trailerId: bigint, addonId: bigint) {
+    const addon = await this.prisma.trailerAddon.findFirst({
+      where: { id: addonId, trailerId },
+      select: { id: true },
+    });
+    if (!addon) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Addon with id ${addonId} not found on trailer ${trailerId}`);
+    }
+
+    await this.prisma.trailerAddon.delete({ where: { id: addonId } });
+    return { deleted: true };
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /trailers/:id/qb-pdf — attach QuickBooks SO PDF
+  // ---------------------------------------------------------------------------
+  async uploadQbPdf(trailerId: bigint, dto: UploadQbPdfDto) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id: trailerId },
+      select: { id: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
+    }
+
+    return this.prisma.trailer.update({
+      where: { id: trailerId },
+      data: {
+        qbSoPdfStorageKey: dto.storageKey,
+        qbSoPdfStorageUrl: dto.storageUrl,
+      },
+      select: TRAILER_DETAIL_SELECT,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /trailers/:id/steps — all production steps
+  // ---------------------------------------------------------------------------
+  async getSteps(trailerId: bigint) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id: trailerId },
+      select: { id: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
+    }
+
+    return this.prisma.productionStep.findMany({
+      where: { trailerId },
+      select: {
+        id: true,
+        departmentId: true,
+        stepOrder: true,
+        status: true,
+        queuePosition: true,
+        isRework: true,
+        reworkCount: true,
+        pointsAwarded: true,
+        becameActiveAt: true,
+        completedAt: true,
+        completedByUser: {
+          select: { id: true, fullName: true },
+        },
+        department: {
+          select: { id: true, code: true, displayName: true, isQcStep: true, completionType: true },
+        },
+      },
+      orderBy: { stepOrder: 'asc' },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /trailers/:id/history — full audit + QC + step history
+  // ---------------------------------------------------------------------------
+  async getHistory(trailerId: bigint) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id: trailerId },
+      select: { id: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
+    }
+
+    const [steps, qcInspections, auditLogs] = await this.prisma.$transaction([
+      this.prisma.productionStep.findMany({
+        where: { trailerId },
+        select: {
+          id: true,
+          stepOrder: true,
+          status: true,
+          isRework: true,
+          reworkCount: true,
+          becameActiveAt: true,
+          completedAt: true,
+          department: { select: { code: true, displayName: true, isQcStep: true } },
+          completedByUser: { select: { id: true, fullName: true } },
+          stepReversals: {
+            select: {
+              id: true,
+              reason: true,
+              reversedAt: true,
+              reversedByUser: { select: { id: true, fullName: true } },
+            },
+            orderBy: { reversedAt: 'desc' },
+          },
+        },
+        orderBy: { stepOrder: 'asc' },
+      }),
+      this.prisma.qcInspection.findMany({
+        where: { trailerId },
+        select: {
+          id: true,
+          result: true,
+          failNotes: true,
+          attemptNumber: true,
+          isFinalQc: true,
+          inspectedAt: true,
+          inspectorUser: { select: { id: true, fullName: true } },
+          reworkTargetDept: { select: { id: true, code: true, displayName: true } },
+          productionStep: {
+            select: { stepOrder: true, department: { select: { code: true } } },
+          },
+          photos: {
+            select: { id: true, storageUrl: true, takenAt: true },
+            orderBy: { takenAt: 'asc' },
+          },
+        },
+        orderBy: { inspectedAt: 'asc' },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { entityType: 'trailer', entityId: trailerId },
+        select: {
+          id: true,
+          action: true,
+          oldValues: true,
+          newValues: true,
+          createdAt: true,
+          user: { select: { id: true, fullName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    return { steps, qcInspections, auditLogs };
+  }
+}

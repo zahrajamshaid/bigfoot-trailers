@@ -1,0 +1,859 @@
+// =============================================================================
+// BIGFOOT TRAILERS — Prisma Schema v2
+// Converted from bigfoot_schema_final.sql (27 tables, 16 enums, 3 views)
+// PostgreSQL 15+ | Aligned to bigfoot_complete_workflows_v3.pdf
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS (16 total — exact match to PostgreSQL CREATE TYPE statements)
+// =============================================================================
+
+enum TrailerSeries {
+  xp
+  yeti
+  deck_over
+  gooseneck_dump
+
+  @@map("trailer_series_enum")
+}
+
+enum TrailerStatus {
+  pending_production
+  in_production
+  ready_for_delivery
+  in_transit
+  delivered
+  on_hold
+
+  @@map("trailer_status_enum")
+}
+
+enum DeliveryType {
+  factory_pickup
+  stack_to_dealer
+  stack_to_location
+  single_pull
+
+  @@map("delivery_type_enum")
+}
+
+enum DeliveryStatus {
+  scheduled
+  in_transit
+  delivered
+  failed
+
+  @@map("delivery_status_enum")
+}
+
+enum DeliveryBatchStatus {
+  building
+  scheduled
+  in_transit
+  complete
+
+  @@map("delivery_batch_status_enum")
+}
+
+enum ProductionStepStatus {
+  waiting
+  active
+  complete
+  rework
+
+  @@map("production_step_status_enum")
+}
+
+enum DeptCompletionType {
+  one_tap
+  qc_checklist
+
+  @@map("dept_completion_type_enum")
+}
+
+enum QcResult {
+  pass
+  fail
+
+  @@map("qc_result_enum")
+}
+
+enum UserRole {
+  owner
+  production_manager
+  transport_manager
+  qc_inspector
+  worker
+  sales
+  driver
+  office
+
+  @@map("user_role_enum")
+}
+
+enum CustomerType {
+  end_user
+  dealer
+  stock_location
+
+  @@map("customer_type_enum")
+}
+
+enum SmsType {
+  trailer_complete
+  driver_en_route
+  delivery_complete
+
+  @@map("sms_type_enum")
+}
+
+enum SmsStatus {
+  queued
+  sent
+  delivered
+  failed
+
+  @@map("sms_status_enum")
+}
+
+enum NotificationType {
+  qc_fail
+  trailer_stalled
+  worker_message
+  payment_not_collected
+
+  @@map("notification_type_enum")
+}
+
+enum BatchType {
+  dealer
+  bf_location
+
+  @@map("batch_type_enum")
+}
+
+enum PhotoType {
+  proof_of_delivery
+  damage
+
+  @@map("photo_type_enum")
+}
+
+enum PaymentMethod {
+  cashiers_check
+  debit
+  cash
+
+  @@map("payment_method_enum")
+}
+
+enum QcSeriesScope {
+  xp
+  yeti
+  deck_over
+  gooseneck_dump
+  all
+
+  @@map("qc_series_scope_enum")
+}
+
+// =============================================================================
+// SECTION 1: CORE — LOCATIONS, TRAILER MODELS, CUSTOMERS, TRAILERS
+// =============================================================================
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(100)
+  city      String   @db.VarChar(100)
+  state     String   @db.Char(2)
+  address   String?
+  isFactory Boolean  @default(false) @map("is_factory")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  trailers         Trailer[]
+  users            User[]
+  deliveryBatches  DeliveryBatch[]
+  deliveries       Delivery[]
+  locationReceipts LocationReceipt[]
+
+  @@map("locations")
+}
+
+model TrailerModel {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique @db.VarChar(30)
+  displayName  String        @map("display_name") @db.VarChar(100)
+  series       TrailerSeries
+  weightRating String?       @map("weight_rating") @db.VarChar(20)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  trailers    Trailer[]
+  pointValues PointValue[]
+
+  @@map("trailer_models")
+}
+
+model Customer {
+  id              BigInt       @id @default(autoincrement())
+  name            String       @db.VarChar(200)
+  company         String?      @db.VarChar(200)
+  smsPhone        String?      @map("sms_phone") @db.VarChar(20)
+  email           String?      @db.VarChar(200)
+  billingAddress  String?      @map("billing_address")
+  deliveryAddress String?      @map("delivery_address")
+  customerType    CustomerType @default(end_user) @map("customer_type")
+  smsOptOut       Boolean      @default(false) @map("sms_opt_out")
+  qbCustomerId    String?      @map("qb_customer_id") @db.VarChar(50)
+  notes           String?
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  trailers Trailer[]
+
+  @@map("customers")
+}
+
+model Trailer {
+  id                BigInt  @id @default(autoincrement())
+  soNumber          String  @unique @map("so_number") @db.VarChar(30)
+  vinNumber         String? @unique @map("vin_number") @db.VarChar(17)
+  trailerModelId    Int     @map("trailer_model_id")
+  customerId        BigInt? @map("customer_id")
+  currentLocationId Int     @map("current_location_id")
+  createdByUserId   BigInt  @map("created_by_user_id")
+
+  // Physical specs
+  color        String? @db.VarChar(60)
+  sizeFt       String? @map("size_ft") @db.VarChar(10)
+  optionsNotes String? @map("options_notes")
+
+  // QB integration
+  qbSoPdfStorageUrl String?   @map("qb_so_pdf_storage_url")
+  qbSoPdfStorageKey String?   @map("qb_so_pdf_storage_key") @db.VarChar(300)
+  qbSoId            String?   @map("qb_so_id") @db.VarChar(50)
+  qbInvoicedAt      DateTime? @map("qb_invoiced_at") @db.Timestamptz
+
+  // Status & workflow control
+  status         TrailerStatus @default(pending_production)
+  globalPriority Int           @default(9999) @map("global_priority")
+  isStockBuild   Boolean       @default(false) @map("is_stock_build")
+  isHot          Boolean       @default(false) @map("is_hot")
+  customerLocked Boolean       @default(false) @map("customer_locked")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  trailerModel      TrailerModel       @relation(fields: [trailerModelId], references: [id])
+  customer          Customer?          @relation(fields: [customerId], references: [id])
+  currentLocation   Location           @relation(fields: [currentLocationId], references: [id])
+  createdByUser     User               @relation("TrailerCreatedBy", fields: [createdByUserId], references: [id])
+  addons            TrailerAddon[]
+  productionSteps   ProductionStep[]
+  qcInspections     QcInspection[]
+  qcPhotos          QcPhoto[]
+  workerMessages    WorkerMessage[]
+  deliveries        Delivery[]
+  locationReceipts  LocationReceipt[]
+  smsLogs           SmsLog[]
+  pushNotifications PushNotification[]
+  stallAlerts       StallAlert[]
+
+  @@index([status, globalPriority, createdAt(sort: Desc)], map: "idx_trailers_status_priority")
+  @@index([customerId, status], map: "idx_trailers_customer_status")
+  @@index([currentLocationId, status], map: "idx_trailers_location_status")
+  @@index([isHot, status], map: "idx_trailers_hot_status")
+  @@index([trailerModelId], map: "idx_trailers_model")
+  @@map("trailers")
+}
+
+model TrailerAddon {
+  id        BigInt   @id @default(autoincrement())
+  trailerId BigInt   @map("trailer_id")
+  addonName String   @map("addon_name") @db.VarChar(150)
+  notes     String?
+  addedAt   DateTime @default(now()) @map("added_at") @db.Timestamptz
+
+  // Relations
+  trailer Trailer @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+
+  @@map("trailer_addons")
+}
+
+// =============================================================================
+// SECTION 2: PRODUCTION WORKFLOW
+// =============================================================================
+
+model Department {
+  id                  Int                @id @default(autoincrement())
+  code                String             @unique @db.VarChar(30)
+  displayName         String             @map("display_name") @db.VarChar(100)
+  isQcStep            Boolean            @default(false) @map("is_qc_step")
+  completionType      DeptCompletionType @default(one_tap) @map("completion_type")
+  stallThresholdHours Int                @default(48) @map("stall_threshold_hours")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  workflowTemplates WorkflowTemplate[]
+  productionSteps   ProductionStep[]
+  users             User[]
+  qcChecklistItems  QcChecklistItem[]
+  qcReworkTargets   QcInspection[]     @relation("ReworkTargetDept")
+  pointValues       PointValue[]
+  deptDollarRates   DeptDollarRate[]
+  payrollRecords    PayrollRecord[]
+  stallAlerts       StallAlert[]
+
+  @@map("departments")
+}
+
+model WorkflowTemplate {
+  id           Int           @id @default(autoincrement())
+  series       TrailerSeries
+  departmentId Int           @map("department_id")
+  stepOrder    Int           @map("step_order") @db.SmallInt
+
+  // Relations
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@unique([series, stepOrder])
+  @@map("workflow_templates")
+}
+
+model User {
+  id                  BigInt    @id @default(autoincrement())
+  email               String?   @unique @db.VarChar(200)
+  fullName            String    @map("full_name") @db.VarChar(150)
+  phone               String?   @db.VarChar(20)
+  passwordHash        String    @map("password_hash") @db.VarChar(255)
+  role                UserRole
+  primaryDepartmentId Int?      @map("primary_department_id")
+  primaryLocationId   Int?      @map("primary_location_id")
+  pushToken           String?   @map("push_token")
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  deactivatedAt       DateTime? @map("deactivated_at") @db.Timestamptz
+
+  // Relations
+  primaryDepartment Department?        @relation(fields: [primaryDepartmentId], references: [id])
+  primaryLocation   Location?          @relation(fields: [primaryLocationId], references: [id])
+  createdTrailers   Trailer[]          @relation("TrailerCreatedBy")
+  completedSteps    ProductionStep[]   @relation("StepCompletedBy")
+  stepReversals     StepReversal[]
+  sentMessages      WorkerMessage[]    @relation("MessageFrom")
+  receivedMessages  WorkerMessage[]    @relation("MessageTo")
+  qcInspections     QcInspection[]
+  payrollRecords    PayrollRecord[]
+  lockedPayrolls    PayrollRecord[]    @relation("PayrollLockedBy")
+  driverDeliveries  Delivery[]         @relation("DeliveryDriver")
+  createdDeliveries Delivery[]         @relation("DeliveryCreatedBy")
+  driverBatches     DeliveryBatch[]    @relation("BatchDriver")
+  createdBatches    DeliveryBatch[]    @relation("BatchCreatedBy")
+  locationReceipts  LocationReceipt[]
+  pushNotifications PushNotification[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  productionStepChecks ProductionStepCheck[]
+
+  @@index([role, isActive], map: "idx_users_role_active")
+  @@map("users")
+}
+
+model ProductionStep {
+  id                BigInt               @id @default(autoincrement())
+  trailerId         BigInt               @map("trailer_id")
+  departmentId      Int                  @map("department_id")
+  stepOrder         Int                  @map("step_order") @db.SmallInt
+  status            ProductionStepStatus @default(waiting)
+  queuePosition     Int?                 @map("queue_position")
+  completedByUserId BigInt?              @map("completed_by_user_id")
+
+  // Rework tracking
+  isRework    Boolean @default(false) @map("is_rework")
+  reworkCount Int     @default(0) @map("rework_count") @db.SmallInt
+
+  // Timestamps
+  becameActiveAt DateTime? @map("became_active_at") @db.Timestamptz
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz
+
+  // Payroll: 0 if is_rework = TRUE
+  pointsAwarded Decimal @default(0) @map("points_awarded") @db.Decimal(6, 2)
+
+  // Relations
+  trailer                 Trailer        @relation(fields: [trailerId], references: [id])
+  department              Department     @relation(fields: [departmentId], references: [id])
+  completedByUser         User?          @relation("StepCompletedBy", fields: [completedByUserId], references: [id])
+  qcInspections           QcInspection[] @relation("InspectionStep")
+  reworkedFromInspections QcInspection[] @relation("ReworkSentToStep")
+  stepReversals           StepReversal[]
+  stallAlerts             StallAlert[]
+  selfChecks              ProductionStepCheck[]
+
+  @@unique([trailerId, departmentId, stepOrder])
+  @@index([departmentId, status, queuePosition], map: "idx_production_steps_dept_status")
+  @@index([trailerId, stepOrder], map: "idx_production_steps_trailer")
+  @@map("production_steps")
+}
+
+model StepReversal {
+  id               BigInt   @id @default(autoincrement())
+  productionStepId BigInt   @map("production_step_id")
+  reversedByUserId BigInt   @map("reversed_by_user_id")
+  reason           String?
+  reversedAt       DateTime @default(now()) @map("reversed_at") @db.Timestamptz
+
+  // Relations
+  productionStep ProductionStep @relation(fields: [productionStepId], references: [id])
+  reversedByUser User           @relation(fields: [reversedByUserId], references: [id])
+
+  @@map("step_reversals")
+}
+
+/// Worker self-check recorded at step completion — one row per checklist item.
+/// Visible to the QC manager downstream for review (pass/fail decision).
+model ProductionStepCheck {
+  id                BigInt   @id @default(autoincrement())
+  productionStepId  BigInt   @map("production_step_id")
+  checklistItemId   Int      @map("checklist_item_id")
+  passed            Boolean
+  note              String?
+  checkedByUserId   BigInt   @map("checked_by_user_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  productionStep ProductionStep   @relation(fields: [productionStepId], references: [id], onDelete: Cascade)
+  checklistItem  QcChecklistItem  @relation(fields: [checklistItemId], references: [id])
+  checkedByUser  User             @relation(fields: [checkedByUserId], references: [id])
+
+  @@unique([productionStepId, checklistItemId])
+  @@index([productionStepId], map: "idx_production_step_checks_step")
+  @@map("production_step_checks")
+}
+
+model WorkerMessage {
+  id          BigInt   @id @default(autoincrement())
+  trailerId   BigInt   @map("trailer_id")
+  fromUserId  BigInt   @map("from_user_id")
+  toUserId    BigInt   @map("to_user_id")
+  messageText String   @map("message_text")
+  isRead      Boolean  @default(false) @map("is_read")
+  sentAt      DateTime @default(now()) @map("sent_at") @db.Timestamptz
+
+  // Relations
+  trailer  Trailer @relation(fields: [trailerId], references: [id])
+  fromUser User    @relation("MessageFrom", fields: [fromUserId], references: [id])
+  toUser   User    @relation("MessageTo", fields: [toUserId], references: [id])
+
+  @@map("worker_messages")
+}
+
+// =============================================================================
+// SECTION 3: QUALITY CONTROL
+// =============================================================================
+
+model QcChecklistItem {
+  id              Int           @id @default(autoincrement())
+  departmentId    Int           @map("department_id")
+  appliesToSeries QcSeriesScope @default(all) @map("applies_to_series")
+  itemLabel       String        @map("item_label") @db.VarChar(300)
+  sortOrder       Int           @default(0) @map("sort_order") @db.SmallInt
+  isActive        Boolean       @default(true) @map("is_active")
+  // NULL → always shown. "*" → shown when trailer has any addon. Otherwise → addon_name match.
+  requiresAddonKey String?      @map("requires_addon_key") @db.VarChar(60)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  department          Department            @relation(fields: [departmentId], references: [id])
+  checklistResults    QcChecklistResult[]
+  productionStepChecks ProductionStepCheck[]
+
+  @@index([requiresAddonKey], map: "idx_qc_checklist_items_addon_key")
+  @@map("qc_checklist_items")
+}
+
+model QcInspection {
+  id                 BigInt    @id @default(autoincrement())
+  productionStepId   BigInt    @map("production_step_id")
+  trailerId          BigInt    @map("trailer_id")
+  inspectorUserId    BigInt    @map("inspector_user_id")
+  result             QcResult
+  failNotes          String?   @map("fail_notes")
+  reworkTargetDeptId Int?      @map("rework_target_dept_id")
+  reworkSentToStepId BigInt?   @map("rework_sent_to_step_id")
+  attemptNumber      Int       @default(1) @map("attempt_number") @db.SmallInt
+  isFinalQc          Boolean   @default(false) @map("is_final_qc")
+  smsSentAt          DateTime? @map("sms_sent_at") @db.Timestamptz
+  inspectedAt        DateTime  @default(now()) @map("inspected_at") @db.Timestamptz
+
+  // Relations
+  productionStep   ProductionStep      @relation("InspectionStep", fields: [productionStepId], references: [id])
+  trailer          Trailer             @relation(fields: [trailerId], references: [id])
+  inspectorUser    User                @relation(fields: [inspectorUserId], references: [id])
+  reworkTargetDept Department?         @relation("ReworkTargetDept", fields: [reworkTargetDeptId], references: [id])
+  reworkSentToStep ProductionStep?     @relation("ReworkSentToStep", fields: [reworkSentToStepId], references: [id])
+  checklistResults QcChecklistResult[]
+  photos           QcPhoto[]
+
+  @@unique([productionStepId, attemptNumber])
+  @@index([trailerId, inspectedAt(sort: Desc)], map: "idx_qc_inspections_trailer_inspected")
+  @@map("qc_inspections")
+}
+
+model QcChecklistResult {
+  id              BigInt  @id @default(autoincrement())
+  qcInspectionId  BigInt  @map("qc_inspection_id")
+  checklistItemId Int     @map("checklist_item_id")
+  passed          Boolean
+  note            String?
+
+  // Relations
+  qcInspection  QcInspection    @relation(fields: [qcInspectionId], references: [id], onDelete: Cascade)
+  checklistItem QcChecklistItem @relation(fields: [checklistItemId], references: [id])
+
+  @@unique([qcInspectionId, checklistItemId])
+  @@map("qc_checklist_results")
+}
+
+model QcPhoto {
+  id             BigInt   @id @default(autoincrement())
+  qcInspectionId BigInt   @map("qc_inspection_id")
+  trailerId      BigInt   @map("trailer_id")
+  storageUrl     String   @map("storage_url")
+  storageKey     String   @map("storage_key") @db.VarChar(300)
+  sentToCustomer Boolean  @default(false) @map("sent_to_customer")
+  takenAt        DateTime @default(now()) @map("taken_at") @db.Timestamptz
+
+  // Relations
+  qcInspection QcInspection @relation(fields: [qcInspectionId], references: [id], onDelete: Cascade)
+  trailer      Trailer      @relation(fields: [trailerId], references: [id])
+
+  @@index([qcInspectionId, takenAt(sort: Desc)], map: "idx_qc_photos_inspection_taken")
+  @@map("qc_photos")
+}
+
+// =============================================================================
+// SECTION 4: PAYROLL & POINTS
+// =============================================================================
+
+model PointValue {
+  id             Int       @id @default(autoincrement())
+  trailerModelId Int       @map("trailer_model_id")
+  departmentId   Int       @map("department_id")
+  points         Decimal   @db.Decimal(6, 2)
+  effectiveFrom  DateTime  @map("effective_from") @db.Date
+  effectiveTo    DateTime? @map("effective_to") @db.Date
+
+  // Relations
+  trailerModel TrailerModel @relation(fields: [trailerModelId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+
+  @@unique([trailerModelId, departmentId, effectiveFrom])
+  @@map("point_values")
+}
+
+model DeptDollarRate {
+  id             Int       @id @default(autoincrement())
+  departmentId   Int       @map("department_id")
+  dollarPerPoint Decimal   @map("dollar_per_point") @db.Decimal(8, 4)
+  effectiveFrom  DateTime  @map("effective_from") @db.Date
+  effectiveTo    DateTime? @map("effective_to") @db.Date
+
+  // Relations
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@unique([departmentId, effectiveFrom])
+  @@map("dept_dollar_rates")
+}
+
+model PayrollRecord {
+  id                BigInt    @id @default(autoincrement())
+  userId            BigInt    @map("user_id")
+  departmentId      Int       @map("department_id")
+  weekStartDate     DateTime  @map("week_start_date") @db.Date
+  totalPoints       Decimal   @default(0) @map("total_points") @db.Decimal(10, 2)
+  trailersCompleted Int       @default(0) @map("trailers_completed")
+  grossPay          Decimal   @default(0) @map("gross_pay") @db.Decimal(10, 2)
+  isLocked          Boolean   @default(false) @map("is_locked")
+  lockedByUserId    BigInt?   @map("locked_by_user_id")
+  lockedAt          DateTime? @map("locked_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  user         User       @relation(fields: [userId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
+  lockedByUser User?      @relation("PayrollLockedBy", fields: [lockedByUserId], references: [id])
+
+  @@unique([userId, departmentId, weekStartDate])
+  @@map("payroll_records")
+}
+
+// =============================================================================
+// SECTION 5: DELIVERIES — ALL 4 TYPES
+// =============================================================================
+
+model DeliveryBatch {
+  id                    BigInt              @id @default(autoincrement())
+  batchNumber           String              @unique @map("batch_number") @db.VarChar(30)
+  driverUserId          BigInt?             @map("driver_user_id")
+  destinationLocationId Int?                @map("destination_location_id")
+  destinationName       String?             @map("destination_name") @db.VarChar(200)
+  batchType             BatchType           @map("batch_type")
+  status                DeliveryBatchStatus @default(building)
+  departedAt            DateTime?           @map("departed_at") @db.Timestamptz
+  completedAt           DateTime?           @map("completed_at") @db.Timestamptz
+  createdByUserId       BigInt              @map("created_by_user_id")
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  driverUser          User?      @relation("BatchDriver", fields: [driverUserId], references: [id])
+  destinationLocation Location?  @relation(fields: [destinationLocationId], references: [id])
+  createdByUser       User       @relation("BatchCreatedBy", fields: [createdByUserId], references: [id])
+  deliveries          Delivery[]
+
+  @@index([status, createdAt(sort: Desc)], map: "idx_delivery_batches_status_created")
+  @@index([driverUserId, status], map: "idx_delivery_batches_driver_status")
+  @@index([createdByUserId, createdAt(sort: Desc)], map: "idx_delivery_batches_creator")
+  @@map("delivery_batches")
+}
+
+model Delivery {
+  id                      BigInt         @id @default(autoincrement())
+  trailerId               BigInt         @map("trailer_id")
+  deliveryBatchId         BigInt?        @map("delivery_batch_id")
+  deliveryType            DeliveryType   @map("delivery_type")
+  driverUserId            BigInt?        @map("driver_user_id")
+  destinationLocationId   Int?           @map("destination_location_id")
+  customerDeliveryAddress String?        @map("customer_delivery_address")
+  balanceDue              Decimal?       @map("balance_due") @db.Decimal(10, 2)
+  paymentCollected        Decimal?       @map("payment_collected") @db.Decimal(10, 2)
+  paymentMethod           PaymentMethod? @map("payment_method")
+  status                  DeliveryStatus @default(scheduled)
+  tcAccepted              Boolean        @default(false) @map("tc_accepted")
+  tcAcceptedAt            DateTime?      @map("tc_accepted_at") @db.Timestamptz
+  signatureUrl            String?        @map("signature_url")
+  gpsLat                  Decimal?       @map("gps_lat") @db.Decimal(10, 7)
+  gpsLng                  Decimal?       @map("gps_lng") @db.Decimal(10, 7)
+  departedAt              DateTime?      @map("departed_at") @db.Timestamptz
+  deliveredAt             DateTime?      @map("delivered_at") @db.Timestamptz
+  failReason              String?        @map("fail_reason")
+  createdByUserId         BigInt         @map("created_by_user_id")
+  createdAt               DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  trailer             Trailer           @relation(fields: [trailerId], references: [id])
+  deliveryBatch       DeliveryBatch?    @relation(fields: [deliveryBatchId], references: [id])
+  driverUser          User?             @relation("DeliveryDriver", fields: [driverUserId], references: [id])
+  destinationLocation Location?         @relation(fields: [destinationLocationId], references: [id])
+  createdByUser       User              @relation("DeliveryCreatedBy", fields: [createdByUserId], references: [id])
+  locationReceipts    LocationReceipt[]
+  deliveryPhotos      DeliveryPhoto[]
+  smsLogs             SmsLog[]
+
+  @@index([trailerId], map: "idx_deliveries_trailer")
+  @@index([driverUserId, status], map: "idx_deliveries_driver")
+  @@index([status, deliveryType, createdAt(sort: Desc)], map: "idx_deliveries_status_type")
+  @@map("deliveries")
+}
+
+model LocationReceipt {
+  id               BigInt   @id @default(autoincrement())
+  deliveryId       BigInt   @map("delivery_id")
+  trailerId        BigInt   @map("trailer_id")
+  receivedByUserId BigInt   @map("received_by_user_id")
+  locationId       Int      @map("location_id")
+  notes            String?
+  receivedAt       DateTime @default(now()) @map("received_at") @db.Timestamptz
+
+  // Relations
+  delivery       Delivery @relation(fields: [deliveryId], references: [id])
+  trailer        Trailer  @relation(fields: [trailerId], references: [id])
+  receivedByUser User     @relation(fields: [receivedByUserId], references: [id])
+  location       Location @relation(fields: [locationId], references: [id])
+
+  @@unique([deliveryId, trailerId])
+  @@index([locationId, receivedAt(sort: Desc)], map: "idx_location_receipts_location_time")
+  @@map("location_receipts")
+}
+
+model DeliveryPhoto {
+  id         BigInt    @id @default(autoincrement())
+  deliveryId BigInt    @map("delivery_id")
+  storageUrl String    @map("storage_url")
+  storageKey String    @map("storage_key") @db.VarChar(300)
+  photoType  PhotoType @default(proof_of_delivery) @map("photo_type")
+  takenAt    DateTime  @default(now()) @map("taken_at") @db.Timestamptz
+
+  // Relations
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_photos")
+}
+
+// =============================================================================
+// SECTION 6: COMMS & ALERTS
+// =============================================================================
+
+model SmsLog {
+  id             BigInt    @id @default(autoincrement())
+  trailerId      BigInt?   @map("trailer_id")
+  deliveryId     BigInt?   @map("delivery_id")
+  recipientPhone String    @map("recipient_phone") @db.VarChar(20)
+  smsType        SmsType   @map("sms_type")
+  messageBody    String    @map("message_body")
+  twilioSid      String?   @map("twilio_sid") @db.VarChar(50)
+  status         SmsStatus @default(queued)
+  sentAt         DateTime  @default(now()) @map("sent_at") @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  trailer  Trailer?  @relation(fields: [trailerId], references: [id])
+  delivery Delivery? @relation(fields: [deliveryId], references: [id])
+
+  @@index([trailerId, sentAt(sort: Desc)], map: "idx_sms_log_trailer_sent")
+  @@index([deliveryId, sentAt(sort: Desc)], map: "idx_sms_log_delivery_sent")
+  @@map("sms_log")
+}
+
+model PushNotification {
+  id               BigInt           @id @default(autoincrement())
+  recipientUserId  BigInt           @map("recipient_user_id")
+  trailerId        BigInt?          @map("trailer_id")
+  notificationType NotificationType @map("notification_type")
+  title            String           @db.VarChar(200)
+  body             String
+  isRead           Boolean          @default(false) @map("is_read")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  recipientUser User     @relation(fields: [recipientUserId], references: [id])
+  trailer       Trailer? @relation(fields: [trailerId], references: [id])
+
+  @@index([recipientUserId, isRead, createdAt(sort: Desc)], map: "idx_push_notifications_user")
+  @@map("push_notifications")
+}
+
+model StallAlert {
+  id               BigInt    @id @default(autoincrement())
+  trailerId        BigInt    @map("trailer_id")
+  productionStepId BigInt    @map("production_step_id")
+  departmentId     Int       @map("department_id")
+  hoursStalled     Decimal   @map("hours_stalled") @db.Decimal(6, 1)
+  alertedAt        DateTime  @default(now()) @map("alerted_at") @db.Timestamptz
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz
+
+  // Relations
+  trailer        Trailer        @relation(fields: [trailerId], references: [id])
+  productionStep ProductionStep @relation(fields: [productionStepId], references: [id])
+  department     Department     @relation(fields: [departmentId], references: [id])
+
+  @@map("stall_alerts")
+}
+
+// =============================================================================
+// SECTION 7: AUTH & AUDIT
+// =============================================================================
+
+model RefreshToken {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @map("user_id")
+  tokenHash   String    @unique @map("token_hash") @db.VarChar(255)
+  deviceLabel String?   @map("device_label") @db.VarChar(100)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt], map: "idx_refresh_tokens_user_active")
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt?  @map("user_id")
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   BigInt   @map("entity_id")
+  action     String   @db.VarChar(100)
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.Inet
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId, createdAt(sort: Desc)], map: "idx_audit_log_entity")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_audit_log_user")
+  @@map("audit_log")
+}
+
+// =============================================================================
+// VIEWS (documented as comments — Prisma does not natively support views)
+// These are created via raw SQL in the migration.
+// =============================================================================
+//
+// VIEW: dept_active_queue
+// ───────────────────────
+// SELECT ps.id AS step_id, ps.trailer_id, t.so_number, t.global_priority,
+//        ps.department_id, d.display_name AS department, tm.display_name AS model_name,
+//        tm.series, t.color, t.size_ft, c.name AS customer_name, ps.queue_position,
+//        ps.became_active_at, ps.rework_count, ps.is_rework,
+//        EXTRACT(EPOCH FROM (now() - ps.became_active_at))/3600 AS hours_in_queue
+// FROM production_steps ps
+// JOIN trailers t ON t.id = ps.trailer_id
+// JOIN departments d ON d.id = ps.department_id
+// JOIN trailer_models tm ON tm.id = t.trailer_model_id
+// LEFT JOIN customers c ON c.id = t.customer_id
+// WHERE ps.status = 'active'
+// ORDER BY t.global_priority ASC, ps.queue_position ASC;
+//
+// VIEW: weekly_production_view
+// ────────────────────────────
+// SELECT ps.id AS step_id, t.so_number, tm.display_name AS model, tm.series,
+//        u.full_name AS worker_name, d.display_name AS department,
+//        ps.points_awarded, ddr.dollar_per_point,
+//        ROUND(ps.points_awarded * COALESCE(ddr.dollar_per_point, 0), 2) AS dollars_earned,
+//        ps.completed_at,
+//        (date_trunc('week', (ps.completed_at AT TIME ZONE 'America/New_York') + INTERVAL '1 day')
+//         - INTERVAL '1 day')::DATE AS week_start
+// FROM production_steps ps
+// JOIN trailers t ON t.id = ps.trailer_id
+// JOIN trailer_models tm ON tm.id = t.trailer_model_id
+// JOIN users u ON u.id = ps.completed_by_user_id
+// JOIN departments d ON d.id = ps.department_id
+// LEFT JOIN dept_dollar_rates ddr ON ddr.department_id = ps.department_id
+//   AND ddr.effective_from <= ps.completed_at::DATE
+//   AND (ddr.effective_to IS NULL OR ddr.effective_to >= ps.completed_at::DATE)
+// WHERE ps.status = 'complete' AND ps.is_rework = FALSE
+// ORDER BY ps.completed_at DESC;
+//
+// VIEW: inventory_view
+// ────────────────────
+// SELECT t.id, t.so_number, t.vin_number, tm.display_name AS model, tm.series,
+//        t.color, t.size_ft, t.options_notes, t.status, t.global_priority,
+//        l.name AS location_name, l.code AS location_code,
+//        c.name AS customer_name, c.customer_type,
+//        t.is_stock_build, t.is_hot, t.customer_locked, t.qb_invoiced_at, t.created_at
+// FROM trailers t
+// JOIN trailer_models tm ON tm.id = t.trailer_model_id
+// JOIN locations l ON l.id = t.current_location_id
+// LEFT JOIN customers c ON c.id = t.customer_id
+// ORDER BY l.code, t.global_priority;

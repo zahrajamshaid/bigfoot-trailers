@@ -1,0 +1,98 @@
+# =============================================================================
+# Bigfoot Mobile (Flutter) — gitignore
+# =============================================================================
+
+# ---- Miscellaneous ----
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# ---- IntelliJ / Android Studio ----
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# ---- VSCode (uncomment if you don't want to share launch configs) ----
+# .vscode/
+
+# ---- Flutter / Dart / Pub ----
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+build/
+.packages
+
+# ---- Symbolication / obfuscation ----
+app.*.symbols
+app.*.map.json
+
+# ---- Android ----
+/android/app/debug
+/android/app/profile
+/android/app/release
+android/.gradle/
+android/.kotlin/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/key.properties
+android/app/upload-keystore.jks
+android/app/*.jks
+android/app/*.keystore
+
+# ---- iOS ----
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+ios/Runner/GeneratedPluginRegistrant.*
+
+# ---- macOS / Linux / Windows desktop builds ----
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Runner.xcworkspace/xcuserdata/
+macos/Runner.xcodeproj/xcuserdata/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# ---- Web ----
+/web/.dart_tool/
+
+# ---- Coverage ----
+coverage/
+
+# ---- Environment & secrets (belt-and-suspenders) ----
+.env
+.env.*
+!.env.example
+*serviceAccount*.json
+*service-account*.json
+*firebase-adminsdk*.json
+*.pem
+*.p12
+*.p8
+
+# ---- OS ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini

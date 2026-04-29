@@ -1,0 +1,71 @@
+# =============================================================================
+# Bigfoot Trailers API — gitignore
+# =============================================================================
+
+# ---- Dependencies ----
+node_modules/
+.pnp/
+.pnp.js
+.yarn/cache
+.yarn/install-state.gz
+
+# ---- Build output ----
+dist/
+build/
+*.tsbuildinfo
+
+# ---- Environment & secrets ----
+.env
+.env.*
+!.env.example
+
+# Service account / credential files (defence in depth)
+*serviceAccount*.json
+*service-account*.json
+*firebase-adminsdk*.json
+*.pem
+*.key
+*.p12
+*.p8
+
+# ---- Prisma generated client ----
+/generated/
+node_modules/.prisma/
+
+# ---- Coverage / test output ----
+coverage/
+.nyc_output/
+
+# ---- Logs ----
+*.log
+*log.txt
+start_log.txt
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# ---- Local DB files (just in case) ----
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# ---- IDE / editor ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---- Misc ----
+.cache/
+tmp/
+temp/

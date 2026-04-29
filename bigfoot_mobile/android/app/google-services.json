@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "563599327933",
+    "project_id": "bigfoot-trailers-a9911",
+    "storage_bucket": "bigfoot-trailers-a9911.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:563599327933:android:3c1e17a4ee640492d0add4",
+        "android_client_info": {
+          "package_name": "com.bigfoottrailers.bigfoot_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTTA50xSUXdpLFi8toZJwbJW0rr_el87Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

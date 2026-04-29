@@ -1,0 +1,71 @@
+name: bigfoot_mobile
+description: "Bigfoot Trailers — Production Management System"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.7
+
+  # Navigation
+  go_router: ^15.1.2
+
+  # Networking
+  dio: ^5.8.0
+  socket_io_client: ^3.0.2
+
+  # Secure storage
+  flutter_secure_storage: ^9.2.4
+
+  # JSON serialization
+  json_annotation: ^4.9.0
+  freezed_annotation: ^3.0.0
+
+  # Image handling
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+
+  # Internationalization / date formatting
+  intl: ^0.20.2
+
+  # UI utilities
+  flutter_slidable: ^4.0.0
+  connectivity_plus: ^6.1.4
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  image: ^4.5.4
+  permission_handler: ^12.0.0+1
+  geolocator: ^14.0.2
+  photo_view: ^0.15.0
+  flutter_pdfview: ^1.4.0
+  share_plus: ^11.1.0
+  uuid: ^4.5.1
+  file_picker: ^8.1.2
+
+  # Shared preferences (remember email, etc.)
+  shared_preferences: ^2.5.3
+
+  # Push notifications
+  firebase_core: ^3.15.2
+  firebase_messaging: ^15.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.15
+  json_serializable: ^6.9.5
+  freezed: ^3.0.6
+
+flutter:
+  uses-material-design: true

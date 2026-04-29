@@ -1,0 +1,20 @@
+# =============================================================================
+# Bigfoot Trailers — workspace root gitignore
+#
+# Strategy: whitelist. Ignore EVERYTHING at the root by default, then
+# explicitly allow only the two project folders we want on GitHub.
+# This guarantees no stray .env, log, docx, pptx, node_modules, .claude
+# folder, or other workspace clutter ever ends up in version control.
+# =============================================================================
+
+# Step 1 — ignore every entry at the repo root.
+/*
+
+# Step 2 — explicitly allow what we want.
+!/.gitignore
+!/.gitattributes
+!/bigfoot-api
+!/bigfoot_mobile
+
+# Note: each subproject ships its own .gitignore for its internals
+# (node_modules, build outputs, .env files, secrets, etc.).

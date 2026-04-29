@@ -1,0 +1,110 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+  ParseIntPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
+import { UsersService } from './users.service';
+import { CreateUserDto, UpdateUserDto, QueryUsersDto } from './dto';
+import { Roles, UserRole } from '../../common/decorators/roles.decorator';
+import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+
+@ApiTags('Users')
+@ApiBearerAuth('JWT')
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  // ---------------------------------------------------------------------------
+  // GET /users — owner and production_manager only
+  // ---------------------------------------------------------------------------
+  @Get()
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({ summary: 'List all users with pagination and filters' })
+  @ApiResponse({ status: 200, description: 'Paginated user list' })
+  @ApiResponse({ status: 403, description: 'Forbidden — insufficient role' })
+  async findAll(@Query() query: QueryUsersDto) {
+    return this.usersService.findAll(query);
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /users — owner + production_manager
+  // ---------------------------------------------------------------------------
+  @Post()
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new user (owner or production manager)' })
+  @ApiResponse({ status: 201, description: 'User created' })
+  @ApiResponse({ status: 409, description: 'Email already exists' })
+  @ApiResponse({ status: 403, description: 'Forbidden — insufficient role' })
+  async create(@Body() dto: CreateUserDto) {
+    return this.usersService.create(dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /users/:id
+  // ---------------------------------------------------------------------------
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a single user by ID' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'User detail with department and location' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.findOne(BigInt(id));
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /users/:id — owner can update everything, self can update limited fields
+  // ---------------------------------------------------------------------------
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update user details (owner: all fields, self: name/phone/password)' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'User updated' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'Email conflict' })
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() requester: JwtPayload,
+  ) {
+    return this.usersService.update(
+      BigInt(id),
+      dto,
+      BigInt(requester.sub),
+      requester.role,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE /users/:id — soft-delete, owner only
+  // ---------------------------------------------------------------------------
+  @Delete(':id')
+  @Roles(UserRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Deactivate a user (soft-delete, owner only)' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'User deactivated' })
+  @ApiResponse({ status: 403, description: 'Forbidden — cannot delete last owner or self' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async softDelete(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() requester: JwtPayload,
+  ) {
+    return this.usersService.softDelete(BigInt(id), BigInt(requester.sub));
+  }
+}
