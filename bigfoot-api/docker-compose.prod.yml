@@ -15,7 +15,8 @@ services:
 
   redis:
     ports: !reset []         # do NOT expose Redis to the public internet
-    command: ['redis-server', '--requirepass', '${REDIS_PASSWORD}']
+    # No password — the app's Redis client doesn't pass one, and the port
+    # is not bound to the host. Internal Docker network only.
 
   api:
     ports: !override
