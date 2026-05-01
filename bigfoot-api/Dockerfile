@@ -29,15 +29,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
 
-# Copy build output and Prisma artifacts
+# Copy build output. Prisma client + CLI come from `npm ci` above (both are
+# in dependencies), so no manual node_modules copying is needed.
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
-# Copy Prisma CLI from builder so the entrypoint can run `prisma db push`
-# (prisma is a devDependency so --omit=dev would otherwise drop it)
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 # Schema, sql-patches, and Prisma 7 config file
 COPY --from=builder /app/prisma ./prisma
