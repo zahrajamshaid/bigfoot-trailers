@@ -5,7 +5,7 @@ echo "→ Pushing Prisma schema to database..."
 # The project uses prisma db push + raw SQL patches (no migration files).
 # --accept-data-loss is required only when columns are dropped; safe on a
 # fresh DB and on additive schema changes.
-npx prisma db push --skip-generate --accept-data-loss
+npx prisma db push --accept-data-loss
 
 # Apply any one-off SQL patches that aren't in the Prisma schema (indexes,
 # trigger functions, addon keys, etc.). Idempotent if patches use IF NOT EXISTS.
