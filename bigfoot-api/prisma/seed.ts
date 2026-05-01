@@ -1074,13 +1074,14 @@ async function main() {
   }
   console.log(`✅ Dev users seeded: ${devUserData.length} (password: ${DEV_PASSWORD})`);
 
-  // ─── DEPARTMENT USERS — one worker/inspector per department (20 rows) ─────
+  // ─── DEPARTMENT USERS — one worker per production department (14 rows) ───
   // Covers all 14 production departments across the 4 trailer series (XP, Yeti,
-  // Deck Over, Gooseneck/Dump) plus all 6 QC departments. Same password as
-  // other dev accounts: Dev1234!
+  // Deck Over, Gooseneck/Dump). QC is intentionally a single inspector
+  // (qc@bigfoot.dev above) who owns all 6 QC departments — not one per dept.
+  // Same password as other dev accounts: Dev1234!
   //
   // Email format: <dept_code_lowercase>@bigfoot.dev
-  // e.g. xp_jig@bigfoot.dev, qc_1@bigfoot.dev, final_qc@bigfoot.dev
+  // e.g. xp_jig@bigfoot.dev, paint_prep@bigfoot.dev
   const deptUserData: {
     deptCode: string;
     fullName: string;
@@ -1105,13 +1106,6 @@ async function main() {
     { deptCode: 'HYDRAULICS', fullName: 'Hydraulics Technician', role: UserRole.worker },
     { deptCode: 'WIRE', fullName: 'Wire Technician', role: UserRole.worker },
     { deptCode: 'WOOD', fullName: 'Wood Installer', role: UserRole.worker },
-    // QC departments
-    { deptCode: 'QC_1', fullName: 'QC 1 Inspector', role: UserRole.qc_inspector },
-    { deptCode: 'QC_2', fullName: 'QC 2 Inspector', role: UserRole.qc_inspector },
-    { deptCode: 'QC_3', fullName: 'QC 3 Inspector', role: UserRole.qc_inspector },
-    { deptCode: 'QC_4', fullName: 'QC 4 Inspector', role: UserRole.qc_inspector },
-    { deptCode: 'QC_5', fullName: 'QC 5 Inspector', role: UserRole.qc_inspector },
-    { deptCode: 'FINAL_QC', fullName: 'Final QC Inspector', role: UserRole.qc_inspector },
   ];
 
   for (const u of deptUserData) {
