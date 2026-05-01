@@ -18,7 +18,7 @@ services:
     command: ['redis-server', '--requirepass', '${REDIS_PASSWORD}']
 
   api:
-    ports: !reset
+    ports: !override
       - '127.0.0.1:3000:3000'   # bind only to localhost; Caddy proxies in
     environment:
       NODE_ENV: production
