@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -26,6 +27,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   StreamSubscription<WsEvent>? _eventSub;
   WsClient? _wsClient;
+  DateTime? _lastBackPress;
 
   @override
   void didChangeDependencies() {
@@ -60,8 +62,13 @@ class _AppShellState extends State<AppShell> {
 
             final r = context.responsive;
             final useRail = r.isTablet && tabs.length > 1;
-            final useDrawer = !useRail && tabs.length > 5;
-            final useBottom = !useRail && !useDrawer && tabs.length > 1;
+            // On phones, always show BOTH a drawer (hamburger menu, full tab list)
+            // AND a bottom navigation bar (top 5 tabs) — per UX request, mobiles
+            // get both. The drawer is the source of truth when there are >5 tabs.
+            final useDrawer = !useRail && tabs.length > 1;
+            final useBottom = !useRail && tabs.length > 1;
+            // Material Design caps bottom nav at 5 destinations.
+            final bottomTabs = tabs.length > 5 ? tabs.take(5).toList() : tabs;
 
             // Wrap routed content in a centred max-width container on tablet+
             // so forms/lists don't stretch ugly across wide screens. On phones
@@ -83,7 +90,10 @@ class _AppShellState extends State<AppShell> {
               ],
             );
 
-            return Scaffold(
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) => _handleBackPress(context),
+              child: Scaffold(
               drawer: useDrawer ? _NavDrawer(tabs: tabs, currentIndex: currentIndex) : null,
               appBar: AppBar(
                 titleSpacing: 12,
@@ -179,11 +189,11 @@ class _AppShellState extends State<AppShell> {
                   : body,
               bottomNavigationBar: useBottom
                   ? NavigationBar(
-                      selectedIndex: currentIndex.clamp(0, tabs.length - 1),
-                      onDestinationSelected: (index) => context.go(tabs[index].path),
+                      selectedIndex: currentIndex.clamp(0, bottomTabs.length - 1),
+                      onDestinationSelected: (index) => context.go(bottomTabs[index].path),
                       labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
                       height: 64,
-                      destinations: tabs
+                      destinations: bottomTabs
                           .map(
                             (tab) => NavigationDestination(
                               icon: Icon(tab.icon),
@@ -194,11 +204,44 @@ class _AppShellState extends State<AppShell> {
                           .toList(),
                     )
                   : null,
+            ),
             );
           },
         );
       },
     );
+  }
+
+  /// System back-button handler.
+  /// - On any tab other than /dashboard: navigate to /dashboard.
+  /// - On /dashboard: require a second back press within 2s to exit (so users
+  ///   don't accidentally lose the app).
+  Future<void> _handleBackPress(BuildContext context) async {
+    final location = GoRouterState.of(context).matchedLocation;
+
+    // If we're not on the dashboard, go there first.
+    if (!location.startsWith('/dashboard')) {
+      context.go('/dashboard');
+      return;
+    }
+
+    // Already on dashboard — double-tap to exit.
+    final now = DateTime.now();
+    if (_lastBackPress == null ||
+        now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Press back again to exit'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+    SystemNavigator.pop();
   }
 
   void _onWsEvent(WsEvent event) {

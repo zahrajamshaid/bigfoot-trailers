@@ -32,10 +32,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             role: _role,
             isActive: _isActive,
             page: 1,
-            limit: 200,
+            limit: 500,
           );
       if (!mounted) return;
-      setState(() => _users = result.users);
+      // Newest first so a freshly-created user is at the top of the list.
+      final sorted = [...result.users]..sort((a, b) => b.id.compareTo(a.id));
+      setState(() => _users = sorted);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -223,7 +225,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       isScrollControlled: true,
       builder: (_) => const _UserEditorSheet(),
     );
-    if (result == true && mounted) _load();
+    if (result == true && mounted) {
+      // Clear any active filters/search so the new user is guaranteed to be
+      // visible after the refresh (otherwise the list looks "broken").
+      setState(() {
+        _search = '';
+        _role = null;
+        _isActive = null;
+      });
+      _load();
+    }
   }
 
   Future<void> _openEdit(User user) async {

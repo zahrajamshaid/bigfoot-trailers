@@ -147,8 +147,40 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
     );
   }
 
-  Future<void> _captureFromCamera() async => _addCaptured(await _cameraService.takePhoto());
-  Future<void> _pickFromGallery() async => _addCaptured(await _cameraService.pickFromGallery());
+  Future<void> _captureFromCamera() async {
+    try {
+      _addCaptured(await _cameraService.takePhoto());
+    } on CameraPermissionDeniedException catch (e) {
+      _showError('Camera permission denied. Enable it in Settings → Apps → Bigfoot.');
+      debugPrint('takePhoto permission error: $e');
+    } catch (e) {
+      _showError('Could not open camera: $e');
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    try {
+      _addCaptured(await _cameraService.pickFromGallery());
+    } on CameraPermissionDeniedException catch (e) {
+      _showError('Gallery permission denied. Enable Photos access in Settings.');
+      debugPrint('pickFromGallery permission error: $e');
+    } catch (e) {
+      _showError('Could not open gallery: $e');
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
 
   Future<void> _addCaptured(CapturedPhoto? photo) async {
     if (photo == null) return;
