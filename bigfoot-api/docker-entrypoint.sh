@@ -14,10 +14,10 @@ if [ -d /app/prisma/sql-patches ] && [ -n "$(ls -A /app/prisma/sql-patches 2>/de
   for patch in /app/prisma/sql-patches/*.sql; do
     [ -e "$patch" ] || continue
     echo "  - $(basename "$patch")"
-    npx prisma db execute --file "$patch" --schema /app/prisma/schema.prisma || \
+    npx prisma db execute --file "$patch" || \
       echo "  ! patch $(basename "$patch") failed (may already be applied) — continuing"
   done
 fi
 
 echo "→ Starting Bigfoot API..."
-exec node dist/main
+exec node dist/src/main
