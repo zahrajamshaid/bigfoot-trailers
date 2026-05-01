@@ -71,8 +71,8 @@ export class StorageService implements OnModuleInit {
   onModuleInit() {
     const endpoint = this.configService.get<string>('DO_SPACES_ENDPOINT');
     const region = this.configService.get<string>('DO_SPACES_REGION', 'us-east-1');
-    const accessKeyId = this.configService.get<string>('DO_SPACES_KEY');
-    const secretAccessKey = this.configService.get<string>('DO_SPACES_SECRET');
+    const accessKeyId = this.configService.get<string>('DO_SPACES_ACCESS_KEY');
+    const secretAccessKey = this.configService.get<string>('DO_SPACES_SECRET_KEY');
     this.bucket = this.configService.get<string>('DO_SPACES_BUCKET', 'bigfoot-storage');
     this.cdnBaseUrl = this.configService.get<string>('DO_SPACES_CDN_URL', '');
 
