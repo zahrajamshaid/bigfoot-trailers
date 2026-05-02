@@ -17,6 +17,7 @@ class QueueItem {
   final String? customerName;
   final String? optionsNotes;
   final String? qbSoPdfUrl;
+  final String? qbSoPdfStorageKey;
   final bool isHot;
   final bool isRework;
   final int reworkCount;
@@ -37,6 +38,7 @@ class QueueItem {
     this.customerName,
     this.optionsNotes,
     this.qbSoPdfUrl,
+    this.qbSoPdfStorageKey,
     this.isHot = false,
     this.isRework = false,
     this.reworkCount = 0,

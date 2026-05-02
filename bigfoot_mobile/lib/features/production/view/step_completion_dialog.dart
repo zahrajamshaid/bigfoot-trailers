@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/router/route_names.dart';
 import '../../../data/models/queue_item.dart';
 import '../../../domain/repositories/production_repository.dart';
 import '../viewmodel/production_viewmodel.dart';
+import '../../../shared/widgets/pdf_viewer_screen.dart';
 import '../../../shared/widgets/status_badge.dart';
 
 /// Full-screen confirmation dialog for completing a production step.
@@ -264,6 +268,39 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                         _DetailRow(label: 'Size', value: '${item.size}ft'),
                       if (item.optionsNotes != null && item.optionsNotes!.isNotEmpty)
                         _DetailRow(label: 'Notes', value: item.optionsNotes!),
+                      if (item.qbSoPdfStorageKey != null) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => context.pushNamed(
+                                  RouteNames.pdfViewer,
+                                  extra: PdfViewerArgs(
+                                    storageKey: item.qbSoPdfStorageKey!,
+                                    title: '${item.soNumber} — QB Sales Order',
+                                  ),
+                                ),
+                                icon: const Icon(Icons.picture_as_pdf_outlined),
+                                label: const Text('View QB Sales Order'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => context.go('/trailers/${item.trailerId}'),
+                              icon: const Icon(Icons.info_outline),
+                              label: const Text('Full Details'),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => context.go('/trailers/${item.trailerId}'),
+                          icon: const Icon(Icons.info_outline),
+                          label: const Text('View full trailer details'),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -212,8 +212,12 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
         storageUrl: downloadUrl,
       );
       return null;
-    } catch (_) {
-      return 'upload failed';
+    } on ApiException catch (e) {
+      debugPrint('uploadQbPdf API error: ${e.code} ${e.displayMessage}');
+      return e.displayMessage;
+    } catch (e, stack) {
+      debugPrint('uploadQbPdf unexpected error: $e\n$stack');
+      return e.toString();
     }
   }
 

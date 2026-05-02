@@ -609,6 +609,7 @@ export class ProductionService {
         customerName: step.trailer.customer?.name ?? null,
         optionsNotes: step.trailer.optionsNotes,
         qbSoPdfUrl: step.trailer.qbSoPdfStorageUrl,
+        qbSoPdfStorageKey: step.trailer.qbSoPdfStorageKey,
         isHot: step.trailer.isHot,
         isRework: step.isRework,
         reworkCount: step.reworkCount,
