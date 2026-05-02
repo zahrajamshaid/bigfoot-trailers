@@ -317,6 +317,44 @@ export class TrailersService {
   }
 
   // ---------------------------------------------------------------------------
+  // DELETE /trailers/:id — owner only
+  //
+  // Trailer has many child records, most of which DO NOT cascade in the
+  // schema (see schema.prisma). We delete them manually inside a transaction
+  // so a partial delete can never leave orphaned rows.
+  // ---------------------------------------------------------------------------
+  async deleteTrailer(trailerId: bigint) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id: trailerId },
+      select: { id: true, soNumber: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Delete in dependency order — children first.
+      await tx.stallAlert.deleteMany({ where: { trailerId } });
+      await tx.pushNotification.deleteMany({ where: { trailerId } });
+      await tx.smsLog.deleteMany({ where: { trailerId } });
+      await tx.locationReceipt.deleteMany({ where: { trailerId } });
+      // Deliveries have their own cascade-delete children (signatures, photos)
+      // because Delivery FK on those tables uses onDelete: Cascade.
+      await tx.delivery.deleteMany({ where: { trailerId } });
+      await tx.workerMessage.deleteMany({ where: { trailerId } });
+      await tx.qcPhoto.deleteMany({ where: { trailerId } });
+      // QcInspection has cascading children (qc_inspection_items, qc_step_*)
+      await tx.qcInspection.deleteMany({ where: { trailerId } });
+      // ProductionStep has cascading qc inspections too — by now those are gone
+      await tx.productionStep.deleteMany({ where: { trailerId } });
+      // Addons cascade automatically (FK onDelete: Cascade)
+      await tx.trailer.delete({ where: { id: trailerId } });
+    });
+
+    return { deleted: true, soNumber: trailer.soNumber };
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /trailers/:id/qb-pdf — attach QuickBooks SO PDF
   // ---------------------------------------------------------------------------
   async uploadQbPdf(trailerId: bigint, dto: UploadQbPdfDto) {

@@ -36,6 +36,10 @@ abstract class TrailerRepository {
     required String storageKey,
     required String storageUrl,
   });
+
+  /// Permanently delete a trailer and all related records.
+  /// Owner role only — backend rejects 403 otherwise.
+  Future<void> deleteTrailer(int id);
 }
 
 class TrailerListResult {

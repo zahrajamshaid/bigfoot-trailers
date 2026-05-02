@@ -145,4 +145,9 @@ class TrailerRepositoryImpl implements TrailerRepository {
       data: {'storageKey': storageKey, 'storageUrl': storageUrl},
     );
   }
+
+  @override
+  Future<void> deleteTrailer(int id) async {
+    await _api.delete(ApiEndpoints.trailer(id));
+  }
 }

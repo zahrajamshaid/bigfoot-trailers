@@ -15,6 +15,7 @@ class AuditLogScreen extends StatefulWidget {
 
 class _AuditLogScreenState extends State<AuditLogScreen> {
   bool _loading = true;
+  String? _error;
   String? _entityType;
   final TextEditingController _userId = TextEditingController();
   int _page = 1;
@@ -34,7 +35,10 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final result = await context.read<AdminViewModel>().getAuditLogs(
             entityType: _entityType,
@@ -46,6 +50,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       setState(() {
         _items = result.items;
         _totalPages = result.totalPages;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _items = const [];
+        _totalPages = 1;
+        _error = 'Failed to load audit log: $e';
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -70,10 +81,12 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
+                    // Values must match what the audit-log interceptor stores
+                    // — see audit-log.interceptor.ts (path → entity_type).
                     items: const [
                       DropdownMenuItem(value: null, child: Text('All')),
                       DropdownMenuItem(value: 'trailer', child: Text('Trailer')),
-                      DropdownMenuItem(value: 'production_step', child: Text('Production Step')),
+                      DropdownMenuItem(value: 'step', child: Text('Production Step')),
                       DropdownMenuItem(value: 'qc_inspection', child: Text('QC Inspection')),
                       DropdownMenuItem(value: 'delivery', child: Text('Delivery')),
                       DropdownMenuItem(value: 'payroll', child: Text('Payroll')),
@@ -111,6 +124,49 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             const Expanded(
               child: Center(
                 child: CircularProgressIndicator(color: AppColors.amber),
+              ),
+            )
+          else if (_error != null)
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          size: 48, color: AppColors.error),
+                      const SizedBox(height: 12),
+                      Text(_error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      OutlinedButton(onPressed: _load, child: const Text('Retry')),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (_items.isEmpty)
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+                  children: const [
+                    Icon(Icons.history, size: 48, color: AppColors.disabled),
+                    SizedBox(height: 12),
+                    Text(
+                      'No audit log entries match these filters.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.disabled),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Pull down to refresh.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.disabled, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             )
           else

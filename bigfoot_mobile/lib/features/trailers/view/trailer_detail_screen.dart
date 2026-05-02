@@ -3,8 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/websocket/ws_client.dart';
+import '../../../data/models/user.dart';
 import '../../../domain/repositories/trailer_repository.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../trailers/viewmodel/trailer_detail_viewmodel.dart';
 import '../../../core/router/route_names.dart';
 import '../../../shared/widgets/pdf_viewer_screen.dart';
@@ -127,6 +130,21 @@ class _TrailerDetailBody extends StatelessWidget {
                               ],
                             ),
                           ),
+                        if (_isOwner(context)) ...[
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline,
+                                    size: 20, color: AppColors.error),
+                                SizedBox(width: 8),
+                                Text('Delete Trailer',
+                                    style: TextStyle(color: AppColors.error)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -178,6 +196,72 @@ class _TrailerDetailBody extends StatelessWidget {
           ),
         );
         return;
+      case 'delete':
+        _confirmAndDelete(context, trailer);
+        return;
+    }
+  }
+
+  static bool _isOwner(BuildContext context) {
+    final auth = context.read<AuthViewModel>().state;
+    return auth is Authenticated && auth.user.role == UserRole.owner;
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context, dynamic trailer) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete trailer?'),
+        content: Text(
+          'This permanently deletes ${trailer.soNumber} and ALL related '
+          'records — production steps, QC inspections, deliveries, photos, '
+          'addons, and history.\n\nThis cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final repo = context.read<TrailerRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+
+    try {
+      await repo.deleteTrailer(trailer.id is int ? trailer.id as int : (trailer.id as num).toInt());
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('${trailer.soNumber} deleted'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      router.go('/trailers');
+    } on ApiException catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Delete failed: ${e.displayMessage}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Delete failed: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
