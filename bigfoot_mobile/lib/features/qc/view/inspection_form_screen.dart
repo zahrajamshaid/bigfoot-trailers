@@ -35,6 +35,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
 
   // Upstream self-check results from production workers (read-only)
   List<UpstreamCheck> _upstreamChecks = const [];
+  // QC item id -> the matching upstream worker check (paired by label).
+  // Drives pre-fill of answers/notes and inline display in each checklist row.
+  Map<int, UpstreamCheck> _upstreamByItemId = const {};
 
   // Step 3: Result
   String _result = 'pass';
@@ -62,9 +65,41 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           .fetchUpstreamChecks(widget.item.trailerId);
       if (!mounted) return;
       setState(() => _upstreamChecks = checks);
+      _mergeUpstreamIntoChecklist();
     } catch (_) {
-      // Non-fatal — the panel just stays empty.
+      // Non-fatal — the inline upstream context just stays empty.
     }
+  }
+
+  /// After both the QC checklist items and the upstream worker self-checks
+  /// have loaded, pair them by item_label and:
+  ///   1. Pre-fill the inspector's PASS/FAIL toggle from the worker's answer
+  ///      (the inspector reviews/overrides instead of redoing 22 toggles).
+  ///   2. Copy the worker's note into the inspector's note field as a
+  ///      starting point — the inspector can edit or replace it.
+  /// Idempotent: only fills empty answers/notes, so re-running won't clobber
+  /// edits the inspector has already made.
+  void _mergeUpstreamIntoChecklist() {
+    if (_checklistItems.isEmpty || _upstreamChecks.isEmpty) return;
+    final byLabel = <String, UpstreamCheck>{};
+    for (final c in _upstreamChecks) {
+      byLabel[c.itemLabel] = c;
+    }
+    final mapped = <int, UpstreamCheck>{};
+    for (final item in _checklistItems) {
+      final upstream = byLabel[item.label];
+      if (upstream == null) continue;
+      mapped[item.id] = upstream;
+      _checklistAnswers[item.id] ??= upstream.passed;
+      final ctrl = _checklistNotes[item.id];
+      if (ctrl != null &&
+          ctrl.text.isEmpty &&
+          upstream.note != null &&
+          upstream.note!.isNotEmpty) {
+        ctrl.text = upstream.note!;
+      }
+    }
+    setState(() => _upstreamByItemId = mapped);
   }
 
   @override
@@ -92,6 +127,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
           _checklistNotes[item.id] = TextEditingController();
         }
       });
+      _mergeUpstreamIntoChecklist();
     } catch (_) {
       if (mounted) setState(() => _checklistLoading = false);
     }
@@ -278,6 +314,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                   answeredCount: _answeredCount,
                   totalCount: _checklistItems.length,
                   upstreamChecks: _upstreamChecks,
+                  upstreamByItemId: _upstreamByItemId,
                   onAnswer: (id, val) =>
                       setState(() => _checklistAnswers[id] = val),
                   onBack: () => _goToPage(0),
@@ -388,6 +425,7 @@ class _ChecklistStep extends StatelessWidget {
   final int answeredCount;
   final int totalCount;
   final List<UpstreamCheck> upstreamChecks;
+  final Map<int, UpstreamCheck> upstreamByItemId;
   final void Function(int id, bool passed) onAnswer;
   final VoidCallback onBack;
   final VoidCallback onNext;
@@ -400,6 +438,7 @@ class _ChecklistStep extends StatelessWidget {
     required this.answeredCount,
     required this.totalCount,
     required this.upstreamChecks,
+    required this.upstreamByItemId,
     required this.onAnswer,
     required this.onBack,
     required this.onNext,
@@ -475,6 +514,7 @@ class _ChecklistStep extends StatelessWidget {
                     item: item,
                     answer: answer,
                     noteController: notes[item.id]!,
+                    upstream: upstreamByItemId[item.id],
                     onPass: () => onAnswer(item.id, true),
                     onFail: () => onAnswer(item.id, false),
                   );
@@ -498,6 +538,9 @@ class _ChecklistRow extends StatefulWidget {
   final QcChecklistItem item;
   final bool? answer;
   final TextEditingController noteController;
+  // The matching worker self-check from the upstream production department,
+  // null when no upstream answer was found for this item.
+  final UpstreamCheck? upstream;
   final VoidCallback onPass;
   final VoidCallback onFail;
 
@@ -505,6 +548,7 @@ class _ChecklistRow extends StatefulWidget {
     required this.item,
     required this.answer,
     required this.noteController,
+    required this.upstream,
     required this.onPass,
     required this.onFail,
   });
@@ -514,10 +558,21 @@ class _ChecklistRow extends StatefulWidget {
 }
 
 class _ChecklistRowState extends State<_ChecklistRow> {
-  bool _showNote = false;
+  late bool _showNote;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-expand the note field when the upstream worker left a note OR
+    // when the upstream worker failed the item — both cases are things the
+    // QC manager almost always wants to see/edit.
+    final u = widget.upstream;
+    _showNote = (u?.note?.isNotEmpty ?? false) || (u != null && !u.passed);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final upstream = widget.upstream;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
@@ -559,6 +614,7 @@ class _ChecklistRowState extends State<_ChecklistRow> {
               ),
             ],
           ),
+          if (upstream != null) _UpstreamHint(upstream: upstream),
           if (_showNote)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -575,6 +631,56 @@ class _ChecklistRowState extends State<_ChecklistRow> {
                 style: const TextStyle(fontSize: 13),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact "Worker [name] marked PASS/FAIL — [note]" badge shown below
+/// each checklist row when the matching upstream self-check exists.
+class _UpstreamHint extends StatelessWidget {
+  final UpstreamCheck upstream;
+  const _UpstreamHint({required this.upstream});
+
+  @override
+  Widget build(BuildContext context) {
+    final passed = upstream.passed;
+    final color = passed ? AppColors.success : AppColors.error;
+    final who = upstream.checkedByName ?? 'Worker';
+    final dept = upstream.departmentCode.isNotEmpty
+        ? ' (${upstream.departmentCode})'
+        : '';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, left: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            passed ? Icons.check_circle : Icons.cancel,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                children: [
+                  TextSpan(text: '$who$dept marked '),
+                  TextSpan(
+                    text: passed ? 'PASS' : 'FAIL',
+                    style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                  ),
+                  if (upstream.note != null && upstream.note!.isNotEmpty)
+                    TextSpan(
+                      text: ' — "${upstream.note}"',
+                      style: const TextStyle(fontStyle: FontStyle.italic),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
