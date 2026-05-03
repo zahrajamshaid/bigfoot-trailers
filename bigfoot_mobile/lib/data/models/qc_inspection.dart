@@ -41,6 +41,8 @@ class QcInspection {
 class QcChecklistItem {
   final int id;
   final int departmentId;
+  // API field is `itemLabel` — Dart side keeps the shorter `label`.
+  @JsonKey(name: 'itemLabel')
   final String label;
   final int sortOrder;
   final String appliesToSeries; // xp, yeti, deck_over, gooseneck_dump, all

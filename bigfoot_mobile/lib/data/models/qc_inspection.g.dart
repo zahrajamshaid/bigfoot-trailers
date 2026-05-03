@@ -45,7 +45,7 @@ QcChecklistItem _$QcChecklistItemFromJson(Map<String, dynamic> json) =>
     QcChecklistItem(
       id: (json['id'] as num).toInt(),
       departmentId: (json['departmentId'] as num).toInt(),
-      label: json['label'] as String,
+      label: json['itemLabel'] as String,
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
       appliesToSeries: json['appliesToSeries'] as String? ?? 'all',
       isActive: json['isActive'] as bool? ?? true,
@@ -55,7 +55,7 @@ Map<String, dynamic> _$QcChecklistItemToJson(QcChecklistItem instance) =>
     <String, dynamic>{
       'id': instance.id,
       'departmentId': instance.departmentId,
-      'label': instance.label,
+      'itemLabel': instance.label,
       'sortOrder': instance.sortOrder,
       'appliesToSeries': instance.appliesToSeries,
       'isActive': instance.isActive,
