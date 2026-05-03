@@ -22,8 +22,14 @@ export class StorageController {
 
   // -------------------------------------------------------------------------
   // GET /storage/presign/:key — generate pre-signed download URL
+  //
+  // Mobile sends the storage key URL-encoded so embedded slashes don't
+  // collapse into path segments. Express decodes :key automatically, so
+  // `qc/3/abc.jpg` on the wire as `qc%2F3%2Fabc.jpg` arrives here as the
+  // original key. The previous `presign/*key` wildcard was Express-5-only
+  // syntax and silently 404'd under Nest 10 / Express 4.
   // -------------------------------------------------------------------------
-  @Get('presign/*key')
+  @Get('presign/:key')
   async presignDownload(@Param('key') key: string) {
     return this.storageService.generateDownloadUrl(key);
   }
