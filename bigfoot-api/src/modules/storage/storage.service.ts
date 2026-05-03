@@ -139,7 +139,6 @@ export class StorageService implements OnModuleInit {
       Bucket: this.bucket,
       Key: storageKey,
       ContentType: contentType,
-      ContentLength: maxSizeBytes, // For content-length condition
     });
 
     const uploadUrl = await getSignedUrl(this.s3, command, {
