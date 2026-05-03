@@ -181,14 +181,14 @@ describe('QcService', () => {
       );
     });
 
-    it('should apply seriesScope filter', async () => {
+    it('should apply series filter', async () => {
       mockPrisma.qcChecklistItem.findMany.mockResolvedValue([]);
 
-      await service.findChecklistItems({ seriesScope: 'xp' as any });
+      await service.findChecklistItems({ series: 'xp' as any });
 
       expect(mockPrisma.qcChecklistItem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { appliesToSeries: 'xp' },
+          where: { appliesToSeries: { in: ['xp', 'all'] }, requiresAddonKey: null },
         }),
       );
     });

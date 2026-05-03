@@ -46,12 +46,12 @@ export class QcService {
     const where: Prisma.QcChecklistItemWhereInput = {};
 
     if (query.departmentId) where.departmentId = query.departmentId;
-    if (query.seriesScope) {
+    if (query.series) {
       // Include cross-series items (scope = all) alongside series-specific items
       where.appliesToSeries =
-        query.seriesScope === QcSeriesScopeDto.ALL
-          ? (query.seriesScope as QcSeriesScope)
-          : { in: [query.seriesScope as QcSeriesScope, QcSeriesScope.all] };
+        query.series === QcSeriesScopeDto.ALL
+          ? (query.series as QcSeriesScope)
+          : { in: [query.series as QcSeriesScope, QcSeriesScope.all] };
     }
 
     if (query.trailerId !== undefined) {
