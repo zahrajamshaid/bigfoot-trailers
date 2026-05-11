@@ -129,6 +129,42 @@ export class PushService implements OnModuleInit {
   // Convenience methods for each notification type
   // -------------------------------------------------------------------------
 
+  /**
+   * QC Ready → all active QC inspectors (any department).
+   *
+   * Fires when a trailer reaches a QC step, so inspectors get notified even
+   * when the app is backgrounded. Production managers / owners deliberately
+   * NOT included — they have the dashboard for that.
+   */
+  async sendQcReady(
+    trailerId: bigint,
+    soNumber: string,
+    qcDepartmentName: string,
+    qcDepartmentId: number,
+    stepId: bigint,
+  ) {
+    const inspectors = await this.prisma.user.findMany({
+      where: { role: 'qc_inspector', isActive: true },
+      select: { id: true },
+    });
+
+    if (inspectors.length === 0) return;
+
+    await this.send({
+      recipientUserIds: inspectors.map((u) => u.id),
+      trailerId,
+      notificationType: NotificationType.qc_ready,
+      title: `Ready for QC — ${soNumber}`,
+      body: `${qcDepartmentName} inspection ready to start.`,
+      data: {
+        trailerId: trailerId.toString(),
+        soNumber,
+        qcDepartmentId: qcDepartmentId.toString(),
+        stepId: stepId.toString(),
+      },
+    });
+  }
+
   /** QC Fail → production_manager only */
   async sendQcFail(
     trailerId: bigint,

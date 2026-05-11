@@ -84,10 +84,10 @@ export class QcController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /qc/inspections — qc_inspector, production_manager
+  // POST /qc/inspections — qc_inspector, production_manager, owner
   // ---------------------------------------------------------------------------
   @Post('inspections')
-  @Roles(UserRole.QC_INSPECTOR, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.QC_INSPECTOR, UserRole.PRODUCTION_MANAGER, UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Submit a QC inspection (pass or fail)' })
   @ApiResponse({ status: 200, description: 'Inspection submitted' })

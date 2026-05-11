@@ -6,7 +6,6 @@ import {
   IsBoolean,
   IsArray,
   ValidateNested,
-  ArrayMinSize,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -61,9 +60,8 @@ export class SubmitInspectionDto {
   @Type(() => ChecklistResultEntryDto)
   checklistResults!: ChecklistResultEntryDto[];
 
-  @ApiProperty({ description: 'DO Spaces storage keys of photos. Minimum 1 required.' })
+  @ApiProperty({ description: 'DO Spaces storage keys of photos.' })
   @IsArray()
   @IsString({ each: true })
-  @ArrayMinSize(1, { message: 'At least 1 photo is required per QC inspection' })
   photoStorageKeys!: string[];
 }

@@ -201,6 +201,7 @@ export class QcService {
         id: true,
         soNumber: true,
         status: true,
+        addons: { select: { addonName: true } },
         trailerModel: { select: { series: true } },
         customer: { select: { smsPhone: true, smsOptOut: true } },
       },
@@ -210,14 +211,26 @@ export class QcService {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer not found for step ${dto.productionStepId}`);
     }
 
-    const activeChecklistItems = await this.prisma.qcChecklistItem.findMany({
-      where: {
-        departmentId: step.departmentId,
-        isActive: true,
-        appliesToSeries: {
-          in: [trailer.trailerModel.series as unknown as QcSeriesScope, QcSeriesScope.all],
-        },
+    const addonKeys = trailer.addons.map((a) => a.addonName);
+    const checklistWhere: Prisma.QcChecklistItemWhereInput = {
+      departmentId: step.departmentId,
+      isActive: true,
+      appliesToSeries: {
+        in: [trailer.trailerModel.series as unknown as QcSeriesScope, QcSeriesScope.all],
       },
+      OR: [{ requiresAddonKey: null }],
+    };
+
+    if (addonKeys.length > 0) {
+      checklistWhere.OR = [
+        { requiresAddonKey: null },
+        { requiresAddonKey: '*' },
+        { requiresAddonKey: { in: addonKeys } },
+      ];
+    }
+
+    const activeChecklistItems = await this.prisma.qcChecklistItem.findMany({
+      where: checklistWhere,
       select: { id: true },
     });
 
