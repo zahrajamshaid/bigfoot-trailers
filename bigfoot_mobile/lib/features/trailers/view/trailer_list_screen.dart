@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/location.dart' as loc_model;
 import '../../../data/models/user.dart';
+import '../../../domain/repositories/location_repository.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/trailers_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -18,11 +20,29 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
 
+  // Cached on first build via LocationRepository — used to render the
+  // location filter chips (Mul / Jax / VA / GA / TAL).
+  List<loc_model.Location> _locations = const [];
+
   @override
   void initState() {
     super.initState();
     context.read<TrailersViewModel>().load();
     _scrollController.addListener(_onScroll);
+    _loadLocations();
+  }
+
+  Future<void> _loadLocations() async {
+    try {
+      // Use getAllLocations (not stock-only) so the factory chip — Mul for
+      // Mulberry — also appears as a filter alongside the yards.
+      final items =
+          await context.read<LocationRepository>().getAllLocations();
+      if (!mounted) return;
+      setState(() => _locations = items);
+    } catch (_) {
+      // Filters are non-critical — silently skip if the fetch fails.
+    }
   }
 
   void _onScroll() {
@@ -82,6 +102,8 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                   state is TrailersLoaded ? state.statusFilter : null;
               final seriesFilter =
                   state is TrailersLoaded ? state.seriesFilter : null;
+              final locationFilter =
+                  state is TrailersLoaded ? state.locationFilter : null;
               final hotOnly =
                   state is TrailersLoaded ? state.hotOnly : false;
 
@@ -119,6 +141,20 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                                 seriesFilter == f.value ? null : f.value),
                           ),
                         )),
+                    if (_locations.isNotEmpty) ...[
+                      const SizedBox(width: 4),
+                      ..._locations.map((l) => Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: _FilterChip(
+                              label: l.chipLabel,
+                              icon: Icons.location_on_outlined,
+                              selected: locationFilter == l.id,
+                              color: AppColors.navy,
+                              onTap: () => cubit.setLocationFilter(
+                                  locationFilter == l.id ? null : l.id),
+                            ),
+                          )),
+                    ],
                   ],
                 ),
               );
@@ -157,6 +193,8 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                   TrailersLoaded(
                     trailers: final trailers,
                     isLoadingMore: final loadingMore,
+                    fromCache: final fromCache,
+                    lastUpdated: final lastUpdated,
                   ) =>
                     trailers.isEmpty
                         ? Center(
@@ -180,9 +218,17 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                               padding: const EdgeInsets.only(
                                   top: 4, bottom: 80),
                               itemCount:
-                                  trailers.length + (loadingMore ? 1 : 0),
+                                  trailers.length +
+                                      (loadingMore ? 1 : 0) +
+                                      (fromCache ? 1 : 0),
                               itemBuilder: (context, i) {
-                                if (i >= trailers.length) {
+                                if (fromCache && i == 0) {
+                                  return _CacheInfoBanner(lastUpdated: lastUpdated);
+                                }
+
+                                final trailerIndex = fromCache ? i - 1 : i;
+
+                                if (trailerIndex >= trailers.length) {
                                   return const Padding(
                                     padding: EdgeInsets.all(16),
                                     child: Center(
@@ -191,9 +237,9 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                                   );
                                 }
                                 return _TrailerCard(
-                                  trailer: trailers[i],
+                                  trailer: trailers[trailerIndex],
                                   onTap: () => context.go(
-                                      '/trailers/${trailers[i].id}'),
+                                      '/trailers/${trailers[trailerIndex].id}'),
                                 );
                               },
                             ),
@@ -214,6 +260,47 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
   }
 }
 
+class _CacheInfoBanner extends StatelessWidget {
+  const _CacheInfoBanner({required this.lastUpdated});
+
+  final DateTime? lastUpdated;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final minutes = lastUpdated == null
+        ? null
+        : now.difference(lastUpdated!).inMinutes;
+    final updatedText = minutes == null
+        ? 'unknown time'
+        : minutes <= 0
+            ? 'just now'
+            : '$minutes minute${minutes == 1 ? '' : 's'} ago';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_outlined, size: 18, color: AppColors.navy),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Showing cached data. Last updated $updatedText.',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Trailer card ─────────────────────────────────────────────────────────────
 
 class _TrailerCard extends StatelessWidget {
@@ -229,7 +316,7 @@ class _TrailerCard extends StatelessWidget {
     final modelName = t.trailerModel?.displayName ?? '';
     final customerName = t.customer?.name ?? (t.isStockBuild ? 'Stock Build' : '');
 
-    // Find active step
+    // Active production step (now populated by the list endpoint).
     String stepIndicator = '';
     if (t.productionSteps != null && (t.productionSteps as List).isNotEmpty) {
       final steps = t.productionSteps as List;
@@ -240,6 +327,16 @@ class _TrailerCard extends StatelessWidget {
             'Step ${s.stepOrder}/12 — ${s.departmentName ?? s.departmentCode ?? ''}';
       }
     }
+
+    // Location + short label (Mul / Jax / VA / GA / TAL).
+    final loc = t.currentLocation;
+    final locShort = loc?.shortLabel as String?;
+    final locName = loc?.name as String?;
+
+    final notes = (t.optionsNotes as String?)?.trim();
+    final special = (t.specialNote as String?)?.trim();
+    final hasNotes = notes != null && notes.isNotEmpty;
+    final hasSpecial = special != null && special.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -257,7 +354,7 @@ class _TrailerCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1: SO# + series badge + hot icon
+              // Row 1: SO# + series badge + hot icon + priority
               Row(
                 children: [
                   Expanded(
@@ -299,20 +396,22 @@ class _TrailerCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
 
-              // Row 2: Model + status
+              // Row 2: Model + status badge
               Row(
                 children: [
                   if (modelName.isNotEmpty) ...[
-                    Text(modelName,
-                        style: const TextStyle(
-                            fontSize: 13, color: AppColors.disabled)),
+                    Expanded(
+                      child: Text(modelName,
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.disabled)),
+                    ),
+                  ] else
                     const Spacer(),
-                  ],
                   StatusBadge(status: t.status),
                 ],
               ),
 
-              // Row 3: Customer + color/size
+              // Row 3: Customer + color/size summary
               if (customerName.isNotEmpty ||
                   t.color != null ||
                   t.size != null) ...[
@@ -323,7 +422,8 @@ class _TrailerCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           customerName,
-                          style: const TextStyle(fontSize: 13),
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w500),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -339,29 +439,135 @@ class _TrailerCard extends StatelessWidget {
                 ),
               ],
 
-              // Row 4: Step indicator
+              // Row 4: Active step (department) — newly populated by the
+              // expanded list select on the backend.
               if (stepIndicator.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.play_circle_outline,
+                    const Icon(Icons.play_circle_outline,
                         size: 14, color: AppColors.statusInProduction),
                     const SizedBox(width: 4),
-                    Text(
-                      stepIndicator,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.statusInProduction,
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Text(
+                        stepIndicator,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.statusInProduction,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
+                ),
+              ],
+
+              // Row 5: Yard / location with short-label badge.
+              if (locName != null && locName.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined,
+                        size: 14, color: AppColors.navy),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        locName,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (locShort != null && locShort.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.navy.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: AppColors.navy.withValues(alpha: 0.25)),
+                        ),
+                        child: Text(
+                          locShort,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+
+              // Options/notes — clipped to 2 lines.
+              if (hasNotes) ...[
+                const SizedBox(height: 8),
+                _NotesLine(
+                  icon: Icons.notes_outlined,
+                  text: notes,
+                  color: AppColors.navy,
+                ),
+              ],
+
+              // Special note — amber accent so it stands out.
+              if (hasSpecial) ...[
+                const SizedBox(height: 6),
+                _NotesLine(
+                  icon: Icons.sticky_note_2_outlined,
+                  text: special,
+                  color: AppColors.amber,
+                  emphasized: true,
                 ),
               ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Compact, two-line note row for the trailer card. Long content is clipped
+/// with an ellipsis so the card height stays bounded — the full text is on
+/// the trailer detail Info tab.
+class _NotesLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+  final bool emphasized;
+
+  const _NotesLine({
+    required this.icon,
+    required this.text,
+    required this.color,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              color: emphasized ? AppColors.navy : null,
+              fontWeight: emphasized ? FontWeight.w600 : FontWeight.w400,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

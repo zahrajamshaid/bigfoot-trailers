@@ -19,6 +19,7 @@ class Trailer {
   @JsonKey(name: 'sizeFt')
   final String? size;
   final String? optionsNotes;
+  final String? specialNote;
   final String? qbSoPdfStorageKey;
   final String status;
   final int globalPriority;
@@ -46,6 +47,7 @@ class Trailer {
     this.color,
     this.size,
     this.optionsNotes,
+    this.specialNote,
     this.qbSoPdfStorageKey,
     required this.status,
     this.globalPriority = 9999,
@@ -71,16 +73,33 @@ class LocationInfo {
   final int id;
   final String code;
   final String name;
+  final String? city;
+  final String? state;
+  final String? shortLabel;
 
   const LocationInfo({
     required this.id,
     required this.code,
     required this.name,
+    this.city,
+    this.state,
+    this.shortLabel,
   });
 
   factory LocationInfo.fromJson(Map<String, dynamic> json) =>
       _$LocationInfoFromJson(json);
   Map<String, dynamic> toJson() => _$LocationInfoToJson(this);
+
+  /// Best-effort chip label — short code if the backend has it, else the code,
+  /// else the first three letters of the city.
+  String get chipLabel {
+    final s = shortLabel?.trim();
+    if (s != null && s.isNotEmpty) return s;
+    if (code.isNotEmpty) return code;
+    final c = city?.trim();
+    if (c != null && c.isNotEmpty) return c.substring(0, c.length < 3 ? c.length : 3);
+    return name;
+  }
 }
 
 @JsonSerializable()
@@ -180,11 +199,16 @@ class ProductionStepSummary {
   factory ProductionStepSummary.fromJson(Map<String, dynamic> json) {
     final dept = json['department'] as Map<String, dynamic>?;
     final completedByUser = json['completedByUser'] as Map<String, dynamic>?;
+    // Some endpoints return departmentId at the top level, others only as
+    // department.id — fall back so either response shape parses cleanly.
+    final departmentId = (json['departmentId'] as num?)?.toInt() ??
+        (dept?['id'] as num?)?.toInt() ??
+        0;
     return ProductionStepSummary(
       id: (json['id'] as num).toInt(),
       stepOrder: (json['stepOrder'] as num).toInt(),
       status: json['status'] as String,
-      departmentId: (json['departmentId'] as num).toInt(),
+      departmentId: departmentId,
       departmentCode: dept?['code'] as String? ?? json['departmentCode'] as String?,
       departmentName: dept?['displayName'] as String? ?? json['departmentName'] as String?,
       isRework: json['isRework'] as bool? ?? false,

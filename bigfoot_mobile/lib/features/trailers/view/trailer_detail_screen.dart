@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/websocket/ws_client.dart';
+import '../../../data/models/trailer.dart';
 import '../../../data/models/user.dart';
+import '../../../domain/repositories/production_repository.dart';
+import '../../../domain/repositories/storage_repository.dart';
 import '../../../domain/repositories/trailer_repository.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../trailers/viewmodel/trailer_detail_viewmodel.dart';
@@ -22,6 +25,8 @@ class TrailerDetailScreen extends StatelessWidget {
     return BlocProvider(
       create: (context) => TrailerDetailViewModel(
         repository: context.read<TrailerRepository>(),
+        storageRepository: context.read<StorageRepository>(),
+        productionRepository: context.read<ProductionRepository>(),
         ws: context.read<WsClient>(),
         trailerId: trailerId,
       )..load(),
@@ -36,6 +41,8 @@ class _TrailerDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canViewStagePhotos = _canViewStagePhotos(context);
+
     return BlocBuilder<TrailerDetailViewModel, TrailerDetailState>(
       builder: (context, state) {
         return switch (state) {
@@ -66,9 +73,10 @@ class _TrailerDetailBody extends StatelessWidget {
             trailer: final trailer,
             steps: final steps,
             history: final history,
+            stagePhotos: final stagePhotos,
           ) =>
             DefaultTabController(
-              length: 3,
+              length: canViewStagePhotos ? 4 : 3,
               child: Scaffold(
                 appBar: AppBar(
                   title: Row(
@@ -84,6 +92,18 @@ class _TrailerDetailBody extends StatelessWidget {
                     PopupMenuButton<String>(
                       onSelected: (v) => _onAction(context, v, trailer),
                       itemBuilder: (_) => [
+                        if (_canEditTrailer(context))
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined,
+                                    size: 20, color: AppColors.navy),
+                                SizedBox(width: 8),
+                                Text('Edit Trailer'),
+                              ],
+                            ),
+                          ),
                         PopupMenuItem(
                           value: 'hot',
                           child: Row(
@@ -93,6 +113,9 @@ class _TrailerDetailBody extends StatelessWidget {
                                     ? Icons.local_fire_department
                                     : Icons.local_fire_department_outlined,
                                 size: 20,
+                                color: trailer.isHot
+                                    ? AppColors.error
+                                    : AppColors.warning,
                               ),
                               const SizedBox(width: 8),
                               Text(trailer.isHot ? 'Remove Hot' : 'Mark Hot'),
@@ -103,7 +126,11 @@ class _TrailerDetailBody extends StatelessWidget {
                           value: 'priority',
                           child: Row(
                             children: [
-                              Icon(Icons.low_priority, size: 20),
+                              Icon(
+                                Icons.low_priority,
+                                size: 20,
+                                color: AppColors.warning,
+                              ),
                               SizedBox(width: 8),
                               Text('Set Priority'),
                             ],
@@ -113,7 +140,11 @@ class _TrailerDetailBody extends StatelessWidget {
                           value: 'addon',
                           child: Row(
                             children: [
-                              Icon(Icons.add_circle_outline, size: 20),
+                              Icon(
+                                Icons.add_circle_outline,
+                                size: 20,
+                                color: AppColors.success,
+                              ),
                               SizedBox(width: 8),
                               Text('Add Addon'),
                             ],
@@ -124,13 +155,17 @@ class _TrailerDetailBody extends StatelessWidget {
                             value: 'pdf',
                             child: Row(
                               children: [
-                                Icon(Icons.picture_as_pdf_outlined, size: 20),
+                                Icon(
+                                  Icons.picture_as_pdf_outlined,
+                                  size: 20,
+                                  color: AppColors.error,
+                                ),
                                 SizedBox(width: 8),
                                 Text('View QB PDF'),
                               ],
                             ),
                           ),
-                        if (_isOwner(context)) ...[
+                        if (_canDeleteTrailer(context)) ...[
                           const PopupMenuDivider(),
                           const PopupMenuItem(
                             value: 'delete',
@@ -148,12 +183,8 @@ class _TrailerDetailBody extends StatelessWidget {
                       ],
                     ),
                   ],
-                  bottom: const TabBar(
-                    tabs: [
-                      Tab(text: 'Info'),
-                      Tab(text: 'Workflow'),
-                      Tab(text: 'History'),
-                    ],
+                  bottom: TabBar(
+                    tabs: _buildTabs(canViewStagePhotos),
                     indicatorColor: AppColors.amber,
                     labelColor: AppColors.white,
                     unselectedLabelColor: Colors.white60,
@@ -161,9 +192,11 @@ class _TrailerDetailBody extends StatelessWidget {
                 ),
                 body: TabBarView(
                   children: [
-                    _InfoTab(trailer: trailer),
+                    _InfoTab(trailer: trailer, steps: steps),
                     _WorkflowTab(steps: steps),
                     _HistoryTab(history: history),
+                    if (canViewStagePhotos)
+                      _StagePhotosTab(stagePhotos: stagePhotos),
                   ],
                 ),
               ),
@@ -173,9 +206,21 @@ class _TrailerDetailBody extends StatelessWidget {
     );
   }
 
+  static List<Widget> _buildTabs(bool canViewStagePhotos) {
+    return [
+      const Tab(text: 'Info'),
+      const Tab(text: 'Workflow'),
+      const Tab(text: 'History'),
+      if (canViewStagePhotos) const Tab(text: 'Photos'),
+    ];
+  }
+
   void _onAction(BuildContext context, String action, dynamic trailer) {
     final cubit = context.read<TrailerDetailViewModel>();
     switch (action) {
+      case 'edit':
+        _openEdit(context, trailer, cubit);
+        return;
       case 'hot':
         cubit.toggleHot();
         return;
@@ -202,9 +247,44 @@ class _TrailerDetailBody extends StatelessWidget {
     }
   }
 
-  static bool _isOwner(BuildContext context) {
+  Future<void> _openEdit(
+    BuildContext context,
+    dynamic trailer,
+    TrailerDetailViewModel cubit,
+  ) async {
+    final result = await context.pushNamed<bool>(
+      RouteNames.trailerEdit,
+      pathParameters: {'id': '${trailer.id}'},
+      extra: trailer,
+    );
+    if (result == true) {
+      await cubit.load();
+    }
+  }
+
+  /// Trailer delete is restricted to owner and production_manager roles —
+  /// matches DELETE /trailers/:id RBAC on the backend.
+  static bool _canDeleteTrailer(BuildContext context) {
     final auth = context.read<AuthViewModel>().state;
-    return auth is Authenticated && auth.user.role == UserRole.owner;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.productionManager;
+  }
+
+  /// Edit visibility mirrors PATCH /trailers/:id RBAC — owner and
+  /// production_manager (the same roles that can create a trailer).
+  static bool _canEditTrailer(BuildContext context) {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.productionManager;
+  }
+
+  static bool _canViewStagePhotos(BuildContext context) {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.productionManager;
   }
 
   Future<void> _confirmAndDelete(BuildContext context, dynamic trailer) async {
@@ -349,11 +429,32 @@ class _TrailerDetailBody extends StatelessWidget {
 
 class _InfoTab extends StatelessWidget {
   final dynamic trailer;
-  const _InfoTab({required this.trailer});
+  final List<ProductionStepSummary> steps;
+  const _InfoTab({required this.trailer, required this.steps});
+
+  ProductionStepSummary? get _activeStep {
+    for (final s in steps) {
+      if (s.status == 'active') return s;
+    }
+    return null;
+  }
+
+  String _locationLine() {
+    final loc = trailer.currentLocation;
+    if (loc == null) return '—';
+    final city = loc.code != null && (loc.code as String).isNotEmpty
+        ? loc.code as String
+        : null;
+    return city != null ? '${loc.name}  ·  $city' : loc.name as String;
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = trailer;
+    final active = _activeStep;
+    final hasNotes = t.optionsNotes != null && t.optionsNotes!.isNotEmpty;
+    final hasSpecial = t.specialNote != null && t.specialNote!.isNotEmpty;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -385,7 +486,17 @@ class _InfoTab extends StatelessWidget {
         ),
         const SizedBox(height: 8),
 
-        // Details
+        // Currently in: department (active step) + physical location.
+        // Highest-signal info on the screen, so it sits above everything else.
+        _CurrentlyInCard(
+          activeStepDeptName: active?.departmentName ?? active?.departmentCode,
+          trailerStatus: t.status as String,
+          locationLine: _locationLine(),
+        ),
+        const SizedBox(height: 8),
+
+        // Compact key/value details (short fields only — long-form notes are
+        // rendered separately below so they get full width).
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -395,8 +506,6 @@ class _InfoTab extends StatelessWidget {
                 _DetailRow('Color', t.color ?? '-'),
                 _DetailRow('Size', t.size ?? '-'),
                 _DetailRow('Priority', t.globalPriority < 9999 ? '#${t.globalPriority}' : 'Default'),
-                if (t.optionsNotes != null && t.optionsNotes!.isNotEmpty)
-                  _DetailRow('Notes', t.optionsNotes!),
                 if (t.qbSoPdfStorageKey != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -416,6 +525,26 @@ class _InfoTab extends StatelessWidget {
             ),
           ),
         ),
+
+        // Long-form notes — each in its own card so the layout grows with
+        // arbitrary text length and the user can long-press to copy.
+        if (hasNotes) ...[
+          const SizedBox(height: 8),
+          _NoteCard(
+            label: 'Options / Notes',
+            icon: Icons.notes_outlined,
+            value: t.optionsNotes as String,
+          ),
+        ],
+        if (hasSpecial) ...[
+          const SizedBox(height: 8),
+          _NoteCard(
+            label: 'Special Note',
+            icon: Icons.sticky_note_2_outlined,
+            value: t.specialNote as String,
+            accent: AppColors.amber,
+          ),
+        ],
 
         // Addons
         if (t.addons != null && (t.addons as List).isNotEmpty) ...[
@@ -453,6 +582,173 @@ class _InfoTab extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// "Currently in" highlight card — department of the active production step
+/// + the trailer's physical yard. Falls back to the trailer's status when
+/// there's no active step (e.g. ready_for_delivery, delivered).
+class _CurrentlyInCard extends StatelessWidget {
+  final String? activeStepDeptName;
+  final String trailerStatus;
+  final String locationLine;
+
+  const _CurrentlyInCard({
+    required this.activeStepDeptName,
+    required this.trailerStatus,
+    required this.locationLine,
+  });
+
+  String _fallbackFromStatus() {
+    switch (trailerStatus) {
+      case 'ready_for_delivery':
+        return 'Ready for delivery';
+      case 'in_transit':
+        return 'In transit';
+      case 'delivered':
+        return 'Delivered';
+      case 'on_hold':
+        return 'On hold';
+      case 'pending_production':
+        return 'Pending production';
+      default:
+        return 'Workflow complete';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final deptText = activeStepDeptName ?? _fallbackFromStatus();
+    return Card(
+      elevation: 0,
+      color: AppColors.navy.withValues(alpha: 0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: AppColors.navy.withValues(alpha: 0.15)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _IconRow(
+              icon: Icons.precision_manufacturing_outlined,
+              label: 'Department',
+              value: deptText,
+              valueWeight: FontWeight.w700,
+            ),
+            const SizedBox(height: 12),
+            _IconRow(
+              icon: Icons.location_on_outlined,
+              label: 'Location',
+              value: locationLine,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IconRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final FontWeight valueWeight;
+  const _IconRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueWeight = FontWeight.w500,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: AppColors.navy),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 0.5,
+                  color: AppColors.disabled,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                softWrap: true,
+                style: TextStyle(fontSize: 15, fontWeight: valueWeight),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Full-width note card. Header above, body text below — the body uses
+/// [SelectableText] with no maxLines so it wraps and grows freely with the
+/// content (works for one short line or a long multi-paragraph instruction).
+class _NoteCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String value;
+  final Color? accent;
+
+  const _NoteCard({
+    required this.label,
+    required this.icon,
+    required this.value,
+    this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accent ?? AppColors.navy;
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SelectableText(
+              value,
+              style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -498,21 +794,120 @@ class _WorkflowTab extends StatelessWidget {
       return const Center(child: Text('No workflow steps'));
     }
 
+    final canManage = _canManageWorkflow(context);
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       itemCount: steps.length,
       itemBuilder: (context, i) {
         final step = steps[i];
-        return _StepTile(step: step, isLast: i == steps.length - 1);
+        return _StepTile(
+          step: step,
+          isLast: i == steps.length - 1,
+          canManage: canManage,
+        );
       },
     );
+  }
+
+  /// Manual workflow override matches the backend RBAC on
+  /// POST /production/trailers/:id/jump-to-step (owner + production_manager).
+  static bool _canManageWorkflow(BuildContext context) {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.productionManager;
   }
 }
 
 class _StepTile extends StatelessWidget {
   final dynamic step;
   final bool isLast;
-  const _StepTile({required this.step, required this.isLast});
+  final bool canManage;
+  const _StepTile({
+    required this.step,
+    required this.isLast,
+    required this.canManage,
+  });
+
+  Future<void> _confirmAndJump(BuildContext context) async {
+    final s = step;
+    final deptName =
+        s.departmentName ?? s.departmentCode ?? 'Step ${s.stepOrder}';
+    final cubit = context.read<TrailerDetailViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Move trailer to step ${s.stepOrder}?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This places the trailer at "$deptName" as the current active '
+              'step.\n\n'
+              '• Earlier steps will be marked complete (no points awarded for '
+              'any that weren\'t already done).\n'
+              '• Later steps will be reset to waiting.\n'
+              '• Each rolled-back step is recorded in the history tab.',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLength: 500,
+              decoration: const InputDecoration(
+                labelText: 'Reason (optional)',
+                hintText: 'e.g. wrong step tapped earlier',
+                counterText: '',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Move Here'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await cubit.jumpToStep(
+        (s.id is int) ? s.id as int : (s.id as num).toInt(),
+        reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim(),
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Trailer moved to "$deptName"'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } on ApiException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Move failed: ${e.displayMessage}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Move failed: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -652,6 +1047,34 @@ class _StepTile extends StatelessWidget {
                       ],
                     ),
                   ],
+                  if (canManage && !isActive) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _confirmAndJump(context),
+                        icon: Icon(
+                          isComplete
+                              ? Icons.undo
+                              : Icons.skip_next,
+                          size: 16,
+                        ),
+                        label: Text(
+                          isComplete ? 'Move trailer back here' : 'Move trailer here',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: AppColors.navy,
+                          side: BorderSide(
+                              color: AppColors.navy.withValues(alpha: 0.4)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -715,6 +1138,122 @@ class _HistoryTab extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _StagePhotosTab extends StatelessWidget {
+  final List<StagePhotoGroup> stagePhotos;
+  const _StagePhotosTab({required this.stagePhotos});
+
+  @override
+  Widget build(BuildContext context) {
+    if (stagePhotos.isEmpty) {
+      return const Center(child: Text('No stage photos available'));
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: stagePhotos.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final group = stagePhotos[index];
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  group.stageLabel,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: group.photos.map((photo) {
+                    return GestureDetector(
+                      onTap: photo.downloadUrl == null
+                          ? null
+                          : () => _showPhotoDialog(context, photo),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 110,
+                              height: 110,
+                              color: AppColors.divider.withValues(alpha: 0.35),
+                              child: photo.downloadUrl != null
+                                  ? Image.network(
+                                      photo.downloadUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          const Icon(Icons.broken_image_outlined),
+                                    )
+                                  : const Icon(Icons.photo_outlined),
+                            ),
+                            if (photo.note != null && photo.note!.isNotEmpty)
+                              Positioned(
+                                left: 4,
+                                right: 4,
+                                bottom: 4,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  color: Colors.black54,
+                                  child: Text(
+                                    photo.note!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPhotoDialog(BuildContext context, TrailerStagePhoto photo) {
+    if (photo.downloadUrl == null) return;
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+              child: Text(
+                photo.stageLabel,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+            Flexible(
+              child: InteractiveViewer(child: Image.network(photo.downloadUrl!)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

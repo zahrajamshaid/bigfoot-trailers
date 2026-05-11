@@ -8,6 +8,7 @@ abstract class TrailerRepository {
     String? search,
     String? status,
     String? series,
+    int? locationId,
     bool hotOnly = false,
   });
 
@@ -27,7 +28,7 @@ abstract class TrailerRepository {
 
   Future<List<ProductionStepSummary>> getSteps(int trailerId);
 
-  Future<List<Map<String, dynamic>>> getHistory(int trailerId);
+  Future<Map<String, dynamic>> getHistory(int trailerId);
 
   Future<String?> getQbPdfUrl(int trailerId);
 
@@ -45,6 +46,13 @@ abstract class TrailerRepository {
 class TrailerListResult {
   final List<Trailer> items;
   final bool hasMore;
+  final bool fromCache;
+  final DateTime? lastUpdated;
 
-  const TrailerListResult({required this.items, required this.hasMore});
+  const TrailerListResult({
+    required this.items,
+    required this.hasMore,
+    this.fromCache = false,
+    this.lastUpdated,
+  });
 }

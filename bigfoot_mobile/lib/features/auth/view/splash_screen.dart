@@ -77,65 +77,89 @@ class _SplashScreenState extends State<SplashScreen>
       },
       child: Scaffold(
         backgroundColor: AppColors.navy,
-        body: Center(
-          child: FadeTransition(
-            opacity: _fadeIn,
-            child: ScaleTransition(
-              scale: _scale,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Logo icon
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: AppColors.amber,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Icon(
-                      Icons.directions_car,
-                      size: 56,
-                      color: AppColors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'BIGFOOT',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: AppColors.white,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 4,
-                        ),
-                  ),
-                  Text(
-                    'TRAILERS',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.amber,
-                          fontWeight: FontWeight.w300,
-                          letterSpacing: 8,
-                        ),
-                  ),
-                  const SizedBox(height: 48),
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      color: AppColors.amber,
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading...',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.white.withValues(alpha: 0.6),
-                        ),
-                  ),
-                ],
+        body: Stack(
+          children: [
+            Positioned(
+              top: -80,
+              left: -60,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.white.withValues(alpha: 0.06),
+                ),
               ),
             ),
-          ),
+            Positioned(
+              right: -90,
+              bottom: -70,
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.amber.withValues(alpha: 0.14),
+                ),
+              ),
+            ),
+            Center(
+              child: FadeTransition(
+                opacity: _fadeIn,
+                child: ScaleTransition(
+                  scale: _scale,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.amber,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(height: 26),
+                      Text(
+                        'BIGFOOT',
+                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 6,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'TRAILERS',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: AppColors.amber,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 10,
+                            ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Built to haul. Ready to move.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.white.withValues(alpha: 0.7),
+                              letterSpacing: 0.3,
+                            ),
+                      ),
+                      const SizedBox(height: 44),
+                      const SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: CircularProgressIndicator(
+                          color: AppColors.amber,
+                          strokeWidth: 2.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         // Version number at the bottom
         bottomNavigationBar: SafeArea(

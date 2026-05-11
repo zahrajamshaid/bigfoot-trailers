@@ -6,9 +6,12 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/constants/api_endpoints.dart';
+import '../../../data/models/customer.dart';
 import '../../../domain/repositories/storage_repository.dart';
 import '../../../domain/repositories/trailer_repository.dart';
+import '../../../shared/widgets/stock_location_chips.dart';
 import '../viewmodel/trailers_viewmodel.dart';
+import '../widgets/customer_picker_field.dart';
 
 class CreateTrailerScreen extends StatefulWidget {
   const CreateTrailerScreen({super.key});
@@ -23,8 +26,11 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
   final _colorController = TextEditingController();
   final _sizeController = TextEditingController();
   final _notesController = TextEditingController();
+  final _specialNoteController = TextEditingController();
   int? _selectedModelId;
   bool _isStockBuild = false;
+  int? _selectedStockLocationId;
+  Customer? _selectedCustomer;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -36,6 +42,10 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
   // QB SO PDF (optional)
   PlatformFile? _selectedPdf;
   String? _pdfWarning;
+
+  // Inline error for the chip-style stock destination picker (chips aren't a
+  // FormField so we render the message ourselves on submit).
+  String? _stockLocationError;
 
   @override
   void initState() {
@@ -120,10 +130,17 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isStockBuild && _selectedStockLocationId == null) {
+      setState(() {
+        _stockLocationError = 'Pick a stock destination';
+      });
+      return;
+    }
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
       _pdfWarning = null;
+      _stockLocationError = null;
     });
 
     try {
@@ -142,12 +159,20 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
             'sizeFt': _sizeController.text.trim(),
           if (_notesController.text.trim().isNotEmpty)
             'optionsNotes': _notesController.text.trim(),
+          if (_specialNoteController.text.trim().isNotEmpty)
+            'specialNote': _specialNoteController.text.trim(),
+          if (!_isStockBuild && _selectedCustomer != null)
+            'customerId': _selectedCustomer!.id,
           'isStockBuild': _isStockBuild,
+          if (_isStockBuild) 'stockLocationId': _selectedStockLocationId,
         },
         fromJson: (d) => d as Map<String, dynamic>,
       );
 
-      final trailerId = (response.data?['id'] as num?)?.toInt();
+      // POST /trailers returns { trailer: {...}, stepsSummary: {...} } —
+      // the id lives at data.trailer.id, not data.id.
+      final trailerData = response.data?['trailer'] as Map<String, dynamic>?;
+      final trailerId = (trailerData?['id'] as num?)?.toInt();
       String? pdfWarning;
 
       if (trailerId != null && _selectedPdf != null) {
@@ -205,11 +230,14 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
         return 'no network — PDF will retry later';
       }
       final storageKey = result.storageKey!;
-      final downloadUrl = await storageRepo.getDownloadUrl(storageKey);
+      // qbSoPdfStorageUrl is stored but never read — the detail screen
+      // re-signs a fresh download URL from the storageKey on every open.
+      // Sending the key satisfies the @IsNotEmpty server validator without
+      // a wasted /storage/presign round trip.
       await trailerRepo.uploadQbPdf(
         trailerId: trailerId,
         storageKey: storageKey,
-        storageUrl: downloadUrl,
+        storageUrl: storageKey,
       );
       return null;
     } on ApiException catch (e) {
@@ -221,12 +249,31 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
     }
   }
 
+  /// Picker callback. If the picked (or freshly-created) customer is a
+  /// stock_location, switch the form into Stock Build mode for that yard
+  /// instead of assigning it as a regular customer.
+  void _onCustomerPicked(Customer? c) {
+    setState(() {
+      if (c != null &&
+          c.customerType == CustomerType.stockLocation &&
+          c.stockLocationId != null) {
+        _isStockBuild = true;
+        _selectedStockLocationId = c.stockLocationId;
+        _selectedCustomer = null;
+        _stockLocationError = null;
+      } else {
+        _selectedCustomer = c;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _soController.dispose();
     _colorController.dispose();
     _sizeController.dispose();
     _notesController.dispose();
+    _specialNoteController.dispose();
     super.dispose();
   }
 
@@ -362,15 +409,63 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Special Note (short, single-line free-form)
+                    TextFormField(
+                      controller: _specialNoteController,
+                      maxLength: 500,
+                      decoration: const InputDecoration(
+                        labelText: 'Special Note',
+                        hintText: 'e.g. ship empty, hold for VIN check',
+                        prefixIcon: Icon(Icons.sticky_note_2_outlined),
+                        counterText: '',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // Stock Build toggle
                     SwitchListTile(
                       title: const Text('Stock Build'),
                       subtitle: const Text('No customer assigned'),
                       value: _isStockBuild,
                       activeColor: AppColors.amber,
-                      onChanged: (v) => setState(() => _isStockBuild = v),
+                      onChanged: (v) => setState(() {
+                        _isStockBuild = v;
+                        if (v) {
+                          _selectedCustomer = null;
+                        } else {
+                          _selectedStockLocationId = null;
+                        }
+                      }),
                       contentPadding: EdgeInsets.zero,
                     ),
+
+                    // Customer picker — only when not a stock build
+                    if (!_isStockBuild) ...[
+                      const SizedBox(height: 12),
+                      CustomerPickerField(
+                        selectedCustomerId: _selectedCustomer?.id,
+                        selectedCustomerLabel: _selectedCustomer == null
+                            ? null
+                            : (_selectedCustomer!.company?.isNotEmpty == true
+                                ? '${_selectedCustomer!.name} (${_selectedCustomer!.company})'
+                                : _selectedCustomer!.name),
+                        onChanged: _onCustomerPicked,
+                        helperText: 'Optional — leave blank for unassigned builds',
+                      ),
+                    ],
+                    if (_isStockBuild) ...[
+                      const SizedBox(height: 12),
+                      StockLocationChips(
+                        labelText: 'Stock Destination *',
+                        selectedLocationId: _selectedStockLocationId,
+                        enabled: !_isSubmitting,
+                        onChanged: (l) => setState(() {
+                          _selectedStockLocationId = l.id;
+                          _stockLocationError = null;
+                        }),
+                        errorText: _stockLocationError,
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     // QB SO PDF attachment
@@ -385,21 +480,29 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                     const SizedBox(height: 24),
 
                     // Submit
-                    SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2.5, color: AppColors.white),
-                              )
-                            : const Text('Create Trailer',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w600)),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final safeBottom = MediaQuery.of(context).viewPadding.bottom;
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: safeBottom + 12),
+                          child: SizedBox(
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _isSubmitting ? null : _submit,
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2.5, color: AppColors.white),
+                                    )
+                                  : const Text('Create Trailer',
+                                      style: TextStyle(
+                                          fontSize: 16, fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

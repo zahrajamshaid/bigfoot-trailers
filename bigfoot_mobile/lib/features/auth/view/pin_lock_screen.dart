@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/brand_logo_avatar.dart';
 
 /// PIN entry screen — UI scaffold only, no real crypto.
 /// Shown when user re-opens the app with "Require PIN" enabled.
@@ -68,19 +69,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Logo
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: AppColors.amber,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.directions_car,
-                          size: 36,
-                          color: AppColors.white,
-                        ),
-                      ),
+                      const BrandLogoAvatar(size: 64),
                       SizedBox(height: compact ? 16 : 24),
 
                       // Title
