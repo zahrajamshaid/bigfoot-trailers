@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/validation/validators.dart';
+import '../../../shared/widgets/brand_logo_avatar.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -127,19 +129,7 @@ class _LoginScreenState extends State<LoginScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // ── Logo ──────────────────────────────────────────
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: AppColors.navy,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.directions_car,
-                            size: 44,
-                            color: AppColors.amber,
-                          ),
-                        ),
+                        const BrandLogoAvatar(size: 80),
                         const SizedBox(height: 16),
                         Text(
                           'BIGFOOT TRAILERS',
@@ -175,13 +165,7 @@ class _LoginScreenState extends State<LoginScreen>
                             labelText: 'Email',
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!v.contains('@')) return 'Enter a valid email';
-                            return null;
-                          },
+                          validator: Validators.requiredEmail,
                         ),
                         const SizedBox(height: 16),
 
@@ -204,12 +188,9 @@ class _LoginScreenState extends State<LoginScreen>
                                   () => _obscurePassword = !_obscurePassword),
                             ),
                           ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Password is required';
-                            }
-                            return null;
-                          },
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? 'Please enter your password'
+                              : null,
                         ),
                         const SizedBox(height: 8),
 

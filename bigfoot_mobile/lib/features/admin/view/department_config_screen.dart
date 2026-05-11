@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/validation/validators.dart';
 import '../../../data/models/department.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
@@ -83,34 +84,26 @@ class _DepartmentConfigScreenState extends State<DepartmentConfigScreen> {
   }
 
   Future<void> _editThreshold(Department d) async {
-    final c = TextEditingController(text: d.stallThresholdHours.toString());
     final value = await showDialog<int>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Edit ${d.code} Stall Threshold'),
-        content: TextField(
-          controller: c,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Hours'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, int.tryParse(c.text.trim())),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      builder: (_) => _EditThresholdDialog(department: d),
     );
 
-    c.dispose();
     if (value == null) return;
     if (!mounted) return;
-    await context.read<AdminViewModel>().updateDepartmentThreshold(
-          id: d.id,
-          stallThresholdHours: value,
-        );
-    if (mounted) _load();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<AdminViewModel>().updateDepartmentThreshold(
+            id: d.id,
+            stallThresholdHours: value,
+          );
+      if (mounted) _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to update threshold: $e')),
+      );
+    }
   }
 
   String _seriesTitle(String series) {
@@ -126,6 +119,73 @@ class _DepartmentConfigScreenState extends State<DepartmentConfigScreen> {
       default:
         return series;
     }
+  }
+}
+
+class _EditThresholdDialog extends StatefulWidget {
+  final Department department;
+
+  const _EditThresholdDialog({required this.department});
+
+  @override
+  State<_EditThresholdDialog> createState() => _EditThresholdDialogState();
+}
+
+class _EditThresholdDialogState extends State<_EditThresholdDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(
+      text: widget.department.stallThresholdHours.toString(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final value = int.tryParse(_ctrl.text.trim());
+    if (value == null) return;
+    Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Edit ${widget.department.code} Stall Threshold'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Hours',
+            border: OutlineInputBorder(),
+          ),
+          validator: (v) =>
+              Validators.requiredPositiveInt(v, fieldName: 'a number of hours'),
+          onFieldSubmitted: (_) => _submit(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Save'),
+        ),
+      ],
+    );
   }
 }
 

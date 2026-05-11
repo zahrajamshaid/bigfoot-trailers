@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/validation/validators.dart';
 import '../../../data/models/worker_message.dart';
 import '../viewmodel/messages_viewmodel.dart';
 
@@ -15,6 +16,7 @@ class MessageScreen extends StatefulWidget {
 }
 
 class _MessageScreenState extends State<MessageScreen> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _text = TextEditingController();
   final TextEditingController _recipient = TextEditingController();
   bool _loading = true;
@@ -53,17 +55,21 @@ class _MessageScreenState extends State<MessageScreen> {
       appBar: AppBar(
         title: Text('Trailer #${widget.trailerId} Messages'),
       ),
-      body: Column(
+      body: Form(
+        key: _formKey,
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
-            child: TextField(
+            child: TextFormField(
               controller: _recipient,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Recipient User ID',
                 border: OutlineInputBorder(),
               ),
+              validator: (v) => Validators.requiredPositiveInt(v,
+                  fieldName: 'a recipient user ID'),
             ),
           ),
           Expanded(
@@ -111,7 +117,7 @@ class _MessageScreenState extends State<MessageScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: TextFormField(
                       controller: _text,
                       minLines: 1,
                       maxLines: 4,
@@ -119,6 +125,8 @@ class _MessageScreenState extends State<MessageScreen> {
                         hintText: 'Message...',
                         border: OutlineInputBorder(),
                       ),
+                      validator: (v) =>
+                          Validators.required(v, fieldName: 'a message'),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -131,19 +139,15 @@ class _MessageScreenState extends State<MessageScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
 
   Future<void> _send() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     final body = _text.text.trim();
-    final recipient = int.tryParse(_recipient.text.trim());
-    if (body.isEmpty || recipient == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recipient user id and message are required')),
-      );
-      return;
-    }
+    final recipient = int.parse(_recipient.text.trim());
 
     setState(() => _sending = true);
     try {

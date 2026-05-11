@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
+import '../../../core/validation/validators.dart';
 import '../../../data/models/customer.dart';
 
 class CustomerFormScreen extends StatefulWidget {
@@ -77,7 +78,8 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                 labelText: 'Name *',
                 border: OutlineInputBorder(),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              validator: (v) =>
+                  Validators.required(v, fieldName: 'a customer name'),
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -95,9 +97,13 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(value: CustomerType.endUser, child: Text('End User')),
-                DropdownMenuItem(value: CustomerType.dealer, child: Text('Dealer')),
-                DropdownMenuItem(value: CustomerType.stockLocation, child: Text('Stock Location')),
+                DropdownMenuItem(
+                    value: CustomerType.endUser, child: Text('End User')),
+                DropdownMenuItem(
+                    value: CustomerType.dealer, child: Text('Dealer')),
+                DropdownMenuItem(
+                    value: CustomerType.stockLocation,
+                    child: Text('Stock Location')),
               ],
               onChanged: (v) => setState(() => _type = v ?? CustomerType.endUser),
             ),
@@ -109,6 +115,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
+              validator: Validators.optionalPhone,
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -118,6 +125,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
+              validator: Validators.optionalEmail,
             ),
             const SizedBox(height: 10),
             TextFormField(

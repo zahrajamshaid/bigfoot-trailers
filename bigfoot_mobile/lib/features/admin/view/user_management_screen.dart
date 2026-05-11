@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/validation/validators.dart';
 import '../../../data/models/user.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
@@ -32,12 +33,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             role: _role,
             isActive: _isActive,
             page: 1,
-            limit: 500,
+        limit: 100,
           );
       if (!mounted) return;
       // Newest first so a freshly-created user is at the top of the list.
       final sorted = [...result.users]..sort((a, b) => b.id.compareTo(a.id));
       setState(() => _users = sorted);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _users = const []);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load users: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -116,106 +126,173 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _load,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) {
-                        final u = filtered[i];
-                        final isInactive = (u.isActive == false);
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isInactive
-                                ? AppColors.disabled.withValues(alpha: 0.08)
-                                : AppColors.white,
-                            border: Border.all(color: AppColors.divider),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          u.name,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: isInactive
-                                                ? AppColors.disabled
-                                                : AppColors.navy,
-                                          ),
-                                        ),
-                                        Text(u.email,
-                                            style: const TextStyle(fontSize: 12)),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.navy.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(u.role),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: (u.isActive == false
-                                              ? AppColors.error
-                                              : AppColors.success)
-                                          .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(u.isActive == false ? 'Inactive' : 'Active'),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  OutlinedButton(
-                                    onPressed: () => _openEdit(u),
-                                    child: const Text('Edit'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  OutlinedButton(
-                                    onPressed: u.isActive == false
-                                        ? null
-                                        : () async {
-                                            await context
-                                                .read<AdminViewModel>()
-                                                .deactivateUser(u.id);
-                                            if (mounted) _load();
-                                          },
-                                    child: const Text('Deactivate'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Tooltip(
-                                    message: 'Reactivate is not supported by current backend API',
-                                    child: OutlinedButton(
-                                      onPressed: null,
-                                      child: const Text('Reactivate'),
-                                    ),
-                                  ),
-                                ],
+                    child: filtered.isEmpty
+                        ? ListView(
+                            padding: const EdgeInsets.all(24),
+                            children: const [
+                              SizedBox(height: 80),
+                              Center(
+                                child: Text(
+                                  'No registered users found for the current filters.',
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ],
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemBuilder: (_, i) {
+                              final u = filtered[i];
+                              final isInactive = (u.isActive == false);
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isInactive
+                                      ? AppColors.disabled.withValues(alpha: 0.08)
+                                      : AppColors.white,
+                                  border: Border.all(color: AppColors.divider),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                u.name,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isInactive
+                                                      ? AppColors.disabled
+                                                      : AppColors.navy,
+                                                ),
+                                              ),
+                                              Text(u.email,
+                                                  style: const TextStyle(fontSize: 12)),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.navy.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(u.role),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: (u.isActive == false
+                                                    ? AppColors.error
+                                                    : AppColors.success)
+                                                .withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(u.isActive == false ? 'Inactive' : 'Active'),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _detailChip('ID: ${u.id}'),
+                                        _detailChip(
+                                          'Dept: ${u.departmentId?.toString() ?? 'N/A'}',
+                                        ),
+                                        _detailChip(
+                                          'Location: ${u.locationId?.toString() ?? 'N/A'}',
+                                        ),
+                                        _detailChip(
+                                          'Created: ${u.createdAt?.toLocal().toString().split('.').first ?? 'N/A'}',
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          onPressed: () => _openEdit(u),
+                                          icon: const Icon(Icons.edit_outlined,
+                                              size: 16),
+                                          label: const Text('Edit'),
+                                        ),
+                                        OutlinedButton.icon(
+                                          onPressed: u.isActive == false
+                                              ? null
+                                              : () => _confirmDeactivate(u),
+                                          icon: const Icon(
+                                              Icons.person_off_outlined,
+                                              size: 16),
+                                          label: const Text('Deactivate'),
+                                        ),
+                                        OutlinedButton.icon(
+                                          onPressed: u.isActive == false
+                                              ? () => _reactivate(u)
+                                              : null,
+                                          icon: const Icon(
+                                              Icons.person_add_alt_1,
+                                              size: 16,
+                                              color: AppColors.success),
+                                          label: const Text(
+                                            'Reactivate',
+                                            style: TextStyle(
+                                                color: AppColors.success),
+                                          ),
+                                        ),
+                                        OutlinedButton.icon(
+                                          onPressed: () => _confirmHardDelete(u),
+                                          icon: const Icon(
+                                              Icons.delete_forever_outlined,
+                                              size: 16,
+                                              color: AppColors.error),
+                                          label: const Text(
+                                            'Delete',
+                                            style: TextStyle(
+                                                color: AppColors.error),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            side: BorderSide(
+                                              color: AppColors.error
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ),
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _detailChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 12)),
     );
   }
 
@@ -244,6 +321,108 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       builder: (_) => _UserEditorSheet(existing: user),
     );
     if (result == true && mounted) _load();
+  }
+
+  Future<void> _confirmDeactivate(User user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Deactivate user?'),
+        content: Text(
+          '${user.name} will lose access immediately but their history is '
+          'preserved. You can reactivate later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Deactivate'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<AdminViewModel>().deactivateUser(user.id);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${user.name} deactivated')),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
+  }
+
+  Future<void> _reactivate(User user) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<AdminViewModel>().reactivateUser(user.id);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${user.name} reactivated')),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
+  }
+
+  Future<void> _confirmHardDelete(User user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Permanently delete user?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This permanently removes ${user.name} from the database. '
+              'This cannot be undone.',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'The user must be deactivated first. Users with historical '
+              'activity (completed steps, inspections, deliveries, '
+              'messages) cannot be deleted — keep them deactivated to '
+              'preserve the audit trail.',
+              style: TextStyle(fontSize: 12, color: AppColors.disabled),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete forever'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<AdminViewModel>().hardDeleteUser(user.id);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${user.name} deleted')),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+    }
   }
 }
 
@@ -315,13 +494,15 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              validator: (v) =>
+                  Validators.required(v, fieldName: 'a full name'),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _email,
+              keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-              validator: (v) => (v == null || !v.contains('@')) ? 'Invalid email' : null,
+              validator: Validators.requiredEmail,
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -331,12 +512,9 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
                 labelText: widget.existing == null ? 'Password' : 'Password (optional)',
                 border: const OutlineInputBorder(),
               ),
-              validator: (v) {
-                if (widget.existing == null && (v == null || v.length < 8)) {
-                  return 'Minimum 8 chars';
-                }
-                return null;
-              },
+              validator: widget.existing == null
+                  ? Validators.password
+                  : Validators.optionalPassword,
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
@@ -357,19 +535,23 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             const SizedBox(height: 10),
             TextFormField(
               controller: _phone,
+              keyboardType: TextInputType.phone,
               decoration: const InputDecoration(labelText: 'Phone (optional)', border: OutlineInputBorder()),
+              validator: Validators.optionalPhone,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _dept,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Primary Department ID', border: OutlineInputBorder()),
+              validator: Validators.optionalPositiveInt,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _loc,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Primary Location ID', border: OutlineInputBorder()),
+              validator: Validators.optionalPositiveInt,
             ),
             const SizedBox(height: 12),
             FilledButton(
