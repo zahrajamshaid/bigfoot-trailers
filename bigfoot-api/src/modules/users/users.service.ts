@@ -262,4 +262,93 @@ export class UsersService {
 
     return deactivated;
   }
+
+  // ---------------------------------------------------------------------------
+  // POST /users/:id/reactivate — undo a soft-delete (owner only)
+  // ---------------------------------------------------------------------------
+  async reactivate(id: bigint): Promise<SafeUser> {
+    const existing = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, isActive: true },
+    });
+
+    if (!existing) {
+      throw new AppError(ErrorCode.NOT_FOUND, `User with id ${id} not found`);
+    }
+
+    if (existing.isActive) {
+      throw new AppError(ErrorCode.BAD_REQUEST, 'User is already active');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        isActive: true,
+        deactivatedAt: null,
+      },
+      select: USER_SELECT,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE /users/:id/permanent — hard-delete (owner only)
+  //
+  // Refuses if the user has historical activity (completed steps, QC
+  // inspections, deliveries, ...) since most of those FKs are non-cascading
+  // and the records must remain for audit purposes. Audit-log rows cascade
+  // automatically — those WILL be removed with the user.
+  // ---------------------------------------------------------------------------
+  async hardDelete(id: bigint, requesterId: bigint): Promise<{ deleted: true }> {
+    const existing = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, isActive: true },
+    });
+
+    if (!existing) {
+      throw new AppError(ErrorCode.NOT_FOUND, `User with id ${id} not found`);
+    }
+
+    if (existing.isActive) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'Deactivate the user first — only inactive users can be permanently deleted.',
+      );
+    }
+
+    if (requesterId === id) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'You cannot permanently delete your own account');
+    }
+
+    if (existing.role === 'owner') {
+      const ownerCount = await this.prisma.user.count({
+        where: { role: 'owner', isActive: true },
+      });
+      if (ownerCount <= 0) {
+        throw new AppError(
+          ErrorCode.FORBIDDEN,
+          'Cannot delete the last owner account — promote another user to owner first.',
+        );
+      }
+    }
+
+    try {
+      await this.prisma.user.delete({ where: { id } });
+      return { deleted: true };
+    } catch (e) {
+      // P2003 = FK constraint violation. The user still has records in
+      // tables whose FKs don't cascade (trailers they created, QC
+      // inspections they ran, deliveries, messages, etc.). Translate to
+      // an actionable error so the admin knows why.
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2003'
+      ) {
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          'This user has historical activity (completed steps, inspections, deliveries, or messages) and cannot be permanently deleted. Keep them deactivated to preserve the audit trail.',
+        );
+      }
+      throw e;
+    }
+  }
 }

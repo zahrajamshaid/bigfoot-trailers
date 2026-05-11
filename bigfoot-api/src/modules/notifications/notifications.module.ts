@@ -7,6 +7,7 @@ import { PushService } from './push.service';
 import { SmsService } from './sms.service';
 import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
+import { NotificationsController } from './notifications.controller';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { MessagesController } from './messages.controller';
       }),
     }),
   ],
-  controllers: [MessagesController],
+  controllers: [MessagesController, NotificationsController],
   providers: [
     NotificationsGateway,
     NotificationsService,

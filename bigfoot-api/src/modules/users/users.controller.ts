@@ -107,4 +107,41 @@ export class UsersController {
   ) {
     return this.usersService.softDelete(BigInt(id), BigInt(requester.sub));
   }
+
+  // ---------------------------------------------------------------------------
+  // POST /users/:id/reactivate — undo a soft-delete (owner only)
+  // ---------------------------------------------------------------------------
+  @Post(':id/reactivate')
+  @Roles(UserRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reactivate a previously deactivated user (owner only)' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'User reactivated' })
+  @ApiResponse({ status: 400, description: 'User is already active' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async reactivate(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.reactivate(BigInt(id));
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE /users/:id/permanent — hard-delete (owner only)
+  // Only works on already-deactivated users with no historical activity.
+  // ---------------------------------------------------------------------------
+  @Delete(':id/permanent')
+  @Roles(UserRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Permanently delete a deactivated user (owner only). Refuses if the user has any historical activity.',
+  })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'User permanently deleted' })
+  @ApiResponse({ status: 400, description: 'User still active or has historical activity' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async hardDelete(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() requester: JwtPayload,
+  ) {
+    return this.usersService.hardDelete(BigInt(id), BigInt(requester.sub));
+  }
 }

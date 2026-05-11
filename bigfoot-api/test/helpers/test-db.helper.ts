@@ -9,10 +9,11 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 // ── Location seed data ──────────────────────────────────────────────────────
 
 const LOCATIONS = [
-  { code: 'MULBERRY', name: 'Bigfoot Trailers Mulberry', city: 'Mulberry', state: 'FL', isFactory: true },
-  { code: 'JACKSONVILLE', name: 'Bigfoot Trailers Jacksonville', city: 'Jacksonville', state: 'FL', isFactory: false },
-  { code: 'ASHLAND', name: 'Bigfoot Trailers Ashland', city: 'Ashland', state: 'VA', isFactory: false },
-  { code: 'ATLANTA', name: 'Bigfoot Trailers Atlanta', city: 'Atlanta', state: 'GA', isFactory: false },
+  { code: 'MULBERRY', name: 'Bigfoot Trailers Mulberry', city: 'Mulberry', state: 'FL', isFactory: true, shortLabel: 'Mul' },
+  { code: 'JACKSONVILLE', name: 'Bigfoot Trailers Jacksonville', city: 'Jacksonville', state: 'FL', isFactory: false, shortLabel: 'Jax' },
+  { code: 'TAPPAHANNOCK', name: 'Bigfoot Trailers Tappahannock', city: 'Tappahannock', state: 'VA', isFactory: false, shortLabel: 'VA' },
+  { code: 'ATLANTA', name: 'Bigfoot Trailers Atlanta', city: 'Atlanta', state: 'GA', isFactory: false, shortLabel: 'GA' },
+  { code: 'TALLAHASSEE', name: 'Bigfoot Trailers Tallahassee', city: 'Tallahassee', state: 'FL', isFactory: false, shortLabel: 'TAL' },
 ];
 
 // ── Trailer model seed data ─────────────────────────────────────────────────

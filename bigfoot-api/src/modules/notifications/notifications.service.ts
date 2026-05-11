@@ -3,6 +3,7 @@ import { PushService } from './push.service';
 import { SmsService } from './sms.service';
 import { NotificationsGateway, WsEvent } from './notifications.gateway';
 import { NotificationType, SmsType } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
 
 // ---------------------------------------------------------------------------
 // Payload interfaces for each notification scenario
@@ -17,6 +18,8 @@ export interface StepCompletedPayload {
   nextStepId?: bigint | null;
   nextDepartmentId?: number | null;
   nextDepartmentName?: string | null;
+  /** True when the next step is in a QC department — drives the qc_ready push. */
+  nextDepartmentIsQc?: boolean;
   completedByUserId: bigint;
   pointsAwarded: number;
 }
@@ -105,7 +108,47 @@ export class NotificationsService {
     private readonly pushService: PushService,
     private readonly smsService: SmsService,
     private readonly gateway: NotificationsGateway,
+    private readonly prisma: PrismaService,
   ) {}
+
+  // =========================================================================
+  // NOTIFICATION HISTORY — authenticated user push history
+  // =========================================================================
+  async getHistory(userId: bigint, page = 1, limit = 100) {
+    const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(Math.max(limit, 1), 200)
+      : 100;
+
+    const skip = (safePage - 1) * safeLimit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.pushNotification.findMany({
+        where: { recipientUserId: userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: safeLimit,
+      }),
+      this.prisma.pushNotification.count({
+        where: { recipientUserId: userId },
+      }),
+    ]);
+
+    return {
+      items: items.map((n) => ({
+        id: n.id.toString(),
+        type: n.notificationType,
+        title: n.title,
+        body: n.body,
+        isRead: n.isRead,
+        timestamp: n.createdAt.toISOString(),
+      })),
+      page: safePage,
+      limit: safeLimit,
+      total,
+      unreadCount: items.filter((n) => !n.isRead).length,
+    };
+  }
 
   // =========================================================================
   // STEP_COMPLETED — fires on dept channel + next QC dept channel
@@ -128,6 +171,24 @@ export class NotificationsService {
     // Also emit to the next department (the QC dept)
     if (payload.nextDepartmentId) {
       this.gateway.emitToDepartment(payload.nextDepartmentId, WsEvent.STEP_COMPLETED, data);
+    }
+
+    // Push notification to QC inspectors when the next step is QC. WS pushes
+    // refresh open queues, but inspectors with the app backgrounded only
+    // hear about it via Firebase.
+    if (
+      payload.nextDepartmentIsQc &&
+      payload.nextDepartmentId &&
+      payload.nextStepId &&
+      payload.nextDepartmentName
+    ) {
+      await this.pushService.sendQcReady(
+        payload.trailerId,
+        payload.soNumber,
+        payload.nextDepartmentName,
+        payload.nextDepartmentId,
+        payload.nextStepId,
+      );
     }
   }
 
