@@ -2,12 +2,14 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { CustomerType } from '@prisma/client';
 
 export class CreateCustomerDto {
@@ -60,6 +62,15 @@ export class CreateCustomerDto {
   @IsString()
   @MaxLength(50)
   qbCustomerId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Required when customerType=stock_location: which yard this stock customer represents.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  stockLocationId?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

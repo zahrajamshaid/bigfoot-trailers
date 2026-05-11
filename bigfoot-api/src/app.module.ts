@@ -22,6 +22,7 @@ import { QcModule } from './modules/qc/qc.module';
 import { PayrollModule } from './modules/payroll/payroll.module';
 import { DeliveriesModule } from './modules/deliveries/deliveries.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { LocationsModule } from './modules/locations/locations.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -70,6 +71,7 @@ import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
     PayrollModule,
     DeliveriesModule,
     CustomersModule,
+    LocationsModule,
     NotificationsModule,
     StorageModule,
     AdminModule,

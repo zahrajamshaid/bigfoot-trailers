@@ -126,6 +126,7 @@ enum SmsStatus {
 
 enum NotificationType {
   qc_fail
+  qc_ready
   trailer_stalled
   worker_message
   payment_not_collected
@@ -170,15 +171,16 @@ enum QcSeriesScope {
 // =============================================================================
 
 model Location {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique @db.VarChar(20)
-  name      String   @db.VarChar(100)
-  city      String   @db.VarChar(100)
-  state     String   @db.Char(2)
-  address   String?
-  isFactory Boolean  @default(false) @map("is_factory")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id         Int      @id @default(autoincrement())
+  code       String   @unique @db.VarChar(20)
+  name       String   @db.VarChar(100)
+  city       String   @db.VarChar(100)
+  state      String   @db.Char(2)
+  address    String?
+  shortLabel String?  @map("short_label") @db.VarChar(8)
+  isFactory  Boolean  @default(false) @map("is_factory")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
   trailers         Trailer[]
@@ -186,6 +188,7 @@ model Location {
   deliveryBatches  DeliveryBatch[]
   deliveries       Delivery[]
   locationReceipts LocationReceipt[]
+  stockCustomers   Customer[]        @relation("CustomerStockLocation")
 
   @@map("locations")
 }
@@ -218,11 +221,16 @@ model Customer {
   smsOptOut       Boolean      @default(false) @map("sms_opt_out")
   qbCustomerId    String?      @map("qb_customer_id") @db.VarChar(50)
   notes           String?
+  // Required when customerType = stock_location: which yard this stock
+  // customer represents. Lets the trailer-create flow auto-fill the stock
+  // destination when this customer is picked.
+  stockLocationId Int?         @map("stock_location_id")
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
-  trailers Trailer[]
+  trailers      Trailer[]
+  stockLocation Location? @relation("CustomerStockLocation", fields: [stockLocationId], references: [id])
 
   @@map("customers")
 }
@@ -240,6 +248,7 @@ model Trailer {
   color        String? @db.VarChar(60)
   sizeFt       String? @map("size_ft") @db.VarChar(10)
   optionsNotes String? @map("options_notes")
+  specialNote  String? @map("special_note") @db.VarChar(500)
 
   // QB integration
   qbSoPdfStorageUrl String?   @map("qb_so_pdf_storage_url")

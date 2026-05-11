@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { CustomerType } from '@prisma/client';
 
 export class QueryCustomersDto {
@@ -13,6 +21,15 @@ export class QueryCustomersDto {
   @IsOptional()
   @IsEnum(CustomerType)
   customerType?: CustomerType;
+
+  @ApiPropertyOptional({
+    description:
+      'When true, drop stock_location customers from the result. Used by the trailer-create customer picker so stock yards stay out of that selector.',
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  excludeStockLocations?: boolean;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()

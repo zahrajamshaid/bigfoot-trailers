@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { CustomerType, Prisma, TrailerStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppError, ErrorCode } from '../../common/errors';
 import {
@@ -20,20 +20,160 @@ const CUSTOMER_SELECT = {
   smsOptOut: true,
   qbCustomerId: true,
   notes: true,
+  stockLocationId: true,
   createdAt: true,
   updatedAt: true,
+  stockLocation: {
+    select: { id: true, code: true, name: true, city: true, state: true, shortLabel: true },
+  },
 } satisfies Prisma.CustomerSelect;
 
 @Injectable()
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private stockCityFromCustomerName(name: string): string | null {
+    const match = name.trim().match(/^(.*)\s+stock$/i);
+    if (!match) return null;
+    const city = match[1]?.trim().toLowerCase();
+    return city && city.length > 0 ? city : null;
+  }
+
+  private async buildStockLocationCountMap(stockCities: Set<string>) {
+    if (stockCities.size === 0) {
+      return new Map<string, number>();
+    }
+
+    const locations = await this.prisma.location.findMany({
+      select: { id: true, city: true },
+    });
+
+    const locationIdByCity = new Map<string, number>();
+    for (const loc of locations) {
+      const city = loc.city.trim().toLowerCase();
+      if (stockCities.has(city) && !locationIdByCity.has(city)) {
+        locationIdByCity.set(city, loc.id);
+      }
+    }
+
+    const locationIds = [...locationIdByCity.values()];
+    if (locationIds.length === 0) {
+      return new Map<string, number>();
+    }
+
+    const grouped = await this.prisma.trailer.groupBy({
+      by: ['currentLocationId'],
+      where: {
+        isStockBuild: true,
+        status: { not: TrailerStatus.delivered },
+        currentLocationId: { in: locationIds },
+      },
+      _count: { _all: true },
+    });
+
+    const countsByLocationId = new Map<number, number>();
+    for (const row of grouped) {
+      countsByLocationId.set(row.currentLocationId, row._count._all);
+    }
+
+    const countsByCity = new Map<string, number>();
+    for (const [city, locationId] of locationIdByCity.entries()) {
+      countsByCity.set(city, countsByLocationId.get(locationId) ?? 0);
+    }
+
+    return countsByCity;
+  }
+
+  private async addActiveTrailerCountsToCustomers(
+    customers: Array<Prisma.CustomerGetPayload<{ select: typeof CUSTOMER_SELECT }>>,
+  ) {
+    if (customers.length === 0) return [];
+
+    const customerIds = customers.map((c) => c.id);
+    const directGrouped = await this.prisma.trailer.groupBy({
+      by: ['customerId'],
+      where: {
+        customerId: { in: customerIds },
+        status: { not: TrailerStatus.delivered },
+      },
+      _count: { _all: true },
+    });
+
+    const directCounts = new Map<string, number>();
+    for (const row of directGrouped) {
+      if (row.customerId != null) {
+        directCounts.set(row.customerId.toString(), row._count._all);
+      }
+    }
+
+    const stockCityByCustomerId = new Map<string, string>();
+    const stockCities = new Set<string>();
+    for (const c of customers) {
+      if (c.customerType !== CustomerType.stock_location) continue;
+      const city = this.stockCityFromCustomerName(c.name);
+      if (!city) continue;
+      stockCityByCustomerId.set(c.id.toString(), city);
+      stockCities.add(city);
+    }
+
+    const stockCountsByCity = await this.buildStockLocationCountMap(stockCities);
+
+    return customers.map((c) => {
+      const idKey = c.id.toString();
+      let activeTrailerCount = directCounts.get(idKey) ?? 0;
+
+      const stockCity = stockCityByCustomerId.get(idKey);
+      if (stockCity) {
+        activeTrailerCount += stockCountsByCity.get(stockCity) ?? 0;
+      }
+
+      return {
+        ...c,
+        activeTrailerCount,
+      };
+    });
+  }
+
+  private async getActiveTrailerCountForCustomer(customer: {
+    id: bigint;
+    name: string;
+    customerType: CustomerType;
+  }) {
+    const directCount = await this.prisma.trailer.count({
+      where: {
+        customerId: customer.id,
+        status: { not: TrailerStatus.delivered },
+      },
+    });
+
+    if (customer.customerType !== CustomerType.stock_location) {
+      return directCount;
+    }
+
+    const stockCity = this.stockCityFromCustomerName(customer.name);
+    if (!stockCity) {
+      return directCount;
+    }
+
+    const stockCountsByCity = await this.buildStockLocationCountMap(new Set([stockCity]));
+    return directCount + (stockCountsByCity.get(stockCity) ?? 0);
+  }
+
   async findAll(query: QueryCustomersDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
 
     const where: Prisma.CustomerWhereInput = {};
-    if (query.customerType) where.customerType = query.customerType;
+    if (query.customerType) {
+      // Caller asked for a specific type — honour it.
+      where.customerType = query.customerType;
+    } else if (query.excludeStockLocations) {
+      // Trailer-create picker explicitly opts out of stock yards so they
+      // can't be assigned as a trailer customer (stock destinations are
+      // handled by the dedicated chip widget instead).
+      where.customerType = { not: CustomerType.stock_location };
+    }
+    // Otherwise no type filter — the customers screen sees every type.
     if (query.search) {
       const s = query.search.trim();
       where.OR = [
@@ -55,8 +195,10 @@ export class CustomersService {
       this.prisma.customer.count({ where }),
     ]);
 
+    const itemsWithCounts = await this.addActiveTrailerCountsToCustomers(items);
+
     return {
-      items,
+      items: itemsWithCounts,
       total,
       page,
       limit,
@@ -79,10 +221,21 @@ export class CustomersService {
     if (!customer) {
       throw new AppError(ErrorCode.NOT_FOUND, `Customer ${id} not found`);
     }
-    return customer;
+
+    const activeTrailerCount = await this.getActiveTrailerCountForCustomer({
+      id: customer.id,
+      name: customer.name,
+      customerType: customer.customerType,
+    });
+
+    return {
+      ...customer,
+      activeTrailerCount,
+    };
   }
 
   async create(dto: CreateCustomerDto) {
+    await this.validateStockLocation(dto.customerType, dto.stockLocationId);
     return this.prisma.customer.create({
       data: dto,
       select: CUSTOMER_SELECT,
@@ -91,11 +244,58 @@ export class CustomersService {
 
   async update(id: bigint, dto: UpdateCustomerDto) {
     await this.assertExists(id);
+    if (dto.customerType !== undefined || dto.stockLocationId !== undefined) {
+      // For partial updates we can't tell intent from the dto alone — fetch
+      // the existing type so the validator sees the eventual state.
+      const current = await this.prisma.customer.findUnique({
+        where: { id },
+        select: { customerType: true, stockLocationId: true },
+      });
+      const nextType = dto.customerType ?? current?.customerType;
+      const nextLoc = dto.stockLocationId !== undefined
+        ? dto.stockLocationId
+        : current?.stockLocationId ?? null;
+      await this.validateStockLocation(nextType, nextLoc ?? undefined);
+    }
     return this.prisma.customer.update({
       where: { id },
       data: dto,
       select: CUSTOMER_SELECT,
     });
+  }
+
+  /**
+   * Stock-location customers must point at a real yard. End-user / dealer
+   * customers must NOT carry a stock-location FK (the field would be
+   * meaningless and confusing in queries).
+   */
+  private async validateStockLocation(
+    customerType: CustomerType | undefined,
+    stockLocationId: number | undefined,
+  ) {
+    if (customerType === CustomerType.stock_location) {
+      if (!stockLocationId) {
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          'stockLocationId is required when customerType is "stock_location".',
+        );
+      }
+      const loc = await this.prisma.location.findUnique({
+        where: { id: stockLocationId },
+        select: { id: true, isActive: true },
+      });
+      if (!loc || !loc.isActive) {
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          `Location ${stockLocationId} is invalid or inactive.`,
+        );
+      }
+    } else if (stockLocationId) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'stockLocationId is only valid for customerType="stock_location".',
+      );
+    }
   }
 
   async remove(id: bigint) {

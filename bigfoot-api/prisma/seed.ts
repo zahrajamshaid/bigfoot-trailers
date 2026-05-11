@@ -17,50 +17,67 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('🌱 Seeding Bigfoot Trailers database...\n');
 
-  // ─── LOCATIONS (4 rows) ────────────────────────────────────────────────────
+  // ─── LOCATIONS (5 rows) ────────────────────────────────────────────────────
+  // shortLabel is the chip text shown in mobile pickers (Mul, Jax, VA, GA, TAL).
   const locations = await Promise.all([
     prisma.location.upsert({
       where: { code: 'MULBERRY' },
-      update: {},
+      update: { shortLabel: 'Mul' },
       create: {
         code: 'MULBERRY',
         name: 'Bigfoot Trailers Mulberry',
         city: 'Mulberry',
         state: 'FL',
         isFactory: true,
+        shortLabel: 'Mul',
       },
     }),
     prisma.location.upsert({
       where: { code: 'JACKSONVILLE' },
-      update: {},
+      update: { shortLabel: 'Jax' },
       create: {
         code: 'JACKSONVILLE',
         name: 'Bigfoot Trailers Jacksonville',
         city: 'Jacksonville',
         state: 'FL',
         isFactory: false,
+        shortLabel: 'Jax',
       },
     }),
     prisma.location.upsert({
-      where: { code: 'ASHLAND' },
-      update: {},
+      where: { code: 'TAPPAHANNOCK' },
+      update: { shortLabel: 'VA' },
       create: {
-        code: 'ASHLAND',
-        name: 'Bigfoot Trailers Ashland',
-        city: 'Ashland',
+        code: 'TAPPAHANNOCK',
+        name: 'Bigfoot Trailers Tappahannock',
+        city: 'Tappahannock',
         state: 'VA',
         isFactory: false,
+        shortLabel: 'VA',
       },
     }),
     prisma.location.upsert({
       where: { code: 'ATLANTA' },
-      update: {},
+      update: { shortLabel: 'GA' },
       create: {
         code: 'ATLANTA',
         name: 'Bigfoot Trailers Atlanta',
         city: 'Atlanta',
         state: 'GA',
         isFactory: false,
+        shortLabel: 'GA',
+      },
+    }),
+    prisma.location.upsert({
+      where: { code: 'TALLAHASSEE' },
+      update: { shortLabel: 'TAL' },
+      create: {
+        code: 'TALLAHASSEE',
+        name: 'Bigfoot Trailers Tallahassee',
+        city: 'Tallahassee',
+        state: 'FL',
+        isFactory: false,
+        shortLabel: 'TAL',
       },
     }),
   ]);
@@ -109,7 +126,13 @@ async function main() {
   // ─── CUSTOMERS — Stock locations (4 rows) ─────────────────────────────────
   // Customers have no natural unique key besides id.
   // Check by name+type to make seeding idempotent.
-  const stockNames = ['Mulberry Stock', 'Jacksonville Stock', 'Ashland Stock', 'Atlanta Stock'];
+  const stockNames = [
+    'Mulberry Stock',
+    'Jacksonville Stock',
+    'Tappahannock Stock',
+    'Atlanta Stock',
+    'Tallahassee Stock',
+  ];
   for (const name of stockNames) {
     const existing = await prisma.customer.findFirst({
       where: { name, customerType: CustomerType.stock_location },
@@ -120,7 +143,7 @@ async function main() {
       });
     }
   }
-  console.log('✅ Stock customers seeded: 4');
+  console.log(`✅ Stock customers seeded: ${stockNames.length}`);
 
   // ─── DEPARTMENTS (20 rows) ────────────────────────────────────────────────
   // 14 production departments + 6 QC departments = 20 total
@@ -144,11 +167,14 @@ async function main() {
     { code: 'HYDRAULICS', displayName: 'Hydraulics', isQcStep: false, completionType: DeptCompletionType.one_tap },
     { code: 'WIRE', displayName: 'Wire Department', isQcStep: false, completionType: DeptCompletionType.one_tap },
     { code: 'WOOD', displayName: 'Wood Department', isQcStep: false, completionType: DeptCompletionType.one_tap },
-    { code: 'QC_1', displayName: 'Quality Control 1', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
-    { code: 'QC_2', displayName: 'Quality Control 2', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
-    { code: 'QC_3', displayName: 'Quality Control 3', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
-    { code: 'QC_4', displayName: 'Quality Control 4', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
-    { code: 'QC_5', displayName: 'Quality Control 5', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
+    { code: 'QC_1', displayName: 'Jig Weld QC', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
+    { code: 'QC_2', displayName: 'Finish Weld QC', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
+    { code: 'QC_3', displayName: 'Paint Prep QC', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
+    { code: 'QC_4', displayName: 'Paint QC', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
+    // QC_5 inspects WIRE for XP/Yeti/Deck Over and HYDRAULICS for Gooseneck —
+    // hybrid label captures both contexts (the trailer's model on the queue
+    // card tells the inspector which is being checked).
+    { code: 'QC_5', displayName: 'Wire / Hydraulics QC', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
     { code: 'FINAL_QC', displayName: 'Final QC', isQcStep: true, completionType: DeptCompletionType.qc_checklist },
   ];
 
