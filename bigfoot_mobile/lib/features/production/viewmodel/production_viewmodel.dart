@@ -87,24 +87,39 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
     _wsSub = _ws.events.listen(_onWsEvent);
   }
 
-  Future<void> load(int departmentId, {bool isManager = false}) async {
+  Future<void> load(int? departmentId, {bool isManager = false}) async {
     emit(const ProductionQueueLoading());
     try {
       List<Department> departments = [];
       if (isManager) {
         departments = await _repository.getDepartments();
       }
-      final queue = await _repository.getQueue(departmentId);
+
+      int? resolvedDepartmentId = departmentId;
+      if (resolvedDepartmentId == null && isManager) {
+        final productionDepartments = departments.where((d) => !d.isQcStep).toList();
+        resolvedDepartmentId =
+            productionDepartments.firstOrNull?.id ?? departments.firstOrNull?.id;
+      }
+
+      if (resolvedDepartmentId == null) {
+        emit(const ProductionQueueError(
+          'No department is assigned to this account. Please contact admin.',
+        ));
+        return;
+      }
+
+      final queue = await _repository.getQueue(resolvedDepartmentId);
       final deptName = departments.isEmpty
           ? null
           : departments
-              .where((d) => d.id == departmentId)
+              .where((d) => d.id == resolvedDepartmentId)
               .map((d) => d.displayName)
               .firstOrNull;
 
       emit(ProductionQueueLoaded(
         queue: queue,
-        departmentId: departmentId,
+        departmentId: resolvedDepartmentId,
         departmentName: deptName,
         departments: departments,
       ));

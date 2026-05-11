@@ -8,6 +8,7 @@ import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/customer_repository_impl.dart';
 import '../data/repositories/dashboard_repository_impl.dart';
 import '../data/repositories/delivery_repository_impl.dart';
+import '../data/repositories/location_repository_impl.dart';
 import '../data/repositories/message_repository_impl.dart';
 import '../data/repositories/notification_repository_impl.dart';
 import '../data/repositories/payroll_repository_impl.dart';
@@ -20,6 +21,7 @@ import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/customer_repository.dart';
 import '../domain/repositories/dashboard_repository.dart';
 import '../domain/repositories/delivery_repository.dart';
+import '../domain/repositories/location_repository.dart';
 import '../domain/repositories/message_repository.dart';
 import '../domain/repositories/notification_repository.dart';
 import '../domain/repositories/payroll_repository.dart';
@@ -49,6 +51,7 @@ class ServiceLocator {
     required this.payrollRepository,
     required this.adminRepository,
     required this.customerRepository,
+    required this.locationRepository,
     required this.messageRepository,
     required this.notificationRepository,
     required this.storageRepository,
@@ -71,6 +74,7 @@ class ServiceLocator {
   final PayrollRepository payrollRepository;
   final AdminRepository adminRepository;
   final CustomerRepository customerRepository;
+  final LocationRepository locationRepository;
   final MessageRepository messageRepository;
   final NotificationRepository notificationRepository;
   final StorageRepository storageRepository;
@@ -95,6 +99,8 @@ class ServiceLocator {
       ],
     );
 
+    final locationRepository = LocationRepositoryImpl(api: dioClient);
+
     return ServiceLocator._(
       dioClient: dioClient,
       wsClient: wsClient,
@@ -106,10 +112,14 @@ class ServiceLocator {
       trailerRepository: TrailerRepositoryImpl(api: dioClient),
       productionRepository: ProductionRepositoryImpl(api: dioClient),
       qcRepository: QcRepositoryImpl(api: dioClient),
-      deliveryRepository: DeliveryRepositoryImpl(api: dioClient),
+      deliveryRepository: DeliveryRepositoryImpl(
+        api: dioClient,
+        locationRepository: locationRepository,
+      ),
       payrollRepository: PayrollRepositoryImpl(api: dioClient),
       adminRepository: AdminRepositoryImpl(api: dioClient),
       customerRepository: CustomerRepositoryImpl(api: dioClient),
+      locationRepository: locationRepository,
       messageRepository: MessageRepositoryImpl(api: dioClient),
       notificationRepository: NotificationRepositoryImpl(api: dioClient),
       storageRepository: StorageRepositoryImpl(api: dioClient),

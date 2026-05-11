@@ -153,6 +153,7 @@ DeliveryLocationInfo _$DeliveryLocationInfoFromJson(
   name: json['name'] as String,
   city: json['city'] as String?,
   state: json['state'] as String?,
+  shortLabel: json['shortLabel'] as String?,
 );
 
 Map<String, dynamic> _$DeliveryLocationInfoToJson(
@@ -162,6 +163,7 @@ Map<String, dynamic> _$DeliveryLocationInfoToJson(
   'name': instance.name,
   'city': instance.city,
   'state': instance.state,
+  'shortLabel': instance.shortLabel,
 };
 
 DeliveryPhoto _$DeliveryPhotoFromJson(Map<String, dynamic> json) =>

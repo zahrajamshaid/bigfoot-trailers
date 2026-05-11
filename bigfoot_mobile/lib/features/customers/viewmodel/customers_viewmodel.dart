@@ -16,11 +16,13 @@ class CustomersViewModel extends Cubit<int> {
   Future<CustomersListResult> getCustomers({
     String? query,
     String? customerType,
+    bool excludeStockLocations = false,
     int page = 1,
     int limit = 20,
   }) => _repository.getCustomers(
     query: query,
     customerType: customerType,
+    excludeStockLocations: excludeStockLocations,
     page: page,
     limit: limit,
   );

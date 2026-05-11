@@ -54,4 +54,14 @@ abstract class ProductionRepository {
   });
   Future<void> reverseStep(int stepId);
   Future<void> reorderQueue(int departmentId, List<int> stepIds);
+
+  /// Admin override: place a trailer at an arbitrary production step. Earlier
+  /// steps are forced to `complete`, the target becomes `active`, later steps
+  /// are reset to `waiting`. Backend rejects 403 unless the caller is owner
+  /// or production_manager.
+  Future<void> jumpToStep({
+    required int trailerId,
+    required int stepId,
+    String? reason,
+  });
 }

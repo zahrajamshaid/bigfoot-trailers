@@ -23,6 +23,19 @@ class StorageRepositoryImpl implements StorageRepository {
   final DioClient _api;
   final Connectivity _connectivity;
   final Uuid _uuid = const Uuid();
+  // Bare Dio for S3/Spaces uploads. No interceptors, no base URL, no default
+  // content-type — anything Dio adds beyond what's signed (host + content-type)
+  // would not affect sigv4, but the auth interceptor's `application/json`
+  // default and base-URL normalization on the API client *can* mangle the
+  // absolute presigned URL (re-encoding `%2F` in `X-Amz-Credential`) → 403.
+  final Dio _uploadDio = Dio(
+    BaseOptions(
+      sendTimeout: const Duration(minutes: 2),
+      receiveTimeout: const Duration(minutes: 2),
+      // Explicitly accept any 2xx; let validateStatus default handle errors.
+      followRedirects: false,
+    ),
+  );
   final Map<String, DownloadUrlCacheEntry> _downloadCache = {};
   final StreamController<int> _pendingCountController =
       StreamController<int>.broadcast();
@@ -65,10 +78,10 @@ class StorageRepositoryImpl implements StorageRepository {
         fileType: fileType,
         trailerId: trailerId,
         fileName: fileName,
-        contentType: contentType,
-        metadata: captureMetadata,
       );
-      await _putBytes(presign.uploadUrl, bytes, contentType);
+      // Use server-supplied contentType from the presign response to
+      // ensure the PUT matches the signed fields exactly (avoids 403).
+      await _putBytes(presign.uploadUrl, bytes, presign.contentType);
       return StorageUploadResult.uploaded(presign.storageKey);
     } catch (e) {
       if (kIsWeb) rethrow;
@@ -142,7 +155,11 @@ class StorageRepositoryImpl implements StorageRepository {
     final output = File(
       p.join(dir.path, fileName ?? storageKey.replaceAll('/', '_')),
     );
-    await _api.dio.download(url, output.path);
+    await _api.dio.download(
+      url,
+      output.path,
+      options: Options(extra: {'skipAuth': true}),
+    );
     return output;
   }
 
@@ -167,8 +184,6 @@ class StorageRepositoryImpl implements StorageRepository {
             fileType: item.fileType,
             trailerId: item.trailerId,
             fileName: item.fileName,
-            contentType: item.contentType,
-            metadata: item.metadata,
           );
           await _putBytes(presign.uploadUrl, bytes, item.contentType);
           await _removeFromQueue(item.localId);
@@ -242,8 +257,6 @@ class StorageRepositoryImpl implements StorageRepository {
     required String fileType,
     required int trailerId,
     required String fileName,
-    required String contentType,
-    required CapturedPhotoMetadata metadata,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.storagePresign,
@@ -251,15 +264,20 @@ class StorageRepositoryImpl implements StorageRepository {
         'fileType': fileType,
         'trailerId': trailerId,
         'fileName': fileName,
-        'contentType': contentType,
-        'metadata': metadata.toJson(),
       },
       fromJson: (d) => d as Map<String, dynamic>,
     );
     final data = response.data ?? <String, dynamic>{};
     final uploadUrl = (data['uploadUrl'] ?? data['upload_url']) as String;
     final storageKey = (data['storageKey'] ?? data['storage_key']) as String;
-    return _PresignResult(uploadUrl: uploadUrl, storageKey: storageKey);
+    final contentType = (data['contentType'] ?? data['content_type']) as String? ?? 'application/octet-stream';
+
+    // Debug: surface presign details when debugging upload failures
+    try {
+      debugPrint('Presign response: uploadUrl length=${uploadUrl.length}, storageKey=$storageKey, contentType=$contentType');
+    } catch (_) {}
+
+    return _PresignResult(uploadUrl: uploadUrl, storageKey: storageKey, contentType: contentType);
   }
 
   Future<void> _putBytes(
@@ -267,11 +285,30 @@ class StorageRepositoryImpl implements StorageRepository {
     List<int> bytes,
     String contentType,
   ) async {
-    await _api.dio.put(
-      uploadUrl,
-      data: bytes,
-      options: Options(headers: {'Content-Type': contentType}),
-    );
+    final body = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    try {
+      // Stream<List<int>> body bypasses Dio's request transformer, so the raw
+      // bytes hit the wire unchanged. Setting Content-Length explicitly avoids
+      // chunked transfer (Spaces rejects chunked PUTs against sigv4 URLs).
+      await _uploadDio.putUri(
+        Uri.parse(uploadUrl),
+        data: Stream<List<int>>.fromIterable([body]),
+        options: Options(
+          headers: {
+            Headers.contentTypeHeader: contentType,
+            Headers.contentLengthHeader: body.length,
+          },
+        ),
+      );
+    } on DioException catch (e) {
+      try {
+        debugPrint('Storage PUT failed: status=${e.response?.statusCode}');
+        debugPrint('Storage PUT URL host: ${Uri.parse(uploadUrl).host}');
+        debugPrint('Response headers: ${e.response?.headers.map}');
+        debugPrint('Response data: ${e.response?.data}');
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   Future<QueuedUpload> _enqueueUpload({
@@ -360,7 +397,26 @@ class StorageRepositoryImpl implements StorageRepository {
   }
 
   bool _isNetworkish(Object e) {
-    return e is DioException || e is SocketException || e is TimeoutException;
+    if (e is SocketException || e is TimeoutException) {
+      return true;
+    }
+    if (e is! DioException) {
+      return false;
+    }
+
+    // Queue only when the failure is likely transient (offline/timeout).
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+      case DioExceptionType.unknown:
+        return true;
+      case DioExceptionType.badCertificate:
+      case DioExceptionType.badResponse:
+      case DioExceptionType.cancel:
+        return false;
+    }
   }
 
   @override
@@ -374,6 +430,7 @@ class StorageRepositoryImpl implements StorageRepository {
 class _PresignResult {
   final String uploadUrl;
   final String storageKey;
+  final String contentType;
 
-  const _PresignResult({required this.uploadUrl, required this.storageKey});
+  const _PresignResult({required this.uploadUrl, required this.storageKey, required this.contentType});
 }

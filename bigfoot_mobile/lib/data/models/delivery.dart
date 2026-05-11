@@ -147,12 +147,14 @@ class DeliveryLocationInfo {
   final String name;
   final String? city;
   final String? state;
+  final String? shortLabel;
 
   const DeliveryLocationInfo({
     required this.id,
     required this.name,
     this.city,
     this.state,
+    this.shortLabel,
   });
 
   factory DeliveryLocationInfo.fromJson(Map<String, dynamic> json) =>

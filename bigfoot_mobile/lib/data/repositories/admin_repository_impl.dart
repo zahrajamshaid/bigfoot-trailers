@@ -46,28 +46,49 @@ class AdminRepositoryImpl implements AdminRepository {
     int page = 1,
     int limit = 25,
   }) async {
+    final safePage = page < 1 ? 1 : page;
+    final safeLimit = limit < 1 ? 1 : (limit > 100 ? 100 : limit);
+
     final response = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.users,
       queryParameters: {
-        'page': page,
-        'limit': limit,
+        'page': safePage,
+        'limit': safeLimit,
         if (role != null && role.isNotEmpty) 'role': role,
         if (isActive != null) 'isActive': isActive,
       },
       fromJson: (d) => d as Map<String, dynamic>,
     );
 
-    final data = response.data ?? {};
-    final users = ((data['users'] as List<dynamic>?) ?? [])
+  final data = response.data ?? {};
+
+  // Backend list endpoints may use different keys depending on controller
+  // or paginator middleware. Accept common variants so admin user list
+  // still renders even if shape changes between environments.
+  final rawUsers = (data['users'] as List<dynamic>?) ??
+    (data['items'] as List<dynamic>?) ??
+    (data['results'] as List<dynamic>?) ??
+    (data['rows'] as List<dynamic>?) ??
+    const <dynamic>[];
+
+  final users = rawUsers
         .whereType<Map<String, dynamic>>()
         .map(_userFromApi)
         .toList();
 
     return AdminUsersResult(
       users: users,
-      total: (data['total'] as num?)?.toInt() ?? users.length,
-      page: (data['page'] as num?)?.toInt() ?? page,
-      limit: (data['limit'] as num?)?.toInt() ?? limit,
+    total: (data['total'] as num?)?.toInt() ??
+      (data['count'] as num?)?.toInt() ??
+      users.length,
+    page: (data['page'] as num?)?.toInt() ??
+      ((data['meta'] as Map<String, dynamic>?)?['page'] as num?)
+        ?.toInt() ??
+      safePage,
+    limit: (data['limit'] as num?)?.toInt() ??
+      ((data['meta'] as Map<String, dynamic>?)?['limit'] as num?)
+        ?.toInt() ??
+      safeLimit,
     );
   }
 
@@ -127,6 +148,20 @@ class AdminRepositoryImpl implements AdminRepository {
   @override
   Future<void> deactivateUser(int id) async {
     await _api.delete(ApiEndpoints.user(id));
+  }
+
+  @override
+  Future<User> reactivateUser(int id) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.userReactivate(id),
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return _userFromApi(response.data!);
+  }
+
+  @override
+  Future<void> hardDeleteUser(int id) async {
+    await _api.delete(ApiEndpoints.userPermanent(id));
   }
 
   @override

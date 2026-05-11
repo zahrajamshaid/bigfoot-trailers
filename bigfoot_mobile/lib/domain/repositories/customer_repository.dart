@@ -19,6 +19,7 @@ abstract class CustomerRepository {
   Future<CustomersListResult> getCustomers({
     String? query,
     String? customerType,
+    bool excludeStockLocations,
     int page,
     int limit,
   });

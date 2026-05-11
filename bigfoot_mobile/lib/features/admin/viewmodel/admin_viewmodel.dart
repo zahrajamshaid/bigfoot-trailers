@@ -63,6 +63,10 @@ class AdminViewModel extends Cubit<int> {
 
   Future<void> deactivateUser(int id) => _repository.deactivateUser(id);
 
+  Future<dynamic> reactivateUser(int id) => _repository.reactivateUser(id);
+
+  Future<void> hardDeleteUser(int id) => _repository.hardDeleteUser(id);
+
   Future<dynamic> getDepartments() => _repository.getDepartments();
 
   Future<dynamic> updateDepartmentThreshold({

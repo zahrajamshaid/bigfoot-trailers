@@ -32,6 +32,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   final Map<int, bool?> _checklistAnswers = {}; // itemId -> pass/fail
   final Map<int, TextEditingController> _checklistNotes = {};
   bool _checklistLoading = true;
+  // Captures whatever broke the fetch/parse so the empty-state can show
+  // a real reason ("auth expired", "could not parse field X", …) instead
+  // of the generic "No checklist items configured for this department".
+  String? _checklistError;
 
   // Upstream self-check results from production workers (read-only)
   List<UpstreamCheck> _upstreamChecks = const [];
@@ -60,9 +64,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
 
   Future<void> _loadUpstreamChecks() async {
     try {
-      final checks = await context
-          .read<QcViewModel>()
-          .fetchUpstreamChecks(widget.item.trailerId);
+      final checks = await context.read<QcViewModel>().fetchUpstreamChecks(
+        widget.item.trailerId,
+      );
       if (!mounted) return;
       setState(() => _upstreamChecks = checks);
       _mergeUpstreamIntoChecklist();
@@ -115,21 +119,38 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   Future<void> _loadChecklist() async {
     try {
       final items = await context.read<QcViewModel>().fetchChecklistItems(
-            departmentId: widget.item.departmentId,
-            series: widget.item.series,
-            trailerId: widget.item.trailerId,
-          );
+        departmentId: widget.item.departmentId,
+        series: widget.item.series,
+        trailerId: widget.item.trailerId,
+      );
       if (!mounted) return;
       setState(() {
         _checklistItems = items;
         _checklistLoading = false;
+        _checklistError = null;
         for (final item in items) {
           _checklistNotes[item.id] = TextEditingController();
         }
       });
       _mergeUpstreamIntoChecklist();
-    } catch (_) {
-      if (mounted) setState(() => _checklistLoading = false);
+    } on ApiException catch (e) {
+      debugPrint(
+        'QC checklist load failed (api): code=${e.code} msg=${e.displayMessage}',
+      );
+      if (mounted) {
+        setState(() {
+          _checklistLoading = false;
+          _checklistError = '${e.code}: ${e.displayMessage}';
+        });
+      }
+    } catch (e, stack) {
+      debugPrint('QC checklist load failed (other): $e\n$stack');
+      if (mounted) {
+        setState(() {
+          _checklistLoading = false;
+          _checklistError = e.toString();
+        });
+      }
     }
   }
 
@@ -137,9 +158,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     if (_reworkTargets.isNotEmpty) return;
     setState(() => _reworkTargetsLoading = true);
     try {
-      final targets = await context
-          .read<QcViewModel>()
-          .fetchReworkTargets(widget.item.trailerId);
+      final targets = await context.read<QcViewModel>().fetchReworkTargets(
+        widget.item.trailerId,
+      );
       if (mounted) {
         setState(() {
           _reworkTargets = targets;
@@ -153,10 +174,6 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
 
   void _goToPage(int page) {
     // Validation before advancing
-    if (page > 0 && _currentPage == 0 && _photoStorageKeys.isEmpty) {
-      setState(() => _photoError = true);
-      return;
-    }
     if (page > 1 && _currentPage == 1 && !_allChecklistAnswered) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please answer all checklist items')),
@@ -180,14 +197,12 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   }
 
   bool get _allChecklistAnswered =>
-      _checklistItems.isNotEmpty &&
       _checklistItems.every((item) => _checklistAnswers[item.id] != null);
 
   int get _answeredCount =>
       _checklistAnswers.values.where((v) => v != null).length;
 
   bool get _canSubmit {
-    if (_photoStorageKeys.isEmpty) return false;
     if (_photoPendingCount > 0) return false;
     if (!_allChecklistAnswered) return false;
     if (_result == 'fail') {
@@ -198,7 +213,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_canSubmit && _result == 'fail') {
+    if (!_canSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
       );
@@ -208,6 +223,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      final navigator = Navigator.of(context);
       final cubit = context.read<QcViewModel>();
 
       // Build checklist results
@@ -225,28 +241,35 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         productionStepId: widget.item.stepId,
         result: _result,
         failNotes: _result == 'fail' ? _failNotesController.text.trim() : null,
-        reworkTargetDepartmentId:
-            _result == 'fail' ? _selectedReworkDeptId : null,
+        reworkTargetDepartmentId: _result == 'fail'
+            ? _selectedReworkDeptId
+            : null,
         checklistResults: checklistResults,
         photoStorageKeys: _photoStorageKeys,
       );
 
       if (!mounted) return;
       // Show result screen
-      Navigator.pop(context);
-      _showResultScreen(context, result);
+      navigator.pop();
+      _showResultScreen(navigator.context, result);
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.displayMessage), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text(e.displayMessage),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Failed: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -284,8 +307,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('Submitting inspection...',
-                      style: TextStyle(fontSize: 16)),
+                  Text(
+                    'Submitting inspection...',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
             )
@@ -301,7 +326,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                     setState(() {
                       _photoStorageKeys = snapshot.storageKeys;
                       _photoPendingCount = snapshot.pendingCount;
-                      _photoError = snapshot.storageKeys.isEmpty;
+                      _photoError = snapshot.pendingCount > 0;
                     });
                   },
                   onNext: () => _goToPage(1),
@@ -311,6 +336,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                   answers: _checklistAnswers,
                   notes: _checklistNotes,
                   isLoading: _checklistLoading,
+                  loadError: _checklistError,
                   answeredCount: _answeredCount,
                   totalCount: _checklistItems.length,
                   upstreamChecks: _upstreamChecks,
@@ -320,7 +346,9 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                   onBack: () => _goToPage(0),
                   onNext: () {
                     // Auto-determine result based on checklist
-                    final anyFailed = _checklistAnswers.values.any((v) => v == false);
+                    final anyFailed = _checklistAnswers.values.any(
+                      (v) => v == false,
+                    );
                     setState(() => _result = anyFailed ? 'fail' : 'pass');
                     _goToPage(2);
                   },
@@ -370,15 +398,25 @@ class _PhotosStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Step 1: Photos',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const Text(
+            'Step 1: Photos',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 4),
-          Text('Minimum 1 photo required', style: TextStyle(color: Colors.grey.shade600)),
+          Text(
+            'Photos are optional',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
           if (hasError)
             const Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text('At least one photo is required',
-                  style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+              child: Text(
+                'Please wait for pending uploads to finish before continuing',
+                style: TextStyle(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           const SizedBox(height: 16),
           const SizedBox(height: 8),
@@ -387,25 +425,34 @@ class _PhotosStep extends StatelessWidget {
               fileType: 'qc_photo',
               title: 'QC Inspection Photos',
               trailerId: trailerId,
-              minPhotoCount: 1,
+              minPhotoCount: 0,
               onChanged: onChanged,
             ),
           ),
           // Next button
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton(
-              onPressed: onNext,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Next: Checklist',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward, size: 20),
-                ],
+          SafeArea(
+            top: false,
+            minimum: const EdgeInsets.only(bottom: 10),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton(
+                onPressed: onNext,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Next: Checklist',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward, size: 20),
+                  ],
+                ),
               ),
             ),
           ),
@@ -422,6 +469,10 @@ class _ChecklistStep extends StatelessWidget {
   final Map<int, bool?> answers;
   final Map<int, TextEditingController> notes;
   final bool isLoading;
+  // Real reason the checklist fetch/parse failed, or null if it succeeded.
+  // Surfaced in the empty-state UI so we don't mistake "auth failed" or
+  // "JSON parse error" for "this department has no items configured".
+  final String? loadError;
   final int answeredCount;
   final int totalCount;
   final List<UpstreamCheck> upstreamChecks;
@@ -435,6 +486,7 @@ class _ChecklistStep extends StatelessWidget {
     required this.answers,
     required this.notes,
     required this.isLoading,
+    required this.loadError,
     required this.answeredCount,
     required this.totalCount,
     required this.upstreamChecks,
@@ -451,19 +503,46 @@ class _ChecklistStep extends StatelessWidget {
     }
 
     if (items.isEmpty) {
+      final hasError = loadError != null;
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text('Step 2: Checklist',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const Text(
+              'Step 2: Checklist',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 24),
-            const Icon(Icons.info_outline, size: 48, color: Colors.grey),
+            Icon(
+              hasError ? Icons.error_outline : Icons.info_outline,
+              size: 48,
+              color: hasError ? AppColors.error : Colors.grey,
+            ),
             const SizedBox(height: 12),
-            const Text('No checklist items configured for this department',
-                textAlign: TextAlign.center),
+            Text(
+              hasError
+                  ? 'Could not load checklist'
+                  : 'No checklist items configured for this department',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            if (hasError) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  loadError!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ),
+            ],
             const Spacer(),
-            _NavButtons(onBack: onBack, onNext: onNext, nextLabel: 'Next: Result'),
+            _NavButtons(
+              onBack: onBack,
+              onNext: onNext,
+              nextLabel: 'Next: Result',
+            ),
           ],
         ),
       );
@@ -476,11 +555,16 @@ class _ChecklistStep extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('Step 2: Checklist',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              const Text(
+                'Step 2: Checklist',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: answeredCount == totalCount
                       ? AppColors.success.withValues(alpha: 0.12)
@@ -506,7 +590,9 @@ class _ChecklistStep extends StatelessWidget {
               children: [
                 if (upstreamChecks.isNotEmpty)
                   _UpstreamChecksPanel(checks: upstreamChecks),
-                ...List.generate(items.length * 2 - (items.isEmpty ? 0 : 1), (i) {
+                ...List.generate(items.length * 2 - (items.isEmpty ? 0 : 1), (
+                  i,
+                ) {
                   if (i.isOdd) return const Divider(height: 1);
                   final item = items[i ~/ 2];
                   final answer = answers[item.id];
@@ -583,7 +669,10 @@ class _ChecklistRowState extends State<_ChecklistRow> {
               Expanded(
                 child: Text(
                   widget.item.label,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -625,7 +714,8 @@ class _ChecklistRowState extends State<_ChecklistRow> {
                   isDense: true,
                   contentPadding: const EdgeInsets.all(10),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 maxLines: 2,
                 style: const TextStyle(fontSize: 13),
@@ -855,7 +945,10 @@ class _UpstreamCheckRow extends StatelessWidget {
               children: [
                 Text(
                   check.itemLabel,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 if (check.note != null && check.note!.isNotEmpty)
                   Padding(
@@ -874,7 +967,10 @@ class _UpstreamCheckRow extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       '— ${check.checkedByName}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ),
               ],
@@ -910,11 +1006,15 @@ class _ResultStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Step 3: Inspection Result',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const Text(
+            'Step 3: Inspection Result',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 8),
-          const Text('Select the final inspection result',
-              style: TextStyle(color: Colors.grey)),
+          const Text(
+            'Select the final inspection result',
+            style: TextStyle(color: Colors.grey),
+          ),
           if (isFinalQc)
             Container(
               margin: const EdgeInsets.only(top: 12),
@@ -931,7 +1031,10 @@ class _ResultStep extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'FINAL QC — Passing will mark trailer as Ready for Delivery',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -966,7 +1069,9 @@ class _ResultStep extends StatelessWidget {
           _NavButtons(
             onBack: onBack,
             onNext: onNext,
-            nextLabel: result == 'pass' ? 'Submit Inspection' : 'Next: Fail Details',
+            nextLabel: result == 'pass'
+                ? 'Submit Inspection'
+                : 'Next: Fail Details',
           ),
         ],
       ),
@@ -997,7 +1102,9 @@ class _ResultCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         height: 140,
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.12) : Colors.grey.shade50,
+          color: isSelected
+              ? color.withValues(alpha: 0.12)
+              : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? color : Colors.grey.shade300,
@@ -1007,7 +1114,11 @@ class _ResultCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48, color: isSelected ? color : Colors.grey.shade400),
+            Icon(
+              icon,
+              size: 48,
+              color: isSelected ? color : Colors.grey.shade400,
+            ),
             const SizedBox(height: 8),
             Text(
               label,
@@ -1052,11 +1163,15 @@ class _FailDetailsStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Step 4: Fail Details',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const Text(
+            'Step 4: Fail Details',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 4),
-          const Text('Describe the defect and select rework department',
-              style: TextStyle(color: Colors.grey)),
+          const Text(
+            'Describe the defect and select rework department',
+            style: TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 16),
           // Fail notes (required)
           TextField(
@@ -1064,7 +1179,9 @@ class _FailDetailsStep extends StatelessWidget {
             decoration: InputDecoration(
               labelText: 'Fail Notes *',
               hintText: 'Describe what failed and needs to be fixed...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               contentPadding: const EdgeInsets.all(16),
               errorText: failNotesController.text.isEmpty ? null : null,
             ),
@@ -1073,8 +1190,10 @@ class _FailDetailsStep extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           // Rework target department
-          const Text('Rework Target Department *',
-              style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text(
+            'Rework Target Department *',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           if (isLoading)
             const Center(child: CircularProgressIndicator())
@@ -1083,14 +1202,21 @@ class _FailDetailsStep extends StatelessWidget {
               value: selectedDeptId,
               decoration: InputDecoration(
                 hintText: 'Select department...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
               items: reworkTargets.map((d) {
                 return DropdownMenuItem(
                   value: d.id,
-                  child: Text('${d.displayName} (${d.code})',
-                      style: const TextStyle(fontSize: 14)),
+                  child: Text(
+                    '${d.displayName} (${d.code})',
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 );
               }).toList(),
               onChanged: (id) {
@@ -1109,7 +1235,11 @@ class _FailDetailsStep extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber, color: AppColors.warning, size: 20),
+                  const Icon(
+                    Icons.warning_amber,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1154,33 +1284,42 @@ class _NavButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        TextButton.icon(
-          onPressed: onBack,
-          icon: const Icon(Icons.arrow_back, size: 18),
-          label: const Text('Back'),
-        ),
-        const Spacer(),
-        SizedBox(
-          height: 48,
-          child: FilledButton(
-            onPressed: onNext,
-            style: nextColor != null
-                ? FilledButton.styleFrom(backgroundColor: nextColor)
-                : null,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(nextLabel,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 6),
-                const Icon(Icons.arrow_forward, size: 18),
-              ],
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          TextButton.icon(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back, size: 18),
+            label: const Text('Back'),
+          ),
+          const Spacer(),
+          SizedBox(
+            height: 48,
+            child: FilledButton(
+              onPressed: onNext,
+              style: nextColor != null
+                  ? FilledButton.styleFrom(backgroundColor: nextColor)
+                  : null,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    nextLabel,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward, size: 18),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1206,9 +1345,9 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await context
-          .read<QcRepository>()
-          .sendCustomerSms(widget.result.inspectionId);
+      await context.read<QcRepository>().sendCustomerSms(
+        widget.result.inspectionId,
+      );
       if (!mounted) return;
       setState(() {
         _smsSending = false;
@@ -1280,8 +1419,9 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(AppColors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.white,
+                              ),
                             ),
                           )
                         : Icon(
@@ -1304,7 +1444,10 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
               ] else if (isPassed) ...[
                 if (result.nextDepartment != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
@@ -1355,8 +1498,10 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                   foregroundColor: bgColor,
                   minimumSize: const Size(160, 48),
                 ),
-                child: const Text('Done',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),

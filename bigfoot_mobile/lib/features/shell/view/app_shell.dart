@@ -11,6 +11,7 @@ import '../../../core/router/route_names.dart';
 import '../../../core/websocket/ws_client.dart';
 import '../../../core/websocket/ws_event_stream.dart';
 import '../../../data/models/user.dart';
+import '../../../shared/widgets/brand_logo_avatar.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../notifications/viewmodel/notifications_viewmodel.dart';
 
@@ -58,7 +59,8 @@ class _AppShellState extends State<AppShell> {
           stream: context.read<WsClient>().connectionState,
           initialData: context.read<WsClient>().currentState,
           builder: (context, snapshot) {
-            final connectionState = snapshot.data ?? WsConnectionState.disconnected;
+            final connectionState =
+                snapshot.data ?? WsConnectionState.disconnected;
 
             final r = context.responsive;
             final useRail = r.isTablet && tabs.length > 1;
@@ -67,8 +69,12 @@ class _AppShellState extends State<AppShell> {
             // get both. The drawer is the source of truth when there are >5 tabs.
             final useDrawer = !useRail && tabs.length > 1;
             final useBottom = !useRail && tabs.length > 1;
-            // Material Design caps bottom nav at 5 destinations.
-            final bottomTabs = tabs.length > 5 ? tabs.take(5).toList() : tabs;
+            // Owner/admin requested that all drawer items be available in the
+            // phone bottom bar. Keep truncation for other roles.
+            final showAllBottomTabs = user?.role == UserRole.owner;
+            final bottomTabs = showAllBottomTabs
+                ? tabs
+                : (tabs.length > 5 ? tabs.take(5).toList() : tabs);
 
             // Wrap routed content in a centred max-width container on tablet+
             // so forms/lists don't stretch ugly across wide screens. On phones
@@ -90,121 +96,140 @@ class _AppShellState extends State<AppShell> {
               ],
             );
 
+            final canNavigatorPop = GoRouter.of(context).canPop();
+
             return PopScope(
-              canPop: false,
-              onPopInvokedWithResult: (didPop, _) => _handleBackPress(context),
+              canPop: canNavigatorPop,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop) return;
+                _handleBackPress(context);
+              },
               child: Scaffold(
-              drawer: useDrawer ? _NavDrawer(tabs: tabs, currentIndex: currentIndex) : null,
-              appBar: AppBar(
-                titleSpacing: 12,
-                title: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.amber,
-                        borderRadius: BorderRadius.circular(8),
+                drawer: useDrawer
+                    ? _NavDrawer(tabs: tabs, currentIndex: currentIndex)
+                    : null,
+                appBar: AppBar(
+                  titleSpacing: 12,
+                  title: Row(
+                    children: [
+                      const BrandLogoAvatar(
+                        size: 32,
+                        padding: EdgeInsets.all(0.1),
                       ),
-                      child: const Icon(
-                        Icons.directions_car,
-                        color: AppColors.white,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        r.isCompact ? 'Bigfoot' : 'Bigfoot Trailers',
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    _ConnectionDot(state: connectionState, compact: r.isCompact),
-                  ],
-                ),
-                actions: [
-                  BlocBuilder<NotificationsViewModel, NotificationsState>(
-                    builder: (context, notificationState) {
-                      final count = notificationState.unreadCount;
-                      return IconButton(
-                        icon: Badge(
-                          isLabelVisible: count > 0,
-                          label: Text(
-                            '$count',
-                            style: const TextStyle(fontSize: 9),
-                          ),
-                          backgroundColor: AppColors.error,
-                          child: const Icon(Icons.notifications_outlined, size: 24),
-                        ),
-                        onPressed: () => context.pushNamed(RouteNames.notificationsCenter),
-                      );
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => context.go('/settings'),
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: AppColors.amber,
+                      const SizedBox(width: 10),
+                      Flexible(
                         child: Text(
-                          (user?.name.isNotEmpty == true) ? user!.name[0].toUpperCase() : '?',
+                          r.isCompact ? 'Bigfoot' : 'Bigfoot Trailers',
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 14,
+                            fontSize: 18,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      _ConnectionDot(
+                        state: connectionState,
+                        compact: r.isCompact,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              body: useRail
-                  ? Row(
-                      children: [
-                        NavigationRail(
-                          selectedIndex: currentIndex.clamp(0, tabs.length - 1),
-                          onDestinationSelected: (index) => context.go(tabs[index].path),
-                          labelType: r.isExpanded || r.isLarge
-                              ? NavigationRailLabelType.all
-                              : NavigationRailLabelType.selected,
-                          extended: r.isLarge,
-                          destinations: tabs
-                              .map(
-                                (tab) => NavigationRailDestination(
-                                  icon: Icon(tab.icon),
-                                  selectedIcon: Icon(tab.selectedIcon),
-                                  label: Text(tab.label),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                        const VerticalDivider(width: 1),
-                        Expanded(child: body),
-                      ],
-                    )
-                  : body,
-              bottomNavigationBar: useBottom
-                  ? NavigationBar(
-                      selectedIndex: currentIndex.clamp(0, bottomTabs.length - 1),
-                      onDestinationSelected: (index) => context.go(bottomTabs[index].path),
-                      labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
-                      height: 64,
-                      destinations: bottomTabs
-                          .map(
-                            (tab) => NavigationDestination(
-                              icon: Icon(tab.icon),
-                              selectedIcon: Icon(tab.selectedIcon),
-                              label: tab.label,
+                  actions: [
+                    BlocBuilder<NotificationsViewModel, NotificationsState>(
+                      builder: (context, notificationState) {
+                        final count = notificationState.unreadCount;
+                        return IconButton(
+                          icon: Badge(
+                            isLabelVisible: count > 0,
+                            label: Text(
+                              '$count',
+                              style: const TextStyle(fontSize: 9),
                             ),
-                          )
-                          .toList(),
-                    )
-                  : null,
-            ),
+                            backgroundColor: AppColors.error,
+                            child: const Icon(
+                              Icons.notifications_outlined,
+                              size: 24,
+                            ),
+                          ),
+                          onPressed: () =>
+                              context.pushNamed(RouteNames.notificationsCenter),
+                        );
+                      },
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => context.go('/settings'),
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: AppColors.amber,
+                          child: Text(
+                            (user?.name.isNotEmpty == true)
+                                ? user!.name[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                body: useRail
+                    ? Row(
+                        children: [
+                          NavigationRail(
+                            selectedIndex: currentIndex.clamp(
+                              0,
+                              tabs.length - 1,
+                            ),
+                            onDestinationSelected: (index) =>
+                                context.go(tabs[index].path),
+                            labelType: r.isExpanded || r.isLarge
+                                ? NavigationRailLabelType.all
+                                : NavigationRailLabelType.selected,
+                            extended: r.isLarge,
+                            destinations: tabs
+                                .map(
+                                  (tab) => NavigationRailDestination(
+                                    icon: Icon(tab.icon),
+                                    selectedIcon: Icon(tab.selectedIcon),
+                                    label: Text(tab.label),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          const VerticalDivider(width: 1),
+                          Expanded(child: body),
+                        ],
+                      )
+                    : body,
+                bottomNavigationBar: useBottom
+                    ? NavigationBar(
+                        selectedIndex: currentIndex.clamp(
+                          0,
+                          bottomTabs.length - 1,
+                        ),
+                        onDestinationSelected: (index) =>
+                            context.go(bottomTabs[index].path),
+                        labelBehavior:
+                            NavigationDestinationLabelBehavior.onlyShowSelected,
+                        height: 64,
+                        destinations: bottomTabs
+                            .map(
+                              (tab) => NavigationDestination(
+                                icon: Icon(tab.icon),
+                                selectedIcon: Icon(tab.selectedIcon),
+                                label: tab.label,
+                              ),
+                            )
+                            .toList(),
+                      )
+                    : null,
+              ),
             );
           },
         );
@@ -284,17 +309,20 @@ class _AppShellState extends State<AppShell> {
     final so = event.soNumber ?? 'Trailer';
     switch (event.type) {
       case WsEventType.qcFail:
-        final target = event.data['reworkTargetDepartment']?.toString() ??
+        final target =
+            event.data['reworkTargetDepartment']?.toString() ??
             event.data['rework_target_department']?.toString() ??
             'rework';
         return 'QC failed - $so sent to $target';
       case WsEventType.trailerReady:
         return '$so ready for delivery';
       case WsEventType.trailerStalled:
-        final dept = event.data['departmentName']?.toString() ??
+        final dept =
+            event.data['departmentName']?.toString() ??
             event.data['department_name']?.toString() ??
             'unknown step';
-        final hours = event.data['stallHours']?.toString() ??
+        final hours =
+            event.data['stallHours']?.toString() ??
             event.data['stalledHours']?.toString() ??
             '';
         return '$so stalled at $dept${hours.isEmpty ? '' : ' ($hours h)'}';
@@ -317,31 +345,101 @@ class _AppShellState extends State<AppShell> {
     switch (role) {
       case UserRole.owner:
         return const [
-          _NavTab('/dashboard', 'Dashboard', Icons.dashboard_outlined, Icons.dashboard),
-          _NavTab('/trailers', 'Trailers', Icons.local_shipping_outlined, Icons.local_shipping),
-          _NavTab('/production', 'Production', Icons.precision_manufacturing_outlined, Icons.precision_manufacturing),
+          _NavTab(
+            '/dashboard',
+            'Dashboard',
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
+          _NavTab(
+            '/trailers',
+            'Trailers',
+            Icons.local_shipping_outlined,
+            Icons.local_shipping,
+          ),
+          _NavTab(
+            '/production',
+            'Production',
+            Icons.precision_manufacturing_outlined,
+            Icons.precision_manufacturing,
+          ),
           _NavTab('/qc', 'QC', Icons.checklist_outlined, Icons.checklist),
-          _NavTab('/payroll', 'Payroll', Icons.payments_outlined, Icons.payments),
-          _NavTab('/deliveries', 'Deliveries', Icons.delivery_dining_outlined, Icons.delivery_dining),
-          _NavTab('/admin', 'Admin', Icons.admin_panel_settings_outlined, Icons.admin_panel_settings),
-          _NavTab('/customers', 'Customers', Icons.people_outline, Icons.people),
+          _NavTab(
+            '/payroll',
+            'Payroll',
+            Icons.payments_outlined,
+            Icons.payments,
+          ),
+          _NavTab(
+            '/deliveries',
+            'Deliveries',
+            Icons.delivery_dining_outlined,
+            Icons.delivery_dining,
+          ),
+          _NavTab(
+            '/admin',
+            'Admin',
+            Icons.admin_panel_settings_outlined,
+            Icons.admin_panel_settings,
+          ),
+          _NavTab(
+            '/customers',
+            'Customers',
+            Icons.people_outline,
+            Icons.people,
+          ),
         ];
       case UserRole.productionManager:
         return const [
-          _NavTab('/dashboard', 'Dashboard', Icons.dashboard_outlined, Icons.dashboard),
-          _NavTab('/trailers', 'Trailers', Icons.local_shipping_outlined, Icons.local_shipping),
-          _NavTab('/production', 'Production', Icons.precision_manufacturing_outlined, Icons.precision_manufacturing),
+          _NavTab(
+            '/dashboard',
+            'Dashboard',
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
+          _NavTab(
+            '/trailers',
+            'Trailers',
+            Icons.local_shipping_outlined,
+            Icons.local_shipping,
+          ),
+          _NavTab(
+            '/production',
+            'Production',
+            Icons.precision_manufacturing_outlined,
+            Icons.precision_manufacturing,
+          ),
           _NavTab('/qc', 'QC', Icons.checklist_outlined, Icons.checklist),
-          _NavTab('/payroll', 'Payroll', Icons.payments_outlined, Icons.payments),
+          _NavTab(
+            '/payroll',
+            'Payroll',
+            Icons.payments_outlined,
+            Icons.payments,
+          ),
         ];
       case UserRole.transportManager:
         return const [
-          _NavTab('/dashboard', 'Dashboard', Icons.dashboard_outlined, Icons.dashboard),
-          _NavTab('/deliveries', 'Deliveries', Icons.delivery_dining_outlined, Icons.delivery_dining),
+          _NavTab(
+            '/dashboard',
+            'Dashboard',
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
+          _NavTab(
+            '/deliveries',
+            'Deliveries',
+            Icons.delivery_dining_outlined,
+            Icons.delivery_dining,
+          ),
         ];
       case UserRole.qcInspector:
         return const [
-          _NavTab('/dashboard', 'Dashboard', Icons.dashboard_outlined, Icons.dashboard),
+          _NavTab(
+            '/dashboard',
+            'Dashboard',
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
           _NavTab('/qc', 'QC', Icons.checklist_outlined, Icons.checklist),
         ];
       case UserRole.worker:
@@ -351,21 +449,51 @@ class _AppShellState extends State<AppShell> {
         ];
       case UserRole.driver:
         return const [
-          _NavTab('/deliveries', 'My Deliveries', Icons.delivery_dining_outlined, Icons.delivery_dining),
+          _NavTab(
+            '/deliveries',
+            'My Deliveries',
+            Icons.delivery_dining_outlined,
+            Icons.delivery_dining,
+          ),
         ];
       case UserRole.office:
         return const [
-          _NavTab('/deliveries', 'Deliveries', Icons.delivery_dining_outlined, Icons.delivery_dining),
-          _NavTab('/customers', 'Customers', Icons.people_outline, Icons.people),
+          _NavTab(
+            '/deliveries',
+            'Deliveries',
+            Icons.delivery_dining_outlined,
+            Icons.delivery_dining,
+          ),
+          _NavTab(
+            '/customers',
+            'Customers',
+            Icons.people_outline,
+            Icons.people,
+          ),
         ];
       case UserRole.sales:
         return const [
-          _NavTab('/trailers', 'Trailers', Icons.local_shipping_outlined, Icons.local_shipping),
-          _NavTab('/customers', 'Customers', Icons.people_outline, Icons.people),
+          _NavTab(
+            '/trailers',
+            'Trailers',
+            Icons.local_shipping_outlined,
+            Icons.local_shipping,
+          ),
+          _NavTab(
+            '/customers',
+            'Customers',
+            Icons.people_outline,
+            Icons.people,
+          ),
         ];
       default:
         return const [
-          _NavTab('/dashboard', 'Dashboard', Icons.dashboard_outlined, Icons.dashboard),
+          _NavTab(
+            '/dashboard',
+            'Dashboard',
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
         ];
     }
   }
@@ -455,7 +583,10 @@ class _OfflineBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'Offline - real-time updates paused',
-              style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

@@ -12,14 +12,18 @@ class CustomerRepositoryImpl implements CustomerRepository {
   Future<CustomersListResult> getCustomers({
     String? query,
     String? customerType,
+    bool excludeStockLocations = false,
     int page = 1,
     int limit = 20,
   }) async {
     final response = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.customers,
       queryParameters: {
-        if (query != null && query.isNotEmpty) 'q': query,
+        // Backend QueryCustomersDto uses `search` (not `q`) — sending `q`
+        // silently no-ops, which made the picker's search box ignore input.
+        if (query != null && query.isNotEmpty) 'search': query,
         if (customerType != null && customerType.isNotEmpty) 'customerType': customerType,
+        if (excludeStockLocations) 'excludeStockLocations': true,
         'page': page,
         'limit': limit,
       },

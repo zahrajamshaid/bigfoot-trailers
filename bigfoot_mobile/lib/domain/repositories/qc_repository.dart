@@ -38,18 +38,36 @@ class QcQueueItem {
 
   bool get isWaiting => status == 'waiting';
 
+  static int _toInt(dynamic value, [int fallback = 0]) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  static bool _toBool(dynamic value, [bool fallback = false]) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final v = value.trim().toLowerCase();
+      if (v == 'true' || v == '1') return true;
+      if (v == 'false' || v == '0') return false;
+    }
+    return fallback;
+  }
+
   factory QcQueueItem.fromJson(Map<String, dynamic> json) {
     return QcQueueItem(
-      stepId: json['stepId'] as int? ?? json['step_id'] as int? ?? 0,
-      trailerId: json['trailerId'] as int? ?? json['trailer_id'] as int? ?? 0,
+      stepId: _toInt(json['stepId'] ?? json['step_id']),
+      trailerId: _toInt(json['trailerId'] ?? json['trailer_id']),
       soNumber: json['soNumber'] as String? ?? json['so_number'] as String? ?? '',
       modelName: json['modelName'] as String? ?? json['model_name'] as String?,
-      series: json['series'] as String?,
-      departmentId: json['departmentId'] as int? ?? json['department_id'] as int? ?? 0,
+      series: (json['series'] ?? json['trailerSeries'] ?? json['trailer_series']) as String?,
+      departmentId: _toInt(json['departmentId'] ?? json['department_id']),
       departmentCode: json['departmentCode'] as String? ?? json['department_code'] as String? ?? '',
       departmentName: json['departmentName'] as String? ?? json['department_name'] as String? ?? '',
-      isRework: json['isRework'] as bool? ?? json['is_rework'] as bool? ?? false,
-      reworkCount: json['reworkCount'] as int? ?? json['rework_count'] as int? ?? 0,
+      isRework: _toBool(json['isRework'] ?? json['is_rework']),
+      reworkCount: _toInt(json['reworkCount'] ?? json['rework_count']),
       customerName: json['customerName'] as String? ?? json['customer_name'] as String?,
       becameActiveAt: json['becameActiveAt'] != null
           ? DateTime.tryParse(json['becameActiveAt'].toString())

@@ -52,21 +52,75 @@ class QcRepositoryImpl implements QcRepository {
     String? series,
     int? trailerId,
   }) async {
-    final params = <String, dynamic>{'departmentId': departmentId};
-    if (series != null) params['series'] = series;
-    if (trailerId != null) params['trailerId'] = trailerId;
+    final normalizedSeries = _normalizeSeries(series);
 
+    final primaryParams = <String, dynamic>{'departmentId': departmentId};
+    if (normalizedSeries != null) primaryParams['series'] = normalizedSeries;
+    if (trailerId != null && trailerId > 0) primaryParams['trailerId'] = trailerId;
+
+    var items = await _fetchChecklistItems(primaryParams);
+
+    // Recovery path: if series is stale/malformed, retry with department+trailer only.
+    if (items.isEmpty && normalizedSeries != null && trailerId != null && trailerId > 0) {
+      items = await _fetchChecklistItems({
+        'departmentId': departmentId,
+        'trailerId': trailerId,
+      });
+    }
+
+    return items;
+  }
+
+  String? _normalizeSeries(String? raw) {
+    if (raw == null) return null;
+    final v = raw.trim().toLowerCase();
+    if (v.isEmpty) return null;
+    const allowed = <String>{'xp', 'yeti', 'deck_over', 'gooseneck_dump', 'all'};
+    return allowed.contains(v) ? v : null;
+  }
+
+  Future<List<QcChecklistItem>> _fetchChecklistItems(Map<String, dynamic> params) async {
     final resp = await _api.get<List<dynamic>>(
       ApiEndpoints.qcChecklistItems,
       queryParameters: params,
       fromJson: (d) => d as List<dynamic>,
     );
+
     return (resp.data ?? [])
         .whereType<Map<String, dynamic>>()
-        .map(QcChecklistItem.fromJson)
+        .map(_parseChecklistItem)
         .where((i) => i.isActive)
         .toList()
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  }
+
+  QcChecklistItem _parseChecklistItem(Map<String, dynamic> json) {
+    int toInt(dynamic v, [int fallback = 0]) {
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? fallback;
+      return fallback;
+    }
+
+    bool toBool(dynamic v, [bool fallback = true]) {
+      if (v is bool) return v;
+      if (v is num) return v != 0;
+      if (v is String) {
+        final s = v.trim().toLowerCase();
+        if (s == 'true' || s == '1') return true;
+        if (s == 'false' || s == '0') return false;
+      }
+      return fallback;
+    }
+
+    return QcChecklistItem(
+      id: toInt(json['id']),
+      departmentId: toInt(json['departmentId'] ?? json['department_id']),
+      label: (json['itemLabel'] ?? json['item_label'] ?? json['label'] ?? '').toString(),
+      sortOrder: toInt(json['sortOrder'] ?? json['sort_order']),
+      appliesToSeries: (json['appliesToSeries'] ?? json['applies_to_series'] ?? 'all').toString(),
+      isActive: toBool(json['isActive'] ?? json['is_active'], true),
+    );
   }
 
   @override

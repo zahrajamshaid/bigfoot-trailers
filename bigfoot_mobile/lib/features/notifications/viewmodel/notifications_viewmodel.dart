@@ -137,7 +137,9 @@ class NotificationsViewModel extends Cubit<NotificationsState> {
           id: 'ws-${DateTime.now().microsecondsSinceEpoch}',
           type: NotificationType.qcFail,
           title: 'QC Failed',
-          body: event.data['fail_notes']?.toString() ?? 'QC checkpoint failed',
+          body: event.data['failNotes']?.toString() ??
+              event.data['fail_notes']?.toString() ??
+              'QC checkpoint failed',
           timestamp: event.timestamp,
           payload: event.data,
         );
@@ -173,7 +175,9 @@ class NotificationsViewModel extends Cubit<NotificationsState> {
           id: 'ws-${DateTime.now().microsecondsSinceEpoch}',
           type: NotificationType.workerMessage,
           title: 'Worker Message',
-          body: event.data['message']?.toString() ?? 'New worker message',
+          body: event.data['messageText']?.toString() ??
+              event.data['message']?.toString() ??
+              'New worker message',
           timestamp: event.timestamp,
           payload: event.data,
         );

@@ -188,6 +188,13 @@ abstract class AdminRepository {
 
   Future<void> deactivateUser(int id);
 
+  /// Undo a soft-delete — flips isActive back to true.
+  Future<User> reactivateUser(int id);
+
+  /// Hard-delete an already-deactivated user. Backend rejects 400 if the
+  /// user has any historical activity (completed steps, inspections, etc.).
+  Future<void> hardDeleteUser(int id);
+
   Future<List<Department>> getDepartments();
 
   Future<Department> updateDepartmentThreshold({

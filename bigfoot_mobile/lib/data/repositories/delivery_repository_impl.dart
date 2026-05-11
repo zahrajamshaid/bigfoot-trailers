@@ -1,14 +1,20 @@
 import '../../core/constants/api_endpoints.dart';
 import '../../core/network/dio_client.dart';
 import '../../domain/repositories/delivery_repository.dart';
+import '../../domain/repositories/location_repository.dart';
 import '../models/delivery.dart';
 import '../models/delivery_batch.dart';
 import '../models/user.dart';
 
 class DeliveryRepositoryImpl implements DeliveryRepository {
   final DioClient _api;
+  final LocationRepository _locationRepo;
 
-  DeliveryRepositoryImpl({required DioClient api}) : _api = api;
+  DeliveryRepositoryImpl({
+    required DioClient api,
+    required LocationRepository locationRepository,
+  })  : _api = api,
+        _locationRepo = locationRepository;
 
   @override
   Future<List<Delivery>> getDeliveries({
@@ -53,9 +59,16 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
       queryParameters: {'status': 'ready_for_delivery', 'limit': 100, 'page': 1},
       fromJson: (d) => d as Map<String, dynamic>,
     );
-    final driversFuture = _api.get<List<dynamic>>(
+    final driversFuture = _api.get<Map<String, dynamic>>(
       ApiEndpoints.users,
-      fromJson: (d) => d as List<dynamic>,
+      queryParameters: {
+        'page': 1,
+        // Users query DTO enforces limit <= 100.
+        'limit': 100,
+        'role': UserRole.driver,
+        'isActive': true,
+      },
+      fromJson: (d) => d as Map<String, dynamic>,
     );
     final batchesFuture = _api.get<List<dynamic>>(
       ApiEndpoints.deliveryBatches,
@@ -63,31 +76,57 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     );
 
     final trailersResp = await trailersFuture;
-    final driversResp = await driversFuture;
     final batchesResp = await batchesFuture;
+
+    Map<String, dynamic> driversEnvelope = const <String, dynamic>{};
+    try {
+      final driversResp = await driversFuture;
+      driversEnvelope = driversResp.data ?? const <String, dynamic>{};
+    } catch (_) {
+      // Some roles (for example transport_manager) may not have /users read access.
+      // Driver assignment is optional when creating a delivery, so proceed without
+      // blocking the form.
+      driversEnvelope = const <String, dynamic>{};
+    }
 
     final trailersEnvelope = trailersResp.data ?? {};
     final trailers = ((trailersEnvelope['trailers'] as List<dynamic>?) ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
 
-    final drivers = (driversResp.data ?? [])
-        .whereType<Map<String, dynamic>>()
-        .map(User.fromJson)
-        .where((u) => u.role == UserRole.driver)
-        .toList();
+    final drivers = ((driversEnvelope['users'] as List<dynamic>?) ?? [])
+      .whereType<Map<String, dynamic>>()
+      .map((u) => User(
+          id: (u['id'] as num).toInt(),
+          email: (u['email'] as String?) ?? '',
+          name: (u['fullName'] as String?) ?? (u['name'] as String?) ?? '',
+          role: (u['role'] as String?) ?? UserRole.driver,
+          departmentId: (u['primaryDepartmentId'] as num?)?.toInt(),
+          locationId: (u['primaryLocationId'] as num?)?.toInt(),
+          isActive: u['isActive'] as bool?,
+          createdAt: u['createdAt'] != null
+            ? DateTime.tryParse(u['createdAt'].toString())
+            : null,
+        ))
+      .toList();
 
     final batches = (batchesResp.data ?? [])
         .whereType<Map<String, dynamic>>()
         .map(DeliveryBatch.fromJson)
         .toList();
 
-    const locations = [
-      DeliveryLocationInfo(id: 1, name: 'Bigfoot Trailers Mulberry', city: 'Mulberry', state: 'FL'),
-      DeliveryLocationInfo(id: 2, name: 'Bigfoot Trailers Jacksonville', city: 'Jacksonville', state: 'FL'),
-      DeliveryLocationInfo(id: 3, name: 'Bigfoot Trailers Ashland', city: 'Ashland', state: 'VA'),
-      DeliveryLocationInfo(id: 4, name: 'Bigfoot Trailers Atlanta', city: 'Atlanta', state: 'GA'),
-    ];
+    // Stock destinations are sourced live from the API so renames or new
+    // yards (e.g. Tappahannock, Tallahassee) propagate without an app build.
+    final liveLocations = await _locationRepo.getStockLocations();
+    final locations = liveLocations
+        .map((l) => DeliveryLocationInfo(
+              id: l.id,
+              name: l.name,
+              city: l.city,
+              state: l.state,
+              shortLabel: l.shortLabel,
+            ))
+        .toList();
 
     return DeliveryFormData(
       trailers: trailers,

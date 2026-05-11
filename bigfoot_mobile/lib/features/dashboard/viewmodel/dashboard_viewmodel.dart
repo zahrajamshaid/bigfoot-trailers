@@ -209,28 +209,7 @@ class DashboardViewModel extends Cubit<DashboardState> {
     emit(const DashboardLoading());
     try {
       final stats = await _fetchData();
-      final data = DashboardData(
-        activeTrailers: stats.activeTrailers,
-        readyForDelivery: stats.readyForDelivery,
-        hotTrailers: stats.hotTrailers,
-        stalledSteps: stats.stalledSteps,
-        weeklyCompleted: stats.weeklyCompleted,
-        qcFailRate: stats.qcFailRate,
-        myQueueCount: stats.myQueueCount,
-        myPointsToday: stats.myPointsToday,
-        myPointsWeek: stats.myPointsWeek,
-        pendingInspections: stats.pendingInspections,
-        inspectionsToday: stats.inspectionsToday,
-        failRateToday: stats.failRateToday,
-        reworkQueue: stats.reworkQueue,
-        activeDeliveries: stats.activeDeliveries,
-        upcomingDeliveries: stats.upcomingDeliveries,
-        completedThisWeek: stats.completedThisWeek,
-        scheduledDeliveries: stats.scheduledDeliveries,
-        inTransitCount: stats.inTransitCount,
-        readyForPickup: stats.readyForPickup,
-      );
-      emit(DashboardLoaded(data: data));
+      emit(DashboardLoaded(data: _toDashboardData(stats)));
     } on ApiException catch (e) {
       emit(DashboardError(e.displayMessage));
     } on NetworkException catch (e) {
@@ -247,25 +226,46 @@ class DashboardViewModel extends Cubit<DashboardState> {
     }
     try {
       final stats = await _fetchData();
-      final data = DashboardData(
-        activeTrailers: stats.activeTrailers,
-        readyForDelivery: stats.readyForDelivery,
-        hotTrailers: stats.hotTrailers,
-        myQueueCount: stats.myQueueCount,
-        myPointsWeek: stats.myPointsWeek,
-        activeDeliveries: stats.activeDeliveries,
-        upcomingDeliveries: stats.upcomingDeliveries,
-        completedThisWeek: stats.completedThisWeek,
-        scheduledDeliveries: stats.scheduledDeliveries,
-        inTransitCount: stats.inTransitCount,
-        readyForPickup: stats.readyForPickup,
-      );
-      emit(DashboardLoaded(data: data));
+      // Preserve client-side state (live activity feed) that doesn't come
+      // from the role-specific stats endpoint.
+      final activity = current is DashboardLoaded
+          ? current.data.recentActivity
+          : const <ActivityItem>[];
+      emit(DashboardLoaded(
+        data: _toDashboardData(stats).copyWith(recentActivity: activity),
+      ));
     } catch (_) {
       if (current is DashboardLoaded) {
         emit(DashboardLoaded(data: current.data));
       }
     }
+  }
+
+  /// Single mapping point so `load` and `refresh` always carry the same
+  /// fields — previously `refresh` dropped the QC / payroll fields, which
+  /// made the QC dashboard render zeros after every pull-to-refresh.
+  DashboardData _toDashboardData(DashboardStats stats) {
+    return DashboardData(
+      activeTrailers: stats.activeTrailers,
+      readyForDelivery: stats.readyForDelivery,
+      hotTrailers: stats.hotTrailers,
+      stalledSteps: stats.stalledSteps,
+      weeklyCompleted: stats.weeklyCompleted,
+      qcFailRate: stats.qcFailRate,
+      myQueueCount: stats.myQueueCount,
+      myPointsToday: stats.myPointsToday,
+      myPointsWeek: stats.myPointsWeek,
+      pendingInspections: stats.pendingInspections,
+      inspectionsToday: stats.inspectionsToday,
+      failRateToday: stats.failRateToday,
+      reworkQueue: stats.reworkQueue,
+      activeDeliveries: stats.activeDeliveries,
+      upcomingDeliveries: stats.upcomingDeliveries,
+      completedThisWeek: stats.completedThisWeek,
+      scheduledDeliveries: stats.scheduledDeliveries,
+      inTransitCount: stats.inTransitCount,
+      readyForPickup: stats.readyForPickup,
+    );
   }
 
   Future<DashboardStats> _fetchData() async {

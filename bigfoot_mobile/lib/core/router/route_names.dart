@@ -13,6 +13,7 @@ abstract final class RouteNames {
   // ── Trailers ─────────────────────────────────────────────────────────────
   static const String trailerList = 'trailerList';
   static const String trailerCreate = 'trailerCreate';
+  static const String trailerEdit = 'trailerEdit';
   static const String trailerDetail = 'trailerDetail';
 
   // ── Production ───────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/stock_location_chips.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
 
 class CreateDeliveryScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
   String _deliveryType = 'single_pull';
   bool _submitting = false;
   DeliveryFormData? _formData;
+  String? _loadError;
 
   @override
   void initState() {
@@ -31,9 +33,20 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
   }
 
   Future<void> _load() async {
-    final data = await context.read<DeliveriesViewModel>().getCreateFormData();
-    if (!mounted) return;
-    setState(() => _formData = data);
+    setState(() {
+      _loadError = null;
+      _formData = null;
+    });
+    try {
+      final data = await context.read<DeliveriesViewModel>().getCreateFormData();
+      if (!mounted) return;
+      setState(() => _formData = data);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = 'Failed to load delivery form data: $e';
+      });
+    }
   }
 
   @override
@@ -49,7 +62,30 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Delivery')),
       body: data == null
-          ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
+          ? _loadError != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, size: 44, color: AppColors.error),
+                        const SizedBox(height: 12),
+                        Text(
+                          _loadError!,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 14),
+                        FilledButton.icon(
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : Form(
               key: _formKey,
               child: ListView(
@@ -103,23 +139,30 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
                     onChanged: (v) => setState(() => _driverId = v),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<int>(
-                    value: _destinationLocationId,
-                    decoration: const InputDecoration(
-                      labelText: 'Destination Location',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      const DropdownMenuItem<int>(value: null, child: Text('Use custom address')),
-                      ...data.locations.map(
-                        (l) => DropdownMenuItem<int>(
-                          value: l.id,
-                          child: Text(l.name),
-                        ),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _destinationLocationId = v),
+                  StockLocationChips(
+                    labelText: 'Destination Location',
+                    selectedLocationId: _destinationLocationId,
+                    enabled: !_submitting,
+                    onChanged: (l) => setState(() {
+                      _destinationLocationId = l.id;
+                      _addressCtrl.clear();
+                    }),
+                    helperText:
+                        'Pick a yard, or leave unselected and enter a custom address below.',
                   ),
+                  if (_destinationLocationId != null) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _submitting
+                            ? null
+                            : () => setState(() => _destinationLocationId = null),
+                        icon: const Icon(Icons.close, size: 16),
+                        label: const Text('Clear yard, use custom address'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _addressCtrl,

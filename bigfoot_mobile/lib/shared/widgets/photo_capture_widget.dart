@@ -14,7 +14,10 @@ class PhotoCaptureSnapshot {
   final List<String> storageKeys;
   final int pendingCount;
 
-  const PhotoCaptureSnapshot({required this.storageKeys, required this.pendingCount});
+  const PhotoCaptureSnapshot({
+    required this.storageKeys,
+    required this.pendingCount,
+  });
 }
 
 class PhotoCaptureWidget extends StatefulWidget {
@@ -71,7 +74,9 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: meetsMinimum ? AppColors.divider : AppColors.error),
+        border: Border.all(
+          color: meetsMinimum ? AppColors.divider : AppColors.error,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,11 +87,18 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.title,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
                     Text(
-                      'Minimum ${widget.minPhotoCount} photo${widget.minPhotoCount == 1 ? '' : 's'}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.disabled),
+                      widget.title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      widget.minPhotoCount > 0
+                          ? 'Minimum ${widget.minPhotoCount} photo${widget.minPhotoCount == 1 ? '' : 's'}'
+                          : 'Photos optional',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.disabled,
+                      ),
                     ),
                   ],
                 ),
@@ -96,9 +108,13 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
                     ? AppColors.warning.withValues(alpha: 0.18)
                     : AppColors.success.withValues(alpha: 0.12),
                 label: Text(
-                  _localPendingCount > 0 ? 'Pending $_localPendingCount' : 'Ready',
+                  _localPendingCount > 0
+                      ? 'Pending $_localPendingCount'
+                      : 'Ready',
                   style: TextStyle(
-                    color: _localPendingCount > 0 ? AppColors.warning : AppColors.success,
+                    color: _localPendingCount > 0
+                        ? AppColors.warning
+                        : AppColors.success,
                   ),
                 ),
               ),
@@ -149,23 +165,27 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
 
   Future<void> _captureFromCamera() async {
     try {
-      _addCaptured(await _cameraService.takePhoto());
+      await _addCaptured(await _cameraService.takePhoto());
     } on CameraPermissionDeniedException catch (e) {
-      _showError('Camera permission denied. Enable it in Settings → Apps → Bigfoot.');
+      _showError(
+        'Camera permission denied. Enable it in Settings → Apps → Bigfoot.',
+      );
       debugPrint('takePhoto permission error: $e');
     } catch (e) {
-      _showError('Could not open camera: $e');
+      _showError('Could not capture or upload photo: $e');
     }
   }
 
   Future<void> _pickFromGallery() async {
     try {
-      _addCaptured(await _cameraService.pickFromGallery());
+      await _addCaptured(await _cameraService.pickFromGallery());
     } on CameraPermissionDeniedException catch (e) {
-      _showError('Gallery permission denied. Enable Photos access in Settings.');
+      _showError(
+        'Gallery permission denied. Enable Photos access in Settings.',
+      );
       debugPrint('pickFromGallery permission error: $e');
     } catch (e) {
-      _showError('Could not open gallery: $e');
+      _showError('Could not select or upload photo: $e');
     }
   }
 
@@ -184,9 +204,12 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
 
   Future<void> _addCaptured(CapturedPhoto? photo) async {
     if (photo == null) return;
+    final itemIndex = _items.length;
     setState(() {
       _busy = true;
-      _items.add(_PhotoItem.local(bytes: photo.bytes, fileName: photo.fileName));
+      _items.add(
+        _PhotoItem.local(bytes: photo.bytes, fileName: photo.fileName),
+      );
     });
     _emitSnapshot();
     try {
@@ -206,6 +229,12 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
           localId: result.localId,
         );
       });
+    } catch (_) {
+      if (mounted && itemIndex < _items.length) {
+        setState(() => _items.removeAt(itemIndex));
+        _emitSnapshot();
+      }
+      rethrow;
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -218,7 +247,10 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
     final index = _items.indexWhere((item) => item.localId == event.localId);
     if (index == -1) return;
     setState(() {
-      _items[index] = _items[index].copyWith(storageKey: event.storageKey, queued: false);
+      _items[index] = _items[index].copyWith(
+        storageKey: event.storageKey,
+        queued: false,
+      );
     });
     _emitSnapshot();
   }
@@ -249,7 +281,10 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
   void _emitSnapshot() {
     widget.onChanged?.call(
       PhotoCaptureSnapshot(
-        storageKeys: _items.map((e) => e.storageKey).whereType<String>().toList(),
+        storageKeys: _items
+            .map((e) => e.storageKey)
+            .whereType<String>()
+            .toList(),
         pendingCount: _localPendingCount,
       ),
     );
@@ -273,15 +308,18 @@ class _PhotoItem {
     this.queued = false,
   });
 
-  factory _PhotoItem.local({required List<int> bytes, required String fileName}) {
-    return _PhotoItem(bytes: Uint8List.fromList(bytes), fileName: fileName, queued: true);
+  factory _PhotoItem.local({
+    required List<int> bytes,
+    required String fileName,
+  }) {
+    return _PhotoItem(
+      bytes: Uint8List.fromList(bytes),
+      fileName: fileName,
+      queued: true,
+    );
   }
 
-  _PhotoItem copyWith({
-    String? storageKey,
-    String? localId,
-    bool? queued,
-  }) {
+  _PhotoItem copyWith({String? storageKey, String? localId, bool? queued}) {
     return _PhotoItem(
       bytes: bytes,
       fileName: fileName,
@@ -343,7 +381,10 @@ class _ThumbnailCard extends StatelessWidget {
                 child: SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),

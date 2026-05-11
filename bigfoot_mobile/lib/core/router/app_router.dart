@@ -34,12 +34,17 @@ import '../../features/qc/view/inspection_detail_screen.dart';
 import '../../features/qc/view/inspection_form_screen.dart';
 import '../../features/qc/view/qc_queue_screen.dart';
 import '../../features/qc/viewmodel/qc_viewmodel.dart';
+import '../../domain/repositories/qc_repository.dart';
+import '../websocket/ws_client.dart';
 import '../../features/settings/view/settings_screen.dart';
 import '../../features/shell/view/app_shell.dart';
+import '../../data/models/trailer.dart';
 import '../../features/trailers/view/create_trailer_screen.dart';
+import '../../features/trailers/view/edit_trailer_screen.dart';
 import '../../features/trailers/view/trailer_detail_screen.dart';
 import '../../features/trailers/view/trailer_list_screen.dart';
 import '../../shared/widgets/pdf_viewer_screen.dart';
+import '../../shared/widgets/secure_screen.dart';
 import 'route_names.dart';
 
 /// Application router with auth redirect and role-based guards.
@@ -103,6 +108,15 @@ class AppRouter {
                     return TrailerDetailScreen(trailerId: id);
                   },
                 ),
+                GoRoute(
+                  path: ':id/edit',
+                  name: RouteNames.trailerEdit,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) {
+                    final trailer = state.extra as Trailer;
+                    return EditTrailerScreen(trailer: trailer);
+                  },
+                ),
               ],
             ),
             GoRoute(
@@ -129,7 +143,13 @@ class AppRouter {
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) {
                     final item = state.extra as QcQueueItem;
-                    return InspectionFormScreen(item: item);
+                    return BlocProvider(
+                      create: (ctx) => QcViewModel(
+                        repository: ctx.read<QcRepository>(),
+                        ws: ctx.read<WsClient>(),
+                      ),
+                      child: InspectionFormScreen(item: item),
+                    );
                   },
                 ),
                 GoRoute(
@@ -213,25 +233,29 @@ class AppRouter {
             GoRoute(
               path: '/payroll',
               name: RouteNames.workerPoints,
-              builder: (context, state) => const WorkerPointsScreen(),
+              builder: (context, state) =>
+                  const SecureScreen(child: WorkerPointsScreen()),
               routes: [
                 GoRoute(
                   path: 'weekly-report',
                   name: RouteNames.weeklyReport,
                   parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) => const WeeklyReportScreen(),
+                    builder: (context, state) =>
+                        const SecureScreen(child: WeeklyReportScreen()),
                 ),
                 GoRoute(
                   path: 'point-matrix',
                   name: RouteNames.pointMatrix,
                   parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) => const PointMatrixScreen(),
+                    builder: (context, state) =>
+                        const SecureScreen(child: PointMatrixScreen()),
                 ),
                 GoRoute(
                   path: 'dollar-rates',
                   name: RouteNames.dollarRates,
                   parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) => const DollarRatesScreen(),
+                    builder: (context, state) =>
+                        const SecureScreen(child: DollarRatesScreen()),
                 ),
               ],
             ),

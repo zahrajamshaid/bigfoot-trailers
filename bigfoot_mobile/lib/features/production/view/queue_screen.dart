@@ -29,7 +29,7 @@ class QueueScreen extends StatelessWidget {
         if (authState is Authenticated) {
           final user = authState.user;
           final isManager = user.isManager;
-          final deptId = user.departmentId ?? 1;
+          final deptId = user.departmentId;
           cubit.load(deptId, isManager: isManager);
         }
         return cubit;
@@ -62,23 +62,26 @@ class _QueueView extends StatelessWidget {
           return _ErrorView(
             message: state.message,
             onRetry: () {
-              final deptId = user?.departmentId ?? 1;
-              context.read<ProductionViewModel>().load(deptId, isManager: isManager);
+              final deptId = user?.departmentId;
+              context.read<ProductionViewModel>().load(
+                deptId,
+                isManager: isManager,
+              );
             },
           );
         }
         if (state is ProductionQueueLoaded) {
-          return _LoadedQueue(
-            state: state,
-            isManager: isManager,
-          );
+          return _LoadedQueue(state: state, isManager: isManager);
         }
         return const Center(child: Text('Loading queue...'));
       },
     );
   }
 
-  void _showPointsNotification(BuildContext context, StepCompletionResult result) {
+  void _showPointsNotification(
+    BuildContext context,
+    StepCompletionResult result,
+  ) {
     HapticFeedback.mediumImpact();
     final points = result.pointsAwarded;
     final overlay = Overlay.of(context);
@@ -128,7 +131,10 @@ class _LoadedQueue extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.navy.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -151,9 +157,13 @@ class _LoadedQueue extends StatelessWidget {
           child: state.queue.isEmpty
               ? const _EmptyQueue()
               : RefreshIndicator(
-                  onRefresh: () => context.read<ProductionViewModel>().refresh(),
+                  onRefresh: () =>
+                      context.read<ProductionViewModel>().refresh(),
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     itemCount: state.queue.length,
                     itemBuilder: (context, index) {
                       final item = state.queue[index];
@@ -161,9 +171,16 @@ class _LoadedQueue extends StatelessWidget {
                         item: item,
                         isFirst: index == 0,
                         isManager: isManager,
-                        onTap: index == 0 && !isManager
-                            ? () => _showCompleteDialog(context, item)
-                            : () => context.go('/trailers/${item.trailerId}'),
+                        // Workers: tap anywhere on the card to complete it,
+                        // regardless of position. Managers continue to drill
+                        // through to the trailer detail.
+                        onTap: isManager
+                            ? () => context.go('/trailers/${item.trailerId}')
+                            : () => _showCompleteDialog(context, item),
+                        // A small info button is exposed for workers who
+                        // still need to open the trailer detail.
+                        onOpenDetail: () =>
+                            context.go('/trailers/${item.trailerId}'),
                         onLongPress: () => _showReverseDialog(context, item),
                       );
                     },
@@ -175,12 +192,13 @@ class _LoadedQueue extends StatelessWidget {
   }
 
   void _showCompleteDialog(BuildContext context, QueueItem item) {
+    final productionViewModel = context.read<ProductionViewModel>();
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => BlocProvider.value(
-        value: context.read<ProductionViewModel>(),
-        child: StepCompletionDialog(item: item),
+        value: productionViewModel,
+        child: StepCompletionDialog(item: item, parentContext: context),
       ),
     );
   }
@@ -197,8 +215,10 @@ class _LoadedQueue extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('SO# ${item.soNumber}',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            Text(
+              'SO# ${item.soNumber}',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
             const SizedBox(height: 8),
             const Text(
               'This will return the trailer to this department\'s queue.',
@@ -216,7 +236,9 @@ class _LoadedQueue extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await context.read<ProductionViewModel>().reverseStep(item.stepId);
+                await context.read<ProductionViewModel>().reverseStep(
+                  item.stepId,
+                );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Step reversed successfully')),
@@ -263,7 +285,10 @@ class _DepartmentSelector extends StatelessWidget {
         value: prodDepts.any((d) => d.id == selectedId) ? selectedId : null,
         decoration: InputDecoration(
           labelText: 'Department',
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           filled: true,
           fillColor: AppColors.white,
@@ -289,6 +314,7 @@ class _QueueCard extends StatelessWidget {
   final bool isFirst;
   final bool isManager;
   final VoidCallback onTap;
+  final VoidCallback onOpenDetail;
   final VoidCallback onLongPress;
 
   const _QueueCard({
@@ -296,6 +322,7 @@ class _QueueCard extends StatelessWidget {
     required this.isFirst,
     required this.isManager,
     required this.onTap,
+    required this.onOpenDetail,
     required this.onLongPress,
   });
 
@@ -327,10 +354,10 @@ class _QueueCard extends StatelessWidget {
                     color: item.isHot
                         ? AppColors.error
                         : stallLevel == 2
-                            ? AppColors.error
-                            : stallLevel == 1
-                                ? AppColors.warning
-                                : AppColors.navy,
+                        ? AppColors.error
+                        : stallLevel == 1
+                        ? AppColors.warning
+                        : AppColors.navy,
                   ),
                   // Content
                   Expanded(
@@ -358,7 +385,9 @@ class _QueueCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: isFirst ? AppColors.white : AppColors.navy,
+                                    color: isFirst
+                                        ? AppColors.white
+                                        : AppColors.navy,
                                   ),
                                 ),
                               ),
@@ -376,7 +405,10 @@ class _QueueCard extends StatelessWidget {
                                 ),
                               ),
                               if (item.isHot) ...[
-                                const Text('🔥', style: TextStyle(fontSize: 20)),
+                                const Text(
+                                  '🔥',
+                                  style: TextStyle(fontSize: 20),
+                                ),
                                 const SizedBox(width: 4),
                               ],
                               if (item.series != null)
@@ -395,12 +427,16 @@ class _QueueCard extends StatelessWidget {
                                 color: Colors.grey.shade700,
                               ),
                             ),
-                          if (item.customerName != null && item.customerName!.isNotEmpty)
+                          if (item.customerName != null &&
+                              item.customerName!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
                                 item.customerName!,
-                                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
                             ),
 
@@ -421,7 +457,8 @@ class _QueueCard extends StatelessWidget {
                             ),
 
                           // Row 4: Options/notes
-                          if (item.optionsNotes != null && item.optionsNotes!.isNotEmpty)
+                          if (item.optionsNotes != null &&
+                              item.optionsNotes!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
@@ -440,16 +477,29 @@ class _QueueCard extends StatelessWidget {
                           if (item.isRework) ...[
                             const SizedBox(height: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.warning.withValues(alpha: 0.15),
+                                color: AppColors.warning.withValues(
+                                  alpha: 0.15,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                                border: Border.all(
+                                  color: AppColors.warning.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.replay, size: 14, color: AppColors.warning),
+                                  const Icon(
+                                    Icons.replay,
+                                    size: 14,
+                                    color: AppColors.warning,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     'REWORK ×${item.reworkCount}',
@@ -462,19 +512,30 @@ class _QueueCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            if (item.reworkFailNotes != null && item.reworkFailNotes!.isNotEmpty)
+                            if (item.reworkFailNotes != null &&
+                                item.reworkFailNotes!.isNotEmpty)
                               Container(
                                 margin: const EdgeInsets.only(top: 4),
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.08),
+                                  color: AppColors.error.withValues(
+                                    alpha: 0.08,
+                                  ),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                                  border: Border.all(
+                                    color: AppColors.error.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                  ),
                                 ),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.error_outline, size: 14, color: AppColors.error),
+                                    const Icon(
+                                      Icons.error_outline,
+                                      size: 14,
+                                      color: AppColors.error,
+                                    ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
@@ -490,7 +551,7 @@ class _QueueCard extends StatelessWidget {
                               ),
                           ],
 
-                          // Row 6: Stall indicator + time in queue
+                          // Row 6: Stall indicator + time in queue + actions
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -500,24 +561,44 @@ class _QueueCard extends StatelessWidget {
                                 color: stallLevel == 2
                                     ? AppColors.error
                                     : stallLevel == 1
-                                        ? AppColors.warning
-                                        : Colors.grey.shade500,
+                                    ? AppColors.warning
+                                    : Colors.grey.shade500,
                               ),
                               const SizedBox(width: 4),
                               _StallText(item: item),
                               const Spacer(),
-                              // Complete button for first item (worker)
-                              if (isFirst && !isManager)
+                              // Workers can complete any trailer in their
+                              // queue, not just the top one. Info icon
+                              // remains available as an escape hatch into
+                              // the trailer detail screen.
+                              if (!isManager) ...[
+                                IconButton(
+                                  onPressed: onOpenDetail,
+                                  icon: const Icon(
+                                    Icons.info_outline,
+                                    color: AppColors.navy,
+                                  ),
+                                  tooltip: 'Open trailer detail',
+                                  visualDensity: VisualDensity.compact,
+                                ),
                                 FilledButton.icon(
                                   onPressed: onTap,
-                                  icon: const Icon(Icons.check_circle, size: 20),
-                                  label: const Text('COMPLETE',
-                                      style: TextStyle(fontWeight: FontWeight.w700)),
+                                  icon: const Icon(
+                                    Icons.check_circle,
+                                    size: 20,
+                                  ),
+                                  label: const Text(
+                                    'COMPLETE',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                   style: FilledButton.styleFrom(
                                     backgroundColor: AppColors.success,
                                     minimumSize: const Size(130, 48),
                                   ),
                                 ),
+                              ],
                             ],
                           ),
                         ],
@@ -545,8 +626,8 @@ class _StallText extends StatelessWidget {
     final color = stallLevel == 2
         ? AppColors.error
         : stallLevel == 1
-            ? AppColors.warning
-            : Colors.grey.shade600;
+        ? AppColors.warning
+        : Colors.grey.shade600;
 
     String text;
     if (hours < 1) {
@@ -560,7 +641,10 @@ class _StallText extends StatelessWidget {
 
     if (stallLevel == 2) text = '⚠️ $text';
 
-    return Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color));
+    return Text(
+      text,
+      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+    );
   }
 }
 
@@ -577,8 +661,10 @@ class _InfoChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Text(label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+      ),
     );
   }
 }
@@ -596,11 +682,15 @@ class _EmptyQueue extends StatelessWidget {
         children: [
           Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
           SizedBox(height: 16),
-          Text('Queue Empty',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          Text(
+            'Queue Empty',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
           SizedBox(height: 8),
-          Text('No trailers waiting in this department',
-              style: TextStyle(color: Colors.grey)),
+          Text(
+            'No trailers waiting in this department',
+            style: TextStyle(color: Colors.grey),
+          ),
         ],
       ),
     );
@@ -684,8 +774,12 @@ class _PointsOverlayState extends State<_PointsOverlay>
 
     _scale = TweenSequence<double>([
       TweenSequenceItem(
-          tween: Tween(begin: 0.5, end: 1.2).chain(CurveTween(curve: Curves.elasticOut)),
-          weight: 40),
+        tween: Tween(
+          begin: 0.5,
+          end: 1.2,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 40,
+      ),
       TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 60),
     ]).animate(_controller);
 
@@ -713,7 +807,10 @@ class _PointsOverlayState extends State<_PointsOverlay>
               scale: _scale.value,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success,
                     borderRadius: BorderRadius.circular(24),

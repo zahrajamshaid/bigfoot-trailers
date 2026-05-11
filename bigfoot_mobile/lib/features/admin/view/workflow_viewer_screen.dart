@@ -39,9 +39,11 @@ class _WorkflowViewerScreenState extends State<WorkflowViewerScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Workflow Templates'),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
-            tabs: [
+            labelColor: AppColors.white,
+            unselectedLabelColor: AppColors.white,
+            tabs: const [
               Tab(text: 'XP'),
               Tab(text: 'Yeti'),
               Tab(text: 'Deck Over'),

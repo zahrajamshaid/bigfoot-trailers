@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/websocket/ws_client.dart';
+import '../../../data/models/user.dart';
 import '../../../domain/repositories/qc_repository.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/qc_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
 
@@ -67,24 +69,53 @@ class _LoadedView extends StatelessWidget {
   final QcLoaded state;
   const _LoadedView({required this.state});
 
+  /// QC inspectors only act on currently-active steps; managers/owner keep
+  /// seeing upcoming items so they can plan ahead.
+  bool _hideWaitingFor(BuildContext context) {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.qcInspector;
+  }
+
+  Map<String, List<QcQueueItem>> _filteredQueue(BuildContext context) {
+    if (!_hideWaitingFor(context)) return state.groupedQueue;
+    final out = <String, List<QcQueueItem>>{};
+    state.groupedQueue.forEach((dept, items) {
+      final activeOnly = items.where((i) => !i.isWaiting).toList();
+      if (activeOnly.isNotEmpty) out[dept] = activeOnly;
+    });
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (state.groupedQueue.isEmpty) {
+    final hideWaiting = _hideWaitingFor(context);
+    final visibleQueue = _filteredQueue(context);
+    final totalCount =
+        visibleQueue.values.fold<int>(0, (sum, list) => sum + list.length);
+
+    if (visibleQueue.isEmpty) {
       return RefreshIndicator(
         onRefresh: () => context.read<QcViewModel>().refresh(),
         child: ListView(
-          children: const [
-            SizedBox(height: 120),
+          children: [
+            const SizedBox(height: 120),
             Center(
               child: Column(
                 children: [
-                  Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
-                  SizedBox(height: 16),
-                  Text('No Pending Inspections',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                  SizedBox(height: 8),
-                  Text('All QC queues are clear',
-                      style: TextStyle(color: Colors.grey)),
+                  const Icon(Icons.check_circle_outline,
+                      size: 64, color: AppColors.success),
+                  const SizedBox(height: 16),
+                  const Text('Nothing to Inspect',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  Text(
+                    hideWaiting
+                        ? 'All ready inspections are done.'
+                        : 'All QC queues are clear.',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             ),
@@ -94,7 +125,7 @@ class _LoadedView extends StatelessWidget {
     }
 
     // Sort department codes in order: QC_1, QC_2, ..., QC_5, FINAL_QC
-    final sortedKeys = state.groupedQueue.keys.toList()
+    final sortedKeys = visibleQueue.keys.toList()
       ..sort((a, b) {
         const order = ['QC_1', 'QC_2', 'QC_3', 'QC_4', 'QC_5', 'FINAL_QC'];
         final ai = order.indexOf(a);
@@ -113,12 +144,16 @@ class _LoadedView extends StatelessWidget {
             children: [
               const Icon(Icons.checklist, size: 20, color: AppColors.navy),
               const SizedBox(width: 8),
-              Text(
-                '${state.totalCount} inspection${state.totalCount == 1 ? '' : 's'} pending',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy,
+              Expanded(
+                child: Text(
+                  hideWaiting
+                      ? '$totalCount ready to inspect'
+                      : '$totalCount inspection${totalCount == 1 ? '' : 's'} pending',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
             ],
@@ -133,7 +168,7 @@ class _LoadedView extends StatelessWidget {
               itemCount: sortedKeys.length,
               itemBuilder: (context, index) {
                 final deptCode = sortedKeys[index];
-                final items = state.groupedQueue[deptCode]!;
+                final items = visibleQueue[deptCode]!;
                 return _DepartmentGroup(
                   departmentCode: deptCode,
                   departmentName: items.first.departmentName,
@@ -271,8 +306,13 @@ class _QcQueueCard extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // SO + stage chip + status/rework badges
-                                Row(
+                                // SO + stage chip + status/rework badges.
+                                // Wrap (not Row) so chips re-flow to the next
+                                // line on narrow screens instead of overflowing.
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Text(
                                       item.soNumber,
@@ -282,14 +322,9 @@ class _QcQueueCard extends StatelessWidget {
                                         color: AppColors.navy,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
                                     _StageChip(code: item.departmentCode),
-                                    if (isWaiting) ...[
-                                      const SizedBox(width: 6),
-                                      _WaitingChip(),
-                                    ],
-                                    if (item.isRework) ...[
-                                      const SizedBox(width: 6),
+                                    if (isWaiting) _WaitingChip(),
+                                    if (item.isRework)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 6, vertical: 2),
@@ -316,7 +351,6 @@ class _QcQueueCard extends StatelessWidget {
                                           ],
                                         ),
                                       ),
-                                    ],
                                   ],
                                 ),
                                 const SizedBox(height: 4),
@@ -327,7 +361,7 @@ class _QcQueueCard extends StatelessWidget {
                                       .join(' • '),
                                   style: TextStyle(
                                       fontSize: 13, color: Colors.grey.shade600),
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 if (isWaiting && item.currentStageCode != null) ...[
@@ -339,17 +373,30 @@ class _QcQueueCard extends StatelessWidget {
                                       fontStyle: FontStyle.italic,
                                       color: Colors.grey.shade700,
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ],
                             ),
                           ),
-                          if (item.series != null)
-                            SeriesBadge(series: item.series!),
-                          const SizedBox(width: 8),
-                          Icon(
-                            isWaiting ? Icons.schedule : Icons.chevron_right,
-                            color: Colors.grey,
+                          const SizedBox(width: 6),
+                          // Trailing column keeps the series badge stacked
+                          // above the chevron so neither steals horizontal
+                          // room from the title row.
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              if (item.series != null)
+                                SeriesBadge(series: item.series!),
+                              if (item.series != null)
+                                const SizedBox(height: 6),
+                              Icon(
+                                isWaiting ? Icons.schedule : Icons.chevron_right,
+                                color: Colors.grey,
+                              ),
+                            ],
                           ),
                         ],
                       ),

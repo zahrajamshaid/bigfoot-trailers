@@ -11,6 +11,8 @@ abstract final class ApiEndpoints {
   static const String users = '/users';
   static String user(int id) => '/users/$id';
   static String userRole(int id) => '/users/$id/role';
+  static String userReactivate(int id) => '/users/$id/reactivate';
+  static String userPermanent(int id) => '/users/$id/permanent';
 
   // ── Trailers ─────────────────────────────────────────────────────────────
   static const String trailers = '/trailers';
@@ -34,6 +36,8 @@ abstract final class ApiEndpoints {
       '/production/steps/$stepId/checklist-items';
   static String trailerUpstreamChecks(int trailerId) =>
       '/production/trailers/$trailerId/upstream-checks';
+  static String trailerJumpToStep(int trailerId) =>
+      '/production/trailers/$trailerId/jump-to-step';
   static String stepReverse(int stepId) => '/production/steps/$stepId/reverse';
   static String reorderQueue(int deptId) =>
       '/production/queue/$deptId/reorder';
@@ -77,6 +81,9 @@ abstract final class ApiEndpoints {
   // ── Customers ────────────────────────────────────────────────────────────
   static const String customers = '/customers';
   static String customer(int id) => '/customers/$id';
+
+  // ── Locations ────────────────────────────────────────────────────────────
+  static const String locations = '/locations';
 
     // ── Notifications & Messages ────────────────────────────────────────────
     static const String notifications = '/notifications';

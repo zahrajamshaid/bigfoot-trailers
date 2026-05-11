@@ -18,6 +18,9 @@ class Customer {
   final bool smsOptOut;
   final String? quickbooksCustomerId;
   final String? notes;
+  // Set when customerType == stock_location — tells callers which yard
+  // this stock customer represents.
+  final int? stockLocationId;
   final int activeTrailerCount;
 
   const Customer({
@@ -32,6 +35,7 @@ class Customer {
     this.smsOptOut = false,
     this.quickbooksCustomerId,
     this.notes,
+    this.stockLocationId,
     this.activeTrailerCount = 0,
   });
 
@@ -49,15 +53,18 @@ class Customer {
       quickbooksCustomerId:
           (json['quickbooksCustomerId'] ?? json['qbCustomerId']) as String?,
       notes: json['notes'] as String?,
+      stockLocationId: (json['stockLocationId'] as num?)?.toInt(),
       activeTrailerCount: (json['activeTrailerCount'] as num?)?.toInt() ?? 0,
     );
   }
 
   Map<String, dynamic> toCreatePayload() {
+    // Backend DTOs use `smsPhone` (not `phone`); class-validator whitelist
+    // rejects the request if we send the wrong key.
     return {
       'name': name,
       if (company != null && company!.isNotEmpty) 'company': company,
-      if (phone != null && phone!.isNotEmpty) 'phone': phone,
+      if (phone != null && phone!.isNotEmpty) 'smsPhone': phone,
       if (email != null && email!.isNotEmpty) 'email': email,
       'customerType': customerType,
       if (billingAddress != null && billingAddress!.isNotEmpty)
@@ -66,6 +73,7 @@ class Customer {
         'deliveryAddress': deliveryAddress,
       'smsOptOut': smsOptOut,
       if (notes != null && notes!.isNotEmpty) 'notes': notes,
+      if (stockLocationId != null) 'stockLocationId': stockLocationId,
     };
   }
 
@@ -73,13 +81,14 @@ class Customer {
     return {
       'name': name,
       'company': company,
-      'phone': phone,
+      'smsPhone': phone,
       'email': email,
       'customerType': customerType,
       'billingAddress': billingAddress,
       'deliveryAddress': deliveryAddress,
       'smsOptOut': smsOptOut,
       'notes': notes,
+      'stockLocationId': stockLocationId,
     };
   }
 }

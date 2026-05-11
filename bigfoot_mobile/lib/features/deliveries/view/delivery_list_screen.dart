@@ -21,6 +21,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
   static const _tabs = ['scheduled', 'in_transit', 'delivered', 'failed'];
 
   late final TabController _tabController;
+  late final VoidCallback _tabListener;
   String? _deliveryType;
   int? _driverUserId;
   DateTimeRange? _range;
@@ -28,33 +29,38 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
   @override
   void initState() {
     super.initState();
+    _tabListener = () {
+      if (_tabController.indexIsChanging) return;
+      if (!mounted) return;
+      _reload();
+    };
     _tabController = TabController(length: _tabs.length, vsync: this)
-      ..addListener(() {
-        if (_tabController.indexIsChanging) return;
-        _reload();
-      });
+      ..addListener(_tabListener);
     WidgetsBinding.instance.addPostFrameCallback((_) => _reload());
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_tabListener);
     _tabController.dispose();
     super.dispose();
   }
 
   void _reload() {
+    if (!mounted) return;
     final auth = context.read<AuthViewModel>().state;
     final user = auth is Authenticated ? auth.user : null;
-    final forceDriverFilter =
-        user?.role == UserRole.driver ? user?.id : _driverUserId;
+    final forceDriverFilter = user?.role == UserRole.driver
+        ? user?.id
+        : _driverUserId;
 
     context.read<DeliveriesViewModel>().load(
-          status: _tabs[_tabController.index],
-          deliveryType: _deliveryType,
-          driverUserId: forceDriverFilter,
-          dateFrom: _range?.start.toIso8601String().split('T').first,
-          dateTo: _range?.end.toIso8601String().split('T').first,
-        );
+      status: _tabs[_tabController.index],
+      deliveryType: _deliveryType,
+      driverUserId: forceDriverFilter,
+      dateFrom: _range?.start.toIso8601String().split('T').first,
+      dateTo: _range?.end.toIso8601String().split('T').first,
+    );
   }
 
   @override
@@ -62,7 +68,8 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
     return BlocBuilder<AuthViewModel, AuthState>(
       builder: (context, authState) {
         final user = authState is Authenticated ? authState.user : null;
-        final canCreate = user != null &&
+        final canCreate =
+            user != null &&
             (user.role == UserRole.owner ||
                 user.role == UserRole.transportManager);
 
@@ -131,7 +138,9 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                   builder: (context, state) {
                     if (state is DeliveriesLoading) {
                       return const Center(
-                        child: CircularProgressIndicator(color: AppColors.amber),
+                        child: CircularProgressIndicator(
+                          color: AppColors.amber,
+                        ),
                       );
                     }
                     if (state is DeliveriesError) {
@@ -141,8 +150,11 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.error_outline,
-                                  color: AppColors.error, size: 42),
+                              const Icon(
+                                Icons.error_outline,
+                                color: AppColors.error,
+                                size: 42,
+                              ),
                               const SizedBox(height: 12),
                               Text(state.message),
                               const SizedBox(height: 12),
@@ -176,7 +188,8 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                               },
                             );
                           },
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
                           itemCount: state.deliveries.length,
                         ),
                       );
@@ -227,10 +240,22 @@ class _FilterBar extends StatelessWidget {
             hint: const Text('Delivery Type'),
             items: const [
               DropdownMenuItem(value: null, child: Text('All Types')),
-              DropdownMenuItem(value: 'factory_pickup', child: Text('Factory Pickup')),
-              DropdownMenuItem(value: 'single_pull', child: Text('Single Pull')),
-              DropdownMenuItem(value: 'stack_to_dealer', child: Text('Stack to Dealer')),
-              DropdownMenuItem(value: 'stack_to_location', child: Text('Stack to Location')),
+              DropdownMenuItem(
+                value: 'factory_pickup',
+                child: Text('Factory Pickup'),
+              ),
+              DropdownMenuItem(
+                value: 'single_pull',
+                child: Text('Single Pull'),
+              ),
+              DropdownMenuItem(
+                value: 'stack_to_dealer',
+                child: Text('Stack to Dealer'),
+              ),
+              DropdownMenuItem(
+                value: 'stack_to_location',
+                child: Text('Stack to Location'),
+              ),
             ],
             onChanged: onTypeChanged,
           ),
@@ -258,7 +283,10 @@ class _FilterBar extends StatelessWidget {
             ),
           ),
           if (onClearDates != null)
-            TextButton(onPressed: onClearDates, child: const Text('Clear Dates')),
+            TextButton(
+              onPressed: onClearDates,
+              child: const Text('Clear Dates'),
+            ),
         ],
       ),
     );
