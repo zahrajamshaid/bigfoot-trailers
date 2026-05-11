@@ -176,21 +176,21 @@ export class TrailersController {
   }
 
   // ---------------------------------------------------------------------------
-  // DELETE /trailers/:id — owner only (destructive)
+  // DELETE /trailers/:id — owner + production_manager (destructive)
   // ---------------------------------------------------------------------------
   @Delete(':id')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Permanently delete a trailer and all related records',
     description:
       'Cascades through production steps, QC inspections/photos, deliveries, ' +
       'worker messages, location receipts, SMS logs, push notifications, and ' +
-      'stall alerts. Restricted to owner role only.',
+      'stall alerts. Restricted to owner and production_manager roles.',
   })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer and all related records deleted' })
-  @ApiResponse({ status: 403, description: 'Forbidden — owner role required' })
+  @ApiResponse({ status: 403, description: 'Forbidden — owner or production_manager role required' })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
   async delete(@Param('id', ParseIntPipe) id: number) {
     return this.trailersService.deleteTrailer(BigInt(id));

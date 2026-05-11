@@ -42,6 +42,12 @@ export class QueryTrailersDto {
   @Type(() => Number)
   customerId?: number;
 
+  @ApiPropertyOptional({ description: 'Filter by current location (yard) ID' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  locationId?: number;
+
   @ApiPropertyOptional({ description: 'Filter hot trailers only' })
   @IsOptional()
   @IsBoolean()

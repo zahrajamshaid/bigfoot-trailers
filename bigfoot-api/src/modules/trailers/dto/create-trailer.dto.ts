@@ -38,6 +38,12 @@ export class CreateTrailerDto {
   @IsString()
   optionsNotes?: string;
 
+  @ApiPropertyOptional({ description: 'Short free-form note (max 500 chars)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  specialNote?: string;
+
   @ApiPropertyOptional({ description: 'FK to customers. Nullable for stock builds.' })
   @IsOptional()
   @IsInt()
@@ -48,6 +54,12 @@ export class CreateTrailerDto {
   @IsOptional()
   @IsBoolean()
   isStockBuild?: boolean;
+
+  @ApiPropertyOptional({ description: 'Destination stock location ID when isStockBuild=true' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  stockLocationId?: number;
 
   @ApiPropertyOptional({ description: 'QuickBooks SO object ID for future sync' })
   @IsOptional()

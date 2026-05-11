@@ -1,5 +1,13 @@
-import { IsString, IsOptional, MaxLength, IsEnum } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export enum TrailerStatusDto {
   PENDING_PRODUCTION = 'pending_production',
@@ -11,16 +19,63 @@ export enum TrailerStatusDto {
 }
 
 export class UpdateTrailerDto {
+  @ApiPropertyOptional({ description: 'SO number (must remain unique)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  soNumber?: string;
+
+  @ApiPropertyOptional({ description: 'FK to trailer_models' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  trailerModelId?: number;
+
+  @ApiPropertyOptional({ description: 'FK to customers (null clears the link)' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  customerId?: number | null;
+
   @ApiPropertyOptional({ description: 'Paint color' })
   @IsOptional()
   @IsString()
   @MaxLength(60)
   color?: string;
 
+  @ApiPropertyOptional({ description: 'Physical size (e.g. "16ft")' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  sizeFt?: string;
+
   @ApiPropertyOptional({ description: 'Special instructions / add-on notes' })
   @IsOptional()
   @IsString()
   optionsNotes?: string;
+
+  @ApiPropertyOptional({ description: 'Short free-form note (max 500 chars)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  specialNote?: string;
+
+  @ApiPropertyOptional({ description: 'True if building for inventory' })
+  @IsOptional()
+  @IsBoolean()
+  isStockBuild?: boolean;
+
+  @ApiPropertyOptional({ description: 'Destination stock location ID when isStockBuild=true' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  stockLocationId?: number;
+
+  @ApiPropertyOptional({ description: 'QuickBooks SO object ID for future sync' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  qbSoId?: string;
 
   @ApiPropertyOptional({ enum: TrailerStatusDto, description: 'Trailer status' })
   @IsOptional()
