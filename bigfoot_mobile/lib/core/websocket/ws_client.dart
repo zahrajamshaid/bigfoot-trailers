@@ -65,7 +65,24 @@ class WsClient {
         _currentState == WsConnectionState.connecting) {
       return;
     }
+    await _openFreshSocket();
+  }
 
+  /// Tear down any existing socket and start a brand-new connection attempt.
+  /// Use this when the connection is wedged (watchdog timeout, reconnect
+  /// attempts exhausted, app resumed from background, network restored).
+  Future<void> forceReconnect() async {
+    _stopHeartbeat();
+    final old = _socket;
+    _socket = null;
+    if (old != null) {
+      old.clearListeners();
+      old.dispose();
+    }
+    await _openFreshSocket();
+  }
+
+  Future<void> _openFreshSocket() async {
     final token = await storage.getAccessToken();
     if (token == null || token.isEmpty) {
       return;
@@ -74,11 +91,13 @@ class WsClient {
     _manualDisconnect = false;
     _setState(WsConnectionState.connecting);
 
+    // Unlimited retries — the network may be flaky for arbitrarily long, but
+    // the user expects the banner to clear as soon as we reconnect. Capping at
+    // 10 used to leave the app permanently stuck offline after ~100s of churn.
     final options = io.OptionBuilder()
         .disableAutoConnect()
         .setTransports(['websocket'])
         .enableReconnection()
-        .setReconnectionAttempts(10)
         .setReconnectionDelay(1000)
         .setReconnectionDelayMax(10000)
         .setRandomizationFactor(0.5)
@@ -130,7 +149,10 @@ class WsClient {
     _heartbeatWatchdogTimer?.cancel();
     _heartbeatWatchdogTimer = Timer(heartbeatInterval + const Duration(seconds: 10), () {
       if (_lastHeartbeatAck.isBefore(sentAt) && !_manualDisconnect) {
-        socket.disconnect();
+        // socket.disconnect() is treated by socket.io as a manual disconnect
+        // and disables auto-reconnect — leaving the banner stuck "Offline".
+        // Tear down and bring up a fresh socket instead.
+        forceReconnect();
       }
     });
   }
@@ -166,6 +188,26 @@ class WsClient {
     socket.onReconnect((_) {
       if (!_manualDisconnect) {
         _setState(WsConnectionState.connected);
+      }
+    });
+
+    socket.onReconnectError((_) {
+      if (!_manualDisconnect) {
+        _setState(WsConnectionState.disconnected);
+      }
+    });
+
+    socket.onReconnectFailed((_) {
+      // Reconnect attempts have been exhausted. Bring up a fresh socket so
+      // the banner can clear once the network is back.
+      if (!_manualDisconnect) {
+        forceReconnect();
+      }
+    });
+
+    socket.onError((_) {
+      if (!_manualDisconnect && !_isConnected) {
+        _setState(WsConnectionState.disconnected);
       }
     });
 

@@ -1,12 +1,14 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'core/config/app_environment.dart';
 import 'core/constants/app_theme.dart';
 import 'core/network/dio_client.dart';
 import 'core/router/app_router.dart';
+import 'core/security/mobile_security.dart';
 import 'core/websocket/realtime_cubits.dart';
 import 'core/websocket/ws_client.dart';
 import 'data/models/app_notification.dart';
@@ -29,24 +31,7 @@ class BigfootApp extends StatefulWidget {
   State<BigfootApp> createState() => _BigfootAppState();
 }
 
-class _BigfootAppState extends State<BigfootApp> {
-  // Base URLs come from --dart-define at build time. Falls back to localhost for
-  // web dev and emulator host IP for mobile dev. In production, always pass
-  // --dart-define=API_BASE_URL=https://api.bigfoot.example.com/v1 (and WS_URL).
-  static const String _apiBaseUrlDefine =
-      String.fromEnvironment('API_BASE_URL');
-  static const String _wsUrlDefine = String.fromEnvironment('WS_URL');
-
-  static String get _apiBaseUrl {
-    if (_apiBaseUrlDefine.isNotEmpty) return _apiBaseUrlDefine;
-    return kIsWeb ? 'http://localhost:3000/v1' : 'http://10.0.2.2:3000/v1';
-  }
-
-  static String get _wsUrl {
-    if (_wsUrlDefine.isNotEmpty) return _wsUrlDefine;
-    return kIsWeb ? 'http://localhost:3000/ws' : 'http://10.0.2.2:3000/ws';
-  }
-
+class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
   late final ServiceLocator _sl;
 
   late final AuthViewModel _authViewModel;
@@ -66,14 +51,26 @@ class _BigfootAppState extends State<BigfootApp> {
 
   late final AppRouter _appRouter;
   late final StreamSubscription<AuthState> _authSub;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  bool _securityBlocked = false;
+
+  bool get _isAuthenticated => _authViewModel.state is Authenticated;
+
+  void _kickWsIfStale() {
+    if (!_isAuthenticated) return;
+    final ws = _sl.wsClient;
+    if (ws.currentState != WsConnectionState.connected) {
+      ws.forceReconnect();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
 
     _sl = ServiceLocator.build(
-      apiBaseUrl: _apiBaseUrl,
-      wsUrl: _wsUrl,
+      apiBaseUrl: AppEnvironment.apiBaseUrl,
+      wsUrl: AppEnvironment.wsUrl,
       onAuthExpired: () => _authViewModel.onAuthExpired(),
     );
 
@@ -130,6 +127,36 @@ class _BigfootAppState extends State<BigfootApp> {
         _notificationsViewModel.loadHistory();
       }
     });
+
+    WidgetsBinding.instance.addObserver(this);
+    _connectivitySub = Connectivity().onConnectivityChanged.listen(
+      (results) {
+        final hasNetwork = results.any((r) => r != ConnectivityResult.none);
+        if (hasNetwork) _kickWsIfStale();
+      },
+    );
+
+    _initializeSecurityGuards();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _kickWsIfStale();
+    }
+  }
+
+  Future<void> _initializeSecurityGuards() async {
+    if (!AppEnvironment.isProduction) return;
+    try {
+      final rooted = await MobileSecurity.isDeviceRooted();
+      if (!mounted) return;
+      if (rooted) {
+        setState(() => _securityBlocked = true);
+      }
+    } catch (_) {
+      // If platform security checks fail, keep app usable.
+    }
   }
 
   Future<void> _handlePushOpen(Map<String, dynamic> payload) async {
@@ -159,6 +186,8 @@ class _BigfootAppState extends State<BigfootApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _connectivitySub?.cancel();
     _authSub.cancel();
     _trailersViewModel.close();
     _deliveriesViewModel.close();
@@ -179,6 +208,37 @@ class _BigfootAppState extends State<BigfootApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (_securityBlocked) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.security, size: 52),
+                    SizedBox(height: 12),
+                    Text(
+                      'Security Check Failed',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'This app cannot run on rooted devices in production.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<DioClient>.value(value: _sl.dioClient),
@@ -192,6 +252,7 @@ class _BigfootAppState extends State<BigfootApp> {
         RepositoryProvider.value(value: _sl.deliveryRepository),
         RepositoryProvider.value(value: _sl.adminRepository),
         RepositoryProvider.value(value: _sl.customerRepository),
+        RepositoryProvider.value(value: _sl.locationRepository),
         RepositoryProvider.value(value: _sl.payrollRepository),
         RepositoryProvider.value(value: _sl.messageRepository),
         RepositoryProvider.value(value: _sl.notificationRepository),
