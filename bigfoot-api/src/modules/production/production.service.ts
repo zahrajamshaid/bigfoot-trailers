@@ -246,7 +246,9 @@ export class ProductionService {
       }
     }
 
-    // Find the next step in the workflow
+    // Completion always advances by workflow template order from the current
+    // step position. For rework steps this means re-entering the normal flow
+    // from that department forward (e.g. XP_JIG -> QC_1 -> XP_FIN ...).
     const nextTemplate = await this.prisma.workflowTemplate.findFirst({
       where: {
         series: step.trailer.trailerModel.series,
@@ -315,8 +317,17 @@ export class ProductionService {
           },
         });
 
-        if (existingNext && existingNext.status === ProductionStepStatus.waiting) {
-          // Activate the existing waiting step
+        const canActivateExisting =
+          existingNext &&
+          (
+            existingNext.status === ProductionStepStatus.waiting ||
+            (step.isRework && existingNext.status === ProductionStepStatus.complete)
+          );
+
+        if (canActivateExisting) {
+          // Activate (or reopen) the next step.
+          // Rework path may reopen a previously completed step so the trailer
+          // can re-enter the queue from this point in the workflow.
           const maxPos = await tx.productionStep.aggregate({
             where: {
               departmentId: nextTemplate.departmentId,
@@ -331,6 +342,13 @@ export class ProductionService {
               status: ProductionStepStatus.active,
               becameActiveAt: new Date(),
               queuePosition: (maxPos._max.queuePosition ?? 0) + 1,
+              completedAt: null,
+              completedByUserId: null,
+              // If we reopened a previously completed step, clear old points.
+              pointsAwarded:
+                existingNext.status === ProductionStepStatus.complete
+                  ? new Prisma.Decimal(0)
+                  : undefined,
             },
           });
           nextStepId = existingNext.id;
@@ -378,6 +396,7 @@ export class ProductionService {
       nextStepId: result._nextStepId,
       nextDepartmentId: result._nextDepartmentId,
       nextDepartmentName: result.nextDepartment,
+      nextDepartmentIsQc: nextTemplate?.department.isQcStep ?? false,
       completedByUserId,
       pointsAwarded,
     });
@@ -489,6 +508,255 @@ export class ProductionService {
     });
 
     return { success: true };
+  }
+
+  // =========================================================================
+  // POST /production/trailers/:trailer_id/jump-to-step
+  //
+  // Admin override that places the trailer at an arbitrary production step.
+  // Earlier steps are coerced to `complete`, the target becomes `active`,
+  // later steps are reset to `waiting`. Used when the physical state of a
+  // trailer drifts from what the workflow has recorded (e.g. a step was
+  // tapped on the wrong trailer, or work happened off-app and needs to be
+  // back-filled).
+  // =========================================================================
+  async jumpToStep(
+    trailerId: bigint,
+    targetStepId: bigint,
+    adminUserId: bigint,
+    reason?: string,
+  ) {
+    const target = await this.prisma.productionStep.findUnique({
+      where: { id: targetStepId },
+      include: {
+        trailer: { select: { id: true, soNumber: true, status: true } },
+        department: { select: { id: true, displayName: true, isQcStep: true } },
+      },
+    });
+    if (!target) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Production step not found');
+    }
+    if (target.trailerId !== trailerId) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Step ${targetStepId} does not belong to trailer ${trailerId}`,
+      );
+    }
+
+    const allSteps = await this.prisma.productionStep.findMany({
+      where: { trailerId },
+      orderBy: { stepOrder: 'asc' },
+    });
+    if (allSteps.length === 0) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Trailer ${trailerId} has no production steps`,
+      );
+    }
+
+    const upstream = allSteps.filter((s) => s.stepOrder < target.stepOrder);
+    const downstream = allSteps.filter((s) => s.stepOrder > target.stepOrder);
+
+    // Reversal records get one row per rolled-back step so the trailer
+    // history shows every change the admin override made.
+    const rolledBackStepIds: bigint[] = downstream
+      .filter((s) => s.status !== ProductionStepStatus.waiting)
+      .map((s) => s.id);
+
+    // Forward jump: any upstream step that wasn't already complete will be
+    // forced complete. Workers in those departments need a WS push so their
+    // queue screens drop the trailer immediately.
+    const forcedCompleteUpstreamIds: bigint[] = upstream
+      .filter((s) => s.status !== ProductionStepStatus.complete)
+      .map((s) => s.id);
+
+    // Pre-fetch every department name involved in this jump so each WS event
+    // carries the correct department name (not the target's).
+    const affectedDeptIds = new Set<number>([
+      target.departmentId,
+      ...downstream.map((s) => s.departmentId),
+      ...upstream.map((s) => s.departmentId),
+    ]);
+    const deptRows = await this.prisma.department.findMany({
+      where: { id: { in: [...affectedDeptIds] } },
+      select: { id: true, displayName: true },
+    });
+    const deptNameById = new Map<number, string>(
+      deptRows.map((d) => [d.id, d.displayName]),
+    );
+
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      // Steps before the target: anything not already complete becomes
+      // complete-by-admin-override (no points, admin recorded as completer).
+      // Already-complete steps are left alone so real completion history
+      // (worker, timestamp, points) is preserved.
+      for (const s of upstream) {
+        if (s.status === ProductionStepStatus.complete) continue;
+        await tx.productionStep.update({
+          where: { id: s.id },
+          data: {
+            status: ProductionStepStatus.complete,
+            completedAt: now,
+            completedByUserId: adminUserId,
+            queuePosition: null,
+            becameActiveAt: s.becameActiveAt ?? now,
+            pointsAwarded: new Prisma.Decimal(0),
+          },
+        });
+      }
+
+      // Target step: activate (or reactivate if previously complete).
+      const maxPos = await tx.productionStep.aggregate({
+        where: {
+          departmentId: target.departmentId,
+          status: ProductionStepStatus.active,
+          id: { not: target.id },
+        },
+        _max: { queuePosition: true },
+      });
+
+      await tx.productionStep.update({
+        where: { id: target.id },
+        data: {
+          status: ProductionStepStatus.active,
+          becameActiveAt: now,
+          queuePosition: (maxPos._max.queuePosition ?? 0) + 1,
+          completedAt: null,
+          completedByUserId: null,
+          pointsAwarded: new Prisma.Decimal(0),
+        },
+      });
+
+      // Steps after the target: reset to waiting and record a reversal row
+      // for each one that was active or complete (so the rollback is visible
+      // in the trailer history tab).
+      for (const s of downstream) {
+        if (s.status !== ProductionStepStatus.waiting) {
+          await tx.stepReversal.create({
+            data: {
+              productionStepId: s.id,
+              reversedByUserId: adminUserId,
+              reason: reason ?? `Admin jump to step ${target.stepOrder}`,
+            },
+          });
+          await tx.productionStep.update({
+            where: { id: s.id },
+            data: {
+              status: ProductionStepStatus.waiting,
+              completedAt: null,
+              completedByUserId: null,
+              becameActiveAt: null,
+              queuePosition: null,
+              pointsAwarded: new Prisma.Decimal(0),
+            },
+          });
+        }
+      }
+
+      // Resolve any open stall alerts on the new active step — its clock
+      // has just been reset.
+      await tx.stallAlert.updateMany({
+        where: { productionStepId: target.id, resolvedAt: null },
+        data: { resolvedAt: now },
+      });
+
+      // Trailer status follows the new active step. Anything past
+      // pending_production gets pulled back to in_production since the
+      // trailer is no longer at its previous workflow checkpoint.
+      const nextTrailerStatus =
+        target.trailer.status === TrailerStatus.delivered
+          ? TrailerStatus.in_production
+          : TrailerStatus.in_production;
+      if (target.trailer.status !== nextTrailerStatus) {
+        await tx.trailer.update({
+          where: { id: trailerId },
+          data: { status: nextTrailerStatus },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: adminUserId,
+          entityType: 'trailer',
+          entityId: trailerId,
+          action: 'trailer.jumped_to_step',
+          oldValues: {
+            previouslyActiveStepIds: allSteps
+              .filter((s) => s.status === ProductionStepStatus.active)
+              .map((s) => s.id.toString()),
+          },
+          newValues: {
+            targetStepId: target.id.toString(),
+            targetStepOrder: target.stepOrder,
+            departmentId: target.departmentId,
+            departmentName: target.department.displayName,
+            rolledBackStepIds: rolledBackStepIds.map((id) => id.toString()),
+            reason: reason ?? null,
+          },
+        },
+      });
+    });
+
+    // Notifications outside the transaction — reuse the existing
+    // step-completed / step-reversed events so any open queue or trailer
+    // detail screens refresh. Each event is routed to the *affected* dept
+    // (not the target's), so workers in every involved queue get a push.
+    await this.notificationsService.onStepCompleted({
+      stepId: target.id,
+      trailerId,
+      soNumber: target.trailer.soNumber,
+      departmentId: target.departmentId,
+      departmentName: target.department.displayName,
+      nextStepId: target.id,
+      nextDepartmentId: target.departmentId,
+      nextDepartmentName: target.department.displayName,
+      nextDepartmentIsQc: target.department.isQcStep,
+      completedByUserId: adminUserId,
+      pointsAwarded: 0,
+    });
+
+    // Departments whose queues lost the trailer (downstream rollback OR
+    // upstream forced-complete) get a STEP_REVERSED push so their open queue
+    // screens drop the entry. We dedupe by departmentId so each dept gets a
+    // single push even if multiple of its steps changed.
+    const droppedFromDeptIds = new Set<number>();
+    for (const s of downstream) {
+      if (rolledBackStepIds.includes(s.id)) droppedFromDeptIds.add(s.departmentId);
+    }
+    for (const s of upstream) {
+      if (forcedCompleteUpstreamIds.includes(s.id) &&
+          s.status === ProductionStepStatus.active) {
+        droppedFromDeptIds.add(s.departmentId);
+      }
+    }
+    droppedFromDeptIds.delete(target.departmentId); // already covered above
+
+    for (const deptId of droppedFromDeptIds) {
+      // Pick a representative stepId from this dept for the payload (the
+      // event consumer cares about dept + trailer, not the specific stepId).
+      const stepInDept =
+        downstream.find((s) => s.departmentId === deptId) ??
+        upstream.find((s) => s.departmentId === deptId);
+      if (!stepInDept) continue;
+
+      await this.notificationsService.onStepReversed({
+        stepId: stepInDept.id,
+        trailerId,
+        soNumber: target.trailer.soNumber,
+        departmentId: deptId,
+        departmentName: deptNameById.get(deptId) ?? '',
+        reversedByUserId: adminUserId,
+      });
+    }
+
+    return {
+      success: true,
+      activeStepId: Number(target.id),
+      targetDepartment: target.department.displayName,
+      rolledBackStepIds: rolledBackStepIds.map((id) => Number(id)),
+    };
   }
 
   // =========================================================================

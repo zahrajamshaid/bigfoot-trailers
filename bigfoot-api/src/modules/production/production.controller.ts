@@ -18,7 +18,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { ProductionService } from './production.service';
-import { CompleteStepDto, ReorderQueueDto } from './dto';
+import { CompleteStepDto, ReorderQueueDto, JumpToStepDto } from './dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
@@ -135,6 +135,33 @@ export class ProductionController {
       BigInt(stepId),
       BigInt(requester.sub),
       requester.role,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /production/trailers/:trailer_id/jump-to-step — admin override
+  // ---------------------------------------------------------------------------
+  @Post('trailers/:trailer_id/jump-to-step')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Admin: place a trailer at an arbitrary production step (forces upstream complete, resets downstream to waiting).',
+  })
+  @ApiParam({ name: 'trailer_id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Trailer moved to target step' })
+  @ApiResponse({ status: 403, description: 'Forbidden — owner or production_manager only' })
+  @ApiResponse({ status: 404, description: 'Trailer or step not found' })
+  async jumpToStep(
+    @Param('trailer_id', ParseIntPipe) trailerId: number,
+    @Body() dto: JumpToStepDto,
+    @CurrentUser() requester: JwtPayload,
+  ) {
+    return this.productionService.jumpToStep(
+      BigInt(trailerId),
+      BigInt(dto.stepId),
+      BigInt(requester.sub),
+      dto.reason,
     );
   }
 
