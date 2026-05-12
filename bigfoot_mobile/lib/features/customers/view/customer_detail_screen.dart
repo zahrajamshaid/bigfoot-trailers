@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/customer.dart';
+import '../../../data/models/user.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/customers_viewmodel.dart';
 import 'customer_form_screen.dart';
 
@@ -22,7 +24,14 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
   late final TabController _tabs;
   bool _loading = true;
   bool _savingSms = false;
+  bool _deleting = false;
   CustomerDetail? _detail;
+
+  bool get _canDelete {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.owner;
+  }
 
   @override
   void initState() {
@@ -67,9 +76,21 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         title: const Text('Customer Detail'),
         actions: [
           IconButton(
-            onPressed: customer == null ? null : _edit,
+            onPressed: customer == null || _deleting ? null : _edit,
             icon: const Icon(Icons.edit_outlined),
           ),
+          if (_canDelete)
+            IconButton(
+              tooltip: 'Delete customer',
+              onPressed: customer == null || _deleting ? null : _confirmDelete,
+              icon: _deleting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.delete_outline, color: AppColors.error),
+            ),
         ],
         bottom: TabBar(
           controller: _tabs,
@@ -119,6 +140,95 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
 
     if (saved == true && mounted) {
       _load();
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final detail = _detail;
+    final existing = detail?.customer;
+    if (existing == null || detail == null) return;
+
+    final trailerCount = detail.trailerHistory.length;
+    final bool? choice;
+
+    if (trailerCount == 0) {
+      // Simple path: no trailers — single confirm.
+      choice = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete customer?'),
+          content: Text('This permanently deletes "${existing.name}".'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Customer has trailers — explicit cascade confirmation.
+      // Returns true ONLY if the user picks the cascade option.
+      choice = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Customer has trailers'),
+          content: Text(
+            '"${existing.name}" is referenced by $trailerCount '
+            'trailer${trailerCount == 1 ? '' : 's'}.\n\n'
+            'Deleting the customer will also delete every associated '
+            'trailer along with its production history, QC inspections, '
+            'photos, deliveries, and messages.\n\n'
+            'This cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Delete customer + $trailerCount trailers'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (choice != true || !mounted) return;
+
+    final cascade = trailerCount > 0;
+    setState(() => _deleting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      await context
+          .read<CustomersViewModel>()
+          .deleteCustomer(widget.customerId, cascadeTrailers: cascade);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            cascade
+                ? 'Deleted "${existing.name}" and $trailerCount trailer'
+                    '${trailerCount == 1 ? '' : 's'}'
+                : 'Deleted customer "${existing.name}"',
+          ),
+        ),
+      );
+      navigator.pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to delete: $e')),
+      );
     }
   }
 

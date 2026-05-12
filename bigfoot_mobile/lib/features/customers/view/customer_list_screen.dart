@@ -131,10 +131,13 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         final c = _items[i];
                         return InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: () => context.pushNamed(
-                            RouteNames.customerDetail,
-                            pathParameters: {'id': '${c.id}'},
-                          ),
+                          onTap: () async {
+                            final result = await context.pushNamed<bool>(
+                              RouteNames.customerDetail,
+                              pathParameters: {'id': '${c.id}'},
+                            );
+                            if (result == true && mounted) _load();
+                          },
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(

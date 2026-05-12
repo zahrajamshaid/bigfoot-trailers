@@ -75,4 +75,15 @@ class CustomerRepositoryImpl implements CustomerRepository {
     );
     return Customer.fromJson(response.data ?? <String, dynamic>{});
   }
+
+  @override
+  Future<void> deleteCustomer(int customerId, {bool cascadeTrailers = false}) async {
+    final path = cascadeTrailers
+        ? '${ApiEndpoints.customer(customerId)}?cascadeTrailers=true'
+        : ApiEndpoints.customer(customerId);
+    await _api.delete<Map<String, dynamic>>(
+      path,
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+  }
 }

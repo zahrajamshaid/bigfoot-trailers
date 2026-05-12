@@ -87,13 +87,22 @@ export class CustomersController {
   @Delete(':id')
   @Roles(UserRole.OWNER)
   @ApiOperation({
-    summary: 'Delete customer (fails if trailers reference this customer)',
+    summary:
+      'Delete customer. Fails with 400 if trailers reference this customer ' +
+      'unless cascadeTrailers=true, in which case ALL referencing trailers ' +
+      '(and their production steps, QC inspections, photos, deliveries, ' +
+      'messages, stall alerts, push notifications, SMS logs, and location ' +
+      'receipts) are deleted in the same atomic transaction.',
   })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Customer deleted' })
-  @ApiResponse({ status: 400, description: 'Customer has referencing trailers' })
+  @ApiResponse({ status: 400, description: 'Customer has referencing trailers (and cascadeTrailers not set)' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return this.customersService.remove(BigInt(id));
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('cascadeTrailers') cascadeTrailers?: string,
+  ) {
+    const cascade = cascadeTrailers === 'true' || cascadeTrailers === '1';
+    return this.customersService.remove(BigInt(id), { cascadeTrailers: cascade });
   }
 }

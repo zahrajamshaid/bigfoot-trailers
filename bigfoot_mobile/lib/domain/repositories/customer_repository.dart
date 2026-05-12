@@ -29,4 +29,9 @@ abstract class CustomerRepository {
   Future<CustomerDetail> getCustomerDetail(int customerId);
 
   Future<Customer> updateCustomer(Customer customer);
+
+  /// Delete a customer. If [cascadeTrailers] is true, also delete every
+  /// trailer that references this customer (and their full history).
+  /// If false and trailers exist, the backend returns a 400.
+  Future<void> deleteCustomer(int customerId, {bool cascadeTrailers = false});
 }

@@ -298,19 +298,44 @@ export class CustomersService {
     }
   }
 
-  async remove(id: bigint) {
+  async remove(id: bigint, opts?: { cascadeTrailers?: boolean }) {
     await this.assertExists(id);
-    const trailerCount = await this.prisma.trailer.count({
+
+    const trailers = await this.prisma.trailer.findMany({
       where: { customerId: id },
+      select: { id: true },
     });
-    if (trailerCount > 0) {
+
+    if (trailers.length > 0 && !opts?.cascadeTrailers) {
       throw new AppError(
         ErrorCode.BAD_REQUEST,
-        `Cannot delete customer ${id} — ${trailerCount} trailer(s) reference this customer`,
+        `Cannot delete customer ${id} — ${trailers.length} trailer(s) reference ` +
+          `this customer. Pass cascadeTrailers=true to delete them too.`,
       );
     }
-    await this.prisma.customer.delete({ where: { id } });
-    return { success: true };
+
+    const trailerIds = trailers.map((t) => t.id);
+
+    await this.prisma.$transaction(async (tx) => {
+      if (trailerIds.length > 0) {
+        // Mirrors TrailersService.deleteTrailer cascade. Kept inline to
+        // avoid a CustomersModule -> TrailersModule import cycle.
+        const trailerWhere = { trailerId: { in: trailerIds } };
+        await tx.stallAlert.deleteMany({ where: trailerWhere });
+        await tx.pushNotification.deleteMany({ where: trailerWhere });
+        await tx.smsLog.deleteMany({ where: trailerWhere });
+        await tx.locationReceipt.deleteMany({ where: trailerWhere });
+        await tx.delivery.deleteMany({ where: trailerWhere });
+        await tx.workerMessage.deleteMany({ where: trailerWhere });
+        await tx.qcPhoto.deleteMany({ where: trailerWhere });
+        await tx.qcInspection.deleteMany({ where: trailerWhere });
+        await tx.productionStep.deleteMany({ where: trailerWhere });
+        await tx.trailer.deleteMany({ where: { id: { in: trailerIds } } });
+      }
+      await tx.customer.delete({ where: { id } });
+    });
+
+    return { success: true, deletedTrailerCount: trailerIds.length };
   }
 
   private async assertExists(id: bigint) {
