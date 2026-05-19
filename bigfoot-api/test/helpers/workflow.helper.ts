@@ -46,9 +46,7 @@ export async function completeProductionStep(
 
   if (!step) throw new Error(`Production step ${stepId} not found`);
   if (step.status !== 'active') {
-    throw new Error(
-      `Production step ${stepId} is not active (status: ${step.status})`,
-    );
+    throw new Error(`Production step ${stepId} is not active (status: ${step.status})`);
   }
 
   const pointsToAward = step.isRework ? 0 : points;

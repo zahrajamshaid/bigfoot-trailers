@@ -112,7 +112,10 @@ export class AuthService {
         `Refresh token reuse detected for user ${storedToken.userId}. Revoking all tokens.`,
       );
       await this.revokeAllUserTokens(storedToken.userId);
-      throw new AppError(ErrorCode.UNAUTHORIZED, 'Refresh token has been revoked — all sessions terminated');
+      throw new AppError(
+        ErrorCode.UNAUTHORIZED,
+        'Refresh token has been revoked — all sessions terminated',
+      );
     }
 
     // 4. Check expiry
@@ -219,7 +222,9 @@ export class AuthService {
   private parseDurationToMs(duration: string): number {
     const match = duration.match(/^(\d+)([smhd])$/);
     if (!match) {
-      throw new Error(`Invalid duration format: "${duration}". Use e.g. "7d", "15m", "1h".`);
+      throw new Error(
+        `Invalid duration format: "${duration}". Use e.g. "7d", "15m", "1h".`,
+      );
     }
     const value = parseInt(match[1], 10);
     const unit = match[2];

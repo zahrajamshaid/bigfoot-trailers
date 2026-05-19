@@ -7,13 +7,11 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/constants/api_endpoints.dart';
-import '../../../data/models/customer.dart';
 import '../../../data/models/trailer.dart';
 import '../../../domain/repositories/storage_repository.dart';
 import '../../../domain/repositories/trailer_repository.dart';
 import '../../../shared/widgets/stock_location_chips.dart';
 import '../viewmodel/trailers_viewmodel.dart';
-import '../widgets/customer_picker_field.dart';
 
 /// Edit form for an existing trailer. Mirrors [CreateTrailerScreen] field set
 /// but submits via PATCH /trailers/:id and pre-fills from [trailer].
@@ -35,11 +33,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
   late final TextEditingController _sizeController;
   late final TextEditingController _notesController;
   late final TextEditingController _specialNoteController;
+  late final TextEditingController _customerController;
 
   int? _selectedModelId;
   late bool _isStockBuild;
   int? _selectedStockLocationId;
-  Customer? _selectedCustomer;
 
   bool _isSubmitting = false;
   String? _errorMessage;
@@ -65,20 +63,14 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     _sizeController = TextEditingController(text: t.size ?? '');
     _notesController = TextEditingController(text: t.optionsNotes ?? '');
     _specialNoteController = TextEditingController(text: t.specialNote ?? '');
+    // Customer is now plain text — prefill from a legacy customer record if
+    // one exists, otherwise from the free-text name.
+    _customerController =
+        TextEditingController(text: t.customer?.name ?? t.soldToName ?? '');
     _selectedModelId = t.trailerModelId;
     _isStockBuild = t.isStockBuild;
     _selectedStockLocationId =
         t.isStockBuild ? t.currentLocationId : null;
-    if (t.customer != null) {
-      _selectedCustomer = Customer(
-        id: t.customer!.id,
-        name: t.customer!.name,
-        company: t.customer!.company,
-        phone: t.customer!.smsPhone,
-        email: t.customer!.email,
-        customerType: t.customer!.customerType,
-      );
-    }
     _loadModels();
   }
 
@@ -89,25 +81,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     _sizeController.dispose();
     _notesController.dispose();
     _specialNoteController.dispose();
+    _customerController.dispose();
     super.dispose();
-  }
-
-  /// Picker callback. If the returned (or freshly-created) customer is a
-  /// stock_location, switch the form into Stock Build mode for that yard
-  /// instead of assigning it as a regular customer.
-  void _onCustomerPicked(Customer? c) {
-    setState(() {
-      if (c != null &&
-          c.customerType == CustomerType.stockLocation &&
-          c.stockLocationId != null) {
-        _isStockBuild = true;
-        _selectedStockLocationId = c.stockLocationId;
-        _selectedCustomer = null;
-        _stockLocationError = null;
-      } else {
-        _selectedCustomer = c;
-      }
-    });
   }
 
   Future<void> _loadModels() async {
@@ -238,12 +213,19 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       }
 
       if (!_isStockBuild) {
-        final newCustomerId = _selectedCustomer?.id;
-        if (newCustomerId != t.customerId) {
-          payload['customerId'] = newCustomerId; // null clears
+        final newName = _customerController.text.trim();
+        final origName = t.customer?.name ?? t.soldToName ?? '';
+        if (newName != origName) {
+          // '' clears the name and reverts sale status to available.
+          payload['soldToName'] = newName;
+          // The typed name is now the source of truth — drop any legacy
+          // customer-record link so it can't shadow the new name.
+          if (t.customerId != null) payload['customerId'] = null;
         }
-      } else if (t.customerId != null) {
-        payload['customerId'] = null; // stock build cleared customer
+      } else {
+        // Stock build — no customer of any kind.
+        if (t.customerId != null) payload['customerId'] = null;
+        if ((t.soldToName ?? '').isNotEmpty) payload['soldToName'] = '';
       }
 
       if (payload.isNotEmpty) {
@@ -326,26 +308,28 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       body: _loadingModels
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : _modelOptions.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 48, color: AppColors.error),
-                        const SizedBox(height: 12),
-                        Text(
-                          _loadModelsError ?? 'No trailer models available.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: _loadModels,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
+              ? SingleChildScrollView(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 48, color: AppColors.error),
+                          const SizedBox(height: 12),
+                          Text(
+                            _loadModelsError ?? 'No trailer models available.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: _loadModels,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 )
@@ -459,7 +443,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                           onChanged: (v) => setState(() {
                             _isStockBuild = v;
                             if (v) {
-                              _selectedCustomer = null;
+                              _customerController.clear();
                             } else {
                               _selectedStockLocationId = null;
                             }
@@ -481,16 +465,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                         ],
                         if (!_isStockBuild) ...[
                           const SizedBox(height: 12),
-                          CustomerPickerField(
-                            selectedCustomerId: _selectedCustomer?.id,
-                            selectedCustomerLabel: _selectedCustomer == null
-                                ? null
-                                : (_selectedCustomer!.company?.isNotEmpty == true
-                                    ? '${_selectedCustomer!.name} (${_selectedCustomer!.company})'
-                                    : _selectedCustomer!.name),
-                            onChanged: _onCustomerPicked,
-                            helperText:
-                                'Optional — leave blank for unassigned builds',
+                          TextFormField(
+                            controller: _customerController,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: const InputDecoration(
+                              labelText: 'Customer',
+                              hintText:
+                                  'Buyer name — leave blank for stock',
+                              helperText:
+                                  'Optional. A trailer with a customer is marked sold.',
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
                           ),
                         ],
                         const SizedBox(height: 16),

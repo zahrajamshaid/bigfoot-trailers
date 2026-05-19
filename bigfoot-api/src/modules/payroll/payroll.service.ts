@@ -40,7 +40,11 @@ export class PayrollService {
           trailerModel: { select: { id: true, displayName: true, series: true } },
           department: { select: { id: true, code: true, displayName: true } },
         },
-        orderBy: [{ trailerModelId: 'asc' }, { departmentId: 'asc' }, { effectiveFrom: 'desc' }],
+        orderBy: [
+          { trailerModelId: 'asc' },
+          { departmentId: 'asc' },
+          { effectiveFrom: 'desc' },
+        ],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -61,11 +65,17 @@ export class PayrollService {
     });
 
     if (!dept) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Department with id ${dto.departmentId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Department with id ${dto.departmentId} not found`,
+      );
     }
 
     if (dept.isQcStep) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Department "${dept.displayName}" is a QC department — QC departments do not award points`);
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Department "${dept.displayName}" is a QC department — QC departments do not award points, so no point value can be set for it`,
+      );
     }
 
     // Validate trailer model exists
@@ -75,7 +85,10 @@ export class PayrollService {
     });
 
     if (!model) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Trailer model with id ${dto.trailerModelId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Trailer model with id ${dto.trailerModelId} not found`,
+      );
     }
 
     return this.prisma.pointValue.create({
@@ -173,7 +186,10 @@ export class PayrollService {
     });
 
     if (!dept) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Department with id ${dto.departmentId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Department with id ${dto.departmentId} not found`,
+      );
     }
 
     return this.prisma.deptDollarRate.create({
@@ -241,7 +257,10 @@ export class PayrollService {
     // Validate week_start is a Sunday
     const weekStartDate = new Date(weekStart);
     if (weekStartDate.getUTCDay() !== 0) {
-      throw new AppError(ErrorCode.INVALID_WEEK_START, `The provided week_start date "${weekStart}" is not a Sunday`);
+      throw new AppError(
+        ErrorCode.INVALID_WEEK_START,
+        `The provided week_start date "${weekStart}" is not a Sunday`,
+      );
     }
 
     // Calculate week end (Saturday)
@@ -333,10 +352,7 @@ export class PayrollService {
     const dollarRates = await this.prisma.deptDollarRate.findMany({
       where: {
         effectiveFrom: { lte: weekEndDate },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: weekStartDate } },
-        ],
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: weekStartDate } }],
       },
       orderBy: { effectiveFrom: 'desc' },
     });
@@ -352,7 +368,11 @@ export class PayrollService {
     // Check if the week is locked
     const lockedRecord = await this.prisma.payrollRecord.findFirst({
       where: { weekStartDate: weekStartDate, isLocked: true },
-      select: { isLocked: true, lockedAt: true, lockedByUser: { select: { id: true, fullName: true } } },
+      select: {
+        isLocked: true,
+        lockedAt: true,
+        lockedByUser: { select: { id: true, fullName: true } },
+      },
     });
 
     // Build the report
@@ -368,7 +388,10 @@ export class PayrollService {
 
       const totalPoints = departments.reduce((sum, d) => sum + d.totalPoints, 0);
       const totalGrossPay = departments.reduce((sum, d) => sum + d.grossPay, 0);
-      const totalStepsCompleted = departments.reduce((sum, d) => sum + d.stepsCompleted, 0);
+      const totalStepsCompleted = departments.reduce(
+        (sum, d) => sum + d.stepsCompleted,
+        0,
+      );
       const totalReworkCount = departments.reduce((sum, d) => sum + d.reworkCount, 0);
 
       return {
@@ -403,7 +426,10 @@ export class PayrollService {
     // Validate week_start is a Sunday
     const weekStartDate = new Date(weekStart);
     if (weekStartDate.getUTCDay() !== 0) {
-      throw new AppError(ErrorCode.INVALID_WEEK_START, `The provided week_start date "${weekStart}" is not a Sunday`);
+      throw new AppError(
+        ErrorCode.INVALID_WEEK_START,
+        `The provided week_start date "${weekStart}" is not a Sunday`,
+      );
     }
 
     // Check if already locked
@@ -413,7 +439,10 @@ export class PayrollService {
     });
 
     if (existingLocked) {
-      throw new AppError(ErrorCode.PAYROLL_WEEK_LOCKED, `Payroll for week starting ${weekStart} is already locked`);
+      throw new AppError(
+        ErrorCode.PAYROLL_WEEK_LOCKED,
+        `Payroll for week starting ${weekStart} is already locked`,
+      );
     }
 
     // Calculate week end
@@ -441,7 +470,15 @@ export class PayrollService {
       });
 
       // Aggregate per (user, department)
-      const aggregation = new Map<string, { userId: bigint; departmentId: number; totalPoints: number; trailersCompleted: number }>();
+      const aggregation = new Map<
+        string,
+        {
+          userId: bigint;
+          departmentId: number;
+          totalPoints: number;
+          trailersCompleted: number;
+        }
+      >();
 
       for (const step of completedSteps) {
         const key = `${step.completedByUserId!}_${step.departmentId}`;
@@ -462,10 +499,7 @@ export class PayrollService {
       const dollarRates = await tx.deptDollarRate.findMany({
         where: {
           effectiveFrom: { lte: weekEndDate },
-          OR: [
-            { effectiveTo: null },
-            { effectiveTo: { gte: weekStartDate } },
-          ],
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: weekStartDate } }],
         },
         orderBy: { effectiveFrom: 'desc' },
       });
@@ -551,7 +585,9 @@ export class PayrollService {
     // Calculate current week's Sunday
     const now = new Date();
     const dayOfWeek = now.getUTCDay(); // 0=Sunday
-    const weekStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayOfWeek));
+    const weekStartDate = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayOfWeek),
+    );
     const weekEndDate = new Date(weekStartDate);
     weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
 
@@ -577,7 +613,17 @@ export class PayrollService {
     let totalPoints = 0;
     let stepsCompleted = 0;
     let reworkCount = 0;
-    const departmentBreakdown = new Map<number, { departmentId: number; code: string; name: string; points: number; steps: number; reworks: number }>();
+    const departmentBreakdown = new Map<
+      number,
+      {
+        departmentId: number;
+        code: string;
+        name: string;
+        points: number;
+        steps: number;
+        reworks: number;
+      }
+    >();
 
     for (const step of completedSteps) {
       totalPoints += Number(step.pointsAwarded);
@@ -605,10 +651,7 @@ export class PayrollService {
     const dollarRates = await this.prisma.deptDollarRate.findMany({
       where: {
         effectiveFrom: { lte: weekEndDate },
-        OR: [
-          { effectiveTo: null },
-          { effectiveTo: { gte: weekStartDate } },
-        ],
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: weekStartDate } }],
       },
       orderBy: { effectiveFrom: 'desc' },
     });

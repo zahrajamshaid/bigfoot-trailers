@@ -34,6 +34,10 @@ class ProductionQueueLoaded extends ProductionQueueState {
   final bool isRefreshing;
   final StepCompletionResult? lastCompletion;
 
+  /// When true the UI shows only stalled items (stallLevel > 0). Set by the
+  /// "Stalled only" filter chip or a `?filter=stalled` deep link.
+  final bool stalledOnly;
+
   const ProductionQueueLoaded({
     required this.queue,
     required this.departmentId,
@@ -41,7 +45,12 @@ class ProductionQueueLoaded extends ProductionQueueState {
     this.departments = const [],
     this.isRefreshing = false,
     this.lastCompletion,
+    this.stalledOnly = false,
   });
+
+  /// The queue after the stalled filter is applied — what the list renders.
+  List<QueueItem> get visibleQueue =>
+      stalledOnly ? queue.where((q) => q.stallLevel > 0).toList() : queue;
 
   ProductionQueueLoaded copyWith({
     List<QueueItem>? queue,
@@ -50,6 +59,7 @@ class ProductionQueueLoaded extends ProductionQueueState {
     List<Department>? departments,
     bool? isRefreshing,
     StepCompletionResult? lastCompletion,
+    bool? stalledOnly,
   }) {
     return ProductionQueueLoaded(
       queue: queue ?? this.queue,
@@ -58,12 +68,20 @@ class ProductionQueueLoaded extends ProductionQueueState {
       departments: departments ?? this.departments,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       lastCompletion: lastCompletion,
+      stalledOnly: stalledOnly ?? this.stalledOnly,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [queue, departmentId, departmentName, departments, isRefreshing, lastCompletion];
+  List<Object?> get props => [
+        queue,
+        departmentId,
+        departmentName,
+        departments,
+        isRefreshing,
+        lastCompletion,
+        stalledOnly,
+      ];
 }
 
 class ProductionQueueError extends ProductionQueueState {
@@ -87,7 +105,11 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
     _wsSub = _ws.events.listen(_onWsEvent);
   }
 
-  Future<void> load(int? departmentId, {bool isManager = false}) async {
+  Future<void> load(
+    int? departmentId, {
+    bool isManager = false,
+    bool stalledOnly = false,
+  }) async {
     emit(const ProductionQueueLoading());
     try {
       List<Department> departments = [];
@@ -122,6 +144,7 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
         departmentId: resolvedDepartmentId,
         departmentName: deptName,
         departments: departments,
+        stalledOnly: stalledOnly,
       ));
     } on ApiException catch (e) {
       emit(ProductionQueueError(e.displayMessage));
@@ -148,9 +171,18 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
         departmentId: departmentId,
         departmentName: deptName,
         departments: current.departments,
+        stalledOnly: current.stalledOnly,
       ));
     } catch (_) {
       emit(current.copyWith(isRefreshing: false));
+    }
+  }
+
+  /// Toggles the "stalled only" view filter without re-fetching the queue.
+  void setStalledOnly(bool value) {
+    final current = state;
+    if (current is ProductionQueueLoaded) {
+      emit(current.copyWith(stalledOnly: value));
     }
   }
 

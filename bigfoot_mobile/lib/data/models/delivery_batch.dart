@@ -39,6 +39,22 @@ class DeliveryBatch {
   factory DeliveryBatch.fromJson(Map<String, dynamic> json) =>
       _$DeliveryBatchFromJson(json);
   Map<String, dynamic> toJson() => _$DeliveryBatchToJson(this);
+
+  /// Human-readable status. The raw `building` state is shown as "Open" — a
+  /// batch that is assembled and awaiting delivery completion.
+  String get statusLabel {
+    switch (status) {
+      case 'building':
+      case 'scheduled':
+        return 'Open';
+      case 'in_transit':
+        return 'In Transit';
+      case 'complete':
+        return 'Completed';
+      default:
+        return status;
+    }
+  }
 }
 
 @JsonSerializable()

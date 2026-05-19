@@ -90,11 +90,27 @@ class NotificationsViewModel extends Cubit<NotificationsState> {
 
   Future<void> loadHistory() async {
     try {
-      final items = await _repository.getHistory();
-      emit(state.copyWith(items: items));
+      final serverItems = await _repository.getHistory();
+      emit(state.copyWith(items: _mergeHistory(serverItems)));
     } catch (_) {
-      emit(state.copyWith(items: const []));
+      // A transient failure must not wipe the panel — keep whatever is
+      // already shown (including live WebSocket / push notifications).
     }
+  }
+
+  /// Merges server history with client-only notifications. WebSocket- and
+  /// FCM-derived notifications are never returned by the `/notifications`
+  /// endpoint, so replacing the list wholesale would make them vanish a few
+  /// seconds after they appear. This preserves them instead.
+  List<AppNotification> _mergeHistory(List<AppNotification> serverItems) {
+    final serverIds = serverItems.map((n) => n.id).toSet();
+    final localOnly = state.items.where(
+      (n) =>
+          (n.id.startsWith('ws-') || n.id.startsWith('fcm-')) &&
+          !serverIds.contains(n.id),
+    );
+    return [...serverItems, ...localOnly]
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
   void markRead(String id) {
@@ -109,9 +125,23 @@ class NotificationsViewModel extends Cubit<NotificationsState> {
     emit(state.copyWith(items: updated));
   }
 
-  void dismiss(String id) {
-    final updated = state.items.where((n) => n.id != id).toList();
+  /// Permanently deletes a notification. The panel updates optimistically;
+  /// if the server delete fails the item is restored so it is never silently
+  /// lost. WebSocket / FCM notifications (`ws-` / `fcm-` ids) are client-only
+  /// and have no server row, so they are simply removed locally.
+  Future<void> dismiss(String id) async {
+    final previous = state.items;
+    final updated = previous.where((n) => n.id != id).toList();
     emit(state.copyWith(items: updated));
+
+    if (id.startsWith('ws-') || id.startsWith('fcm-')) return;
+
+    try {
+      await _repository.deleteNotification(id);
+    } catch (_) {
+      if (isClosed) return;
+      emit(state.copyWith(items: previous));
+    }
   }
 
   void clearBanner(String id) {

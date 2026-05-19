@@ -10,7 +10,10 @@ export class UpdatePointValueDto {
   @Type(() => Number)
   points?: number;
 
-  @ApiPropertyOptional({ description: 'End date for this rate (YYYY-MM-DD)', example: '2026-06-30' })
+  @ApiPropertyOptional({
+    description: 'End date for this rate (YYYY-MM-DD)',
+    example: '2026-06-30',
+  })
   @IsOptional()
   @IsDateString()
   effectiveTo?: string;

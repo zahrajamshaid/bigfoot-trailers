@@ -60,11 +60,21 @@ describe('AuthController', () => {
 
   describe('PATCH /auth/push-token', () => {
     it('should call authService.updatePushToken and return success message', async () => {
-      const user = { sub: 1, email: 'admin@bigfoottrailers.com', role: 'owner', departmentId: null, iat: 0, exp: 0 };
+      const user = {
+        sub: 1,
+        email: 'admin@bigfoottrailers.com',
+        role: 'owner',
+        departmentId: null,
+        iat: 0,
+        exp: 0,
+      };
       const dto = { pushToken: 'fcm-token-xyz' };
       const result = await controller.updatePushToken(user, dto);
 
-      expect(mockAuthService.updatePushToken).toHaveBeenCalledWith(BigInt(1), 'fcm-token-xyz');
+      expect(mockAuthService.updatePushToken).toHaveBeenCalledWith(
+        BigInt(1),
+        'fcm-token-xyz',
+      );
       expect(result).toEqual({ message: 'Push token updated' });
     });
   });

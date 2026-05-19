@@ -10,7 +10,9 @@ export class QueryChecklistItemsDto {
   @Type(() => Number)
   departmentId?: number;
 
-  @ApiPropertyOptional({ description: 'Filter by trailer series (xp, yeti, deck_over, gooseneck_dump, all)' })
+  @ApiPropertyOptional({
+    description: 'Filter by trailer series (xp, yeti, deck_over, gooseneck_dump, all)',
+  })
   @IsOptional()
   @IsEnum(QcSeriesScopeDto)
   series?: QcSeriesScopeDto;

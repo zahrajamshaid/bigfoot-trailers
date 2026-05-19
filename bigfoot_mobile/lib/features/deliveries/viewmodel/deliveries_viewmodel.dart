@@ -8,6 +8,7 @@ import '../../../core/websocket/ws_client.dart';
 import '../../../core/websocket/ws_event_stream.dart';
 import '../../../data/models/delivery.dart';
 import '../../../data/models/delivery_batch.dart';
+import '../../../data/models/stock_inventory.dart';
 import '../../../domain/repositories/delivery_repository.dart';
 
 // Re-export for screens that need it
@@ -141,42 +142,39 @@ class DeliveriesViewModel extends Cubit<DeliveriesState> {
     int? driverUserId,
     int? destinationLocationId,
     String? customerDeliveryAddress,
+    String? contactPhone,
     double? balanceDue,
     int? deliveryBatchId,
+    String? pickedUpByName,
+    double? paymentCollected,
   }) => _repository.createDelivery(
     trailerId: trailerId,
     deliveryType: deliveryType,
     driverUserId: driverUserId,
     destinationLocationId: destinationLocationId,
     customerDeliveryAddress: customerDeliveryAddress,
+    contactPhone: contactPhone,
     balanceDue: balanceDue,
     deliveryBatchId: deliveryBatchId,
+    pickedUpByName: pickedUpByName,
+    paymentCollected: paymentCollected,
   );
-
-  Future<void> markDeparted(int deliveryId) => _repository.markDeparted(deliveryId);
 
   Future<void> markFailed(int deliveryId, String failReason) =>
       _repository.markFailed(deliveryId, failReason);
 
-  Future<void> completeDelivery({
-    required int deliveryId,
-    required double paymentCollected,
-    required String paymentMethod,
-    required bool tcAccepted,
-    String? signatureUrl,
-    double? gpsLat,
-    double? gpsLng,
-    List<String> photoStorageKeys = const [],
-  }) => _repository.completeDelivery(
-    deliveryId: deliveryId,
-    paymentCollected: paymentCollected,
-    paymentMethod: paymentMethod,
-    tcAccepted: tcAccepted,
-    signatureUrl: signatureUrl,
-    gpsLat: gpsLat,
-    gpsLng: gpsLng,
-    photoStorageKeys: photoStorageKeys,
-  );
+  /// Deletes a delivery — the trailer is freed back to ready_for_delivery.
+  Future<void> deleteDelivery(int deliveryId) =>
+      _repository.deleteDelivery(deliveryId);
+
+  /// One-tap completion — the driver confirms the delivery is done, with an
+  /// optional balance collected on delivery.
+  Future<void> completeDelivery(int deliveryId, {double? paymentCollected}) =>
+      _repository.completeDelivery(deliveryId, paymentCollected: paymentCollected);
+
+  /// Trailers currently parked at each stock-location yard.
+  Future<List<StockLocationGroup>> getStockInventory() =>
+      _repository.getStockInventory();
 
   Future<void> uploadPhotos({
     required int deliveryId,
@@ -190,18 +188,20 @@ class DeliveriesViewModel extends Cubit<DeliveriesState> {
 
   Future<List<DeliveryBatch>> getBatches() => _repository.getBatches();
 
-  Future<void> createBatch({
+  Future<DeliveryBatch> createBatch({
     required String batchNumber,
     required String batchType,
     int? driverUserId,
     int? destinationLocationId,
     String? destinationName,
+    List<int>? trailerIds,
   }) => _repository.createBatch(
     batchNumber: batchNumber,
     batchType: batchType,
     driverUserId: driverUserId,
     destinationLocationId: destinationLocationId,
     destinationName: destinationName,
+    trailerIds: trailerIds,
   );
 
   Future<void> updateBatch({
@@ -222,7 +222,23 @@ class DeliveriesViewModel extends Cubit<DeliveriesState> {
 
   Future<void> dispatchBatch(int batchId) => _repository.dispatchBatch(batchId);
 
-  Future<void> completeFactoryPickup(int id) => _repository.completeFactoryPickup(id);
+  /// Completes a whole batch in one action — every trailer in it is delivered.
+  Future<void> completeBatch(int batchId, {List<String>? photoStorageKeys}) =>
+      _repository.completeBatch(batchId, photoStorageKeys: photoStorageKeys);
+
+  /// Permanently deletes a batch and all of its deliveries.
+  Future<void> deleteBatch(int batchId) => _repository.deleteBatch(batchId);
+
+  Future<void> completeFactoryPickup(
+    int id, {
+    String? pickedUpByName,
+    double? paymentCollected,
+  }) =>
+      _repository.completeFactoryPickup(
+        id,
+        pickedUpByName: pickedUpByName,
+        paymentCollected: paymentCollected,
+      );
 
   void _onWsEvent(WsEvent event) {
     if (!const {

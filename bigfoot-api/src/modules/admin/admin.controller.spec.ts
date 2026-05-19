@@ -19,7 +19,14 @@ describe('AdminController', () => {
     findByEntity: jest.fn(),
   };
 
-  const mockUser = { sub: 1, email: 'admin@test.com', role: 'owner', departmentId: null, iat: 0, exp: 0 };
+  const mockUser = {
+    sub: 1,
+    email: 'admin@test.com',
+    role: 'owner',
+    departmentId: null,
+    iat: 0,
+    exp: 0,
+  };
   const mockReq = { ip: '127.0.0.1' } as any;
 
   beforeEach(async () => {
@@ -71,7 +78,12 @@ describe('AdminController', () => {
         mockReq,
       );
 
-      expect(mockAdminService.updateDepartment).toHaveBeenCalledWith(1, 72, 1, '127.0.0.1');
+      expect(mockAdminService.updateDepartment).toHaveBeenCalledWith(
+        1,
+        72,
+        1,
+        '127.0.0.1',
+      );
       expect(result).toEqual(mockResult);
     });
   });
@@ -93,7 +105,10 @@ describe('AdminController', () => {
       mockAuditLogService.findByEntity.mockResolvedValue(mockHistory);
 
       const result = await controller.getEntityAuditLog('trailer', 100);
-      expect(mockAuditLogService.findByEntity).toHaveBeenCalledWith('trailer', 100);
+      expect(mockAuditLogService.findByEntity).toHaveBeenCalledWith('trailer', 100, {
+        page: undefined,
+        limit: undefined,
+      });
       expect(result).toEqual(mockHistory);
     });
   });
@@ -103,7 +118,9 @@ describe('AdminController', () => {
       const mockReport = { weekStart: '2026-03-22', totalStepsCompleted: 10 };
       mockAdminService.getWeeklyProductionReport.mockResolvedValue(mockReport);
 
-      const result = await controller.getWeeklyProductionReport({ weekStart: '2026-03-22' });
+      const result = await controller.getWeeklyProductionReport({
+        weekStart: '2026-03-22',
+      });
       expect(result).toEqual(mockReport);
     });
   });
@@ -120,7 +137,9 @@ describe('AdminController', () => {
       );
 
       expect(mockAdminService.lockAndSendWeeklyReport).toHaveBeenCalledWith(
-        '2026-03-22', 1, '127.0.0.1',
+        '2026-03-22',
+        1,
+        '127.0.0.1',
       );
       expect(result).toEqual(mockResult);
     });

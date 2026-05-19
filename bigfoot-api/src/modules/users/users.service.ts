@@ -39,7 +39,9 @@ export class UsersService {
   // ---------------------------------------------------------------------------
   // GET /users — list with pagination + filters (owner, production_manager)
   // ---------------------------------------------------------------------------
-  async findAll(query: QueryUsersDto): Promise<{ users: SafeUser[]; total: number; page: number; limit: number }> {
+  async findAll(
+    query: QueryUsersDto,
+  ): Promise<{ users: SafeUser[]; total: number; page: number; limit: number }> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 25;
     const skip = (page - 1) * limit;
@@ -61,6 +63,17 @@ export class UsersService {
     ]);
 
     return { users, total, page, limit };
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /users/drivers — active drivers, for delivery assignment
+  // ---------------------------------------------------------------------------
+  async findDrivers(): Promise<SafeUser[]> {
+    return this.prisma.user.findMany({
+      where: { role: UserRole.driver, isActive: true },
+      select: USER_SELECT,
+      orderBy: { fullName: 'asc' },
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -90,7 +103,10 @@ export class UsersService {
     });
 
     if (existing) {
-      throw new AppError(ErrorCode.SO_NUMBER_EXISTS, `A user with email "${dto.email}" already exists`);
+      throw new AppError(
+        ErrorCode.SO_NUMBER_EXISTS,
+        `A user with email "${dto.email}" already exists`,
+      );
     }
 
     // Validate FK references if provided
@@ -100,7 +116,10 @@ export class UsersService {
         select: { id: true },
       });
       if (!dept) {
-        throw new AppError(ErrorCode.BAD_REQUEST, `Department with id ${dto.primaryDepartmentId} not found`);
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          `Department with id ${dto.primaryDepartmentId} not found`,
+        );
       }
     }
 
@@ -110,7 +129,10 @@ export class UsersService {
         select: { id: true },
       });
       if (!loc) {
-        throw new AppError(ErrorCode.BAD_REQUEST, `Location with id ${dto.primaryLocationId} not found`);
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          `Location with id ${dto.primaryLocationId} not found`,
+        );
       }
     }
 
@@ -167,8 +189,15 @@ export class UsersService {
 
     // Self-update for non-managers: only allow limited fields (name, phone, password)
     if (isSelf && !isManager) {
-      if (dto.role || dto.primaryDepartmentId !== undefined || dto.primaryLocationId !== undefined) {
-        throw new AppError(ErrorCode.FORBIDDEN, 'Only an owner or production manager can change role, department, or location assignments');
+      if (
+        dto.role ||
+        dto.primaryDepartmentId !== undefined ||
+        dto.primaryLocationId !== undefined
+      ) {
+        throw new AppError(
+          ErrorCode.FORBIDDEN,
+          'Only an owner or production manager can change role, department, or location assignments',
+        );
       }
     }
 
@@ -184,7 +213,10 @@ export class UsersService {
         select: { id: true },
       });
       if (emailTaken) {
-        throw new AppError(ErrorCode.SO_NUMBER_EXISTS, `A user with email "${dto.email}" already exists`);
+        throw new AppError(
+          ErrorCode.SO_NUMBER_EXISTS,
+          `A user with email "${dto.email}" already exists`,
+        );
       }
     }
 
@@ -195,14 +227,16 @@ export class UsersService {
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.role !== undefined) data.role = dto.role as UserRole;
     if (dto.primaryDepartmentId !== undefined) {
-      data.primaryDepartment = dto.primaryDepartmentId === null
-        ? { disconnect: true }
-        : { connect: { id: dto.primaryDepartmentId } };
+      data.primaryDepartment =
+        dto.primaryDepartmentId === null
+          ? { disconnect: true }
+          : { connect: { id: dto.primaryDepartmentId } };
     }
     if (dto.primaryLocationId !== undefined) {
-      data.primaryLocation = dto.primaryLocationId === null
-        ? { disconnect: true }
-        : { connect: { id: dto.primaryLocationId } };
+      data.primaryLocation =
+        dto.primaryLocationId === null
+          ? { disconnect: true }
+          : { connect: { id: dto.primaryLocationId } };
     }
 
     // Hash new password if provided
@@ -247,7 +281,10 @@ export class UsersService {
         where: { role: 'owner', isActive: true },
       });
       if (ownerCount <= 1) {
-        throw new AppError(ErrorCode.FORBIDDEN, 'Cannot deactivate the last active owner account');
+        throw new AppError(
+          ErrorCode.FORBIDDEN,
+          'Cannot deactivate the last active owner account',
+        );
       }
     }
 
@@ -316,7 +353,10 @@ export class UsersService {
     }
 
     if (requesterId === id) {
-      throw new AppError(ErrorCode.FORBIDDEN, 'You cannot permanently delete your own account');
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'You cannot permanently delete your own account',
+      );
     }
 
     if (existing.role === 'owner') {
@@ -339,10 +379,7 @@ export class UsersService {
       // tables whose FKs don't cascade (trailers they created, QC
       // inspections they ran, deliveries, messages, etc.). Translate to
       // an actionable error so the admin knows why.
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2003'
-      ) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
         throw new AppError(
           ErrorCode.BAD_REQUEST,
           'This user has historical activity (completed steps, inspections, deliveries, or messages) and cannot be permanently deleted. Keep them deactivated to preserve the audit trail.',

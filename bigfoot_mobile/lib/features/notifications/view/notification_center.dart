@@ -58,7 +58,7 @@ class _NotificationCenterState extends State<NotificationCenter> {
                       onPressed: (_) => context.read<NotificationsViewModel>().dismiss(n.id),
                       backgroundColor: AppColors.error,
                       icon: Icons.delete_outline,
-                      label: 'Dismiss',
+                      label: 'Delete',
                     ),
                   ],
                 ),

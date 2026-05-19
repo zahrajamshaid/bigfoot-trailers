@@ -36,6 +36,14 @@ enum TrailerStatus {
   @@map("trailer_status_enum")
 }
 
+enum TrailerSaleStatus {
+  available
+  sale_pending
+  sold
+
+  @@map("trailer_sale_status_enum")
+}
+
 enum DeliveryType {
   factory_pickup
   stack_to_dealer
@@ -130,6 +138,7 @@ enum NotificationType {
   trailer_stalled
   worker_message
   payment_not_collected
+  delivery_complete
 
   @@map("notification_type_enum")
 }
@@ -257,11 +266,17 @@ model Trailer {
   qbInvoicedAt      DateTime? @map("qb_invoiced_at") @db.Timestamptz
 
   // Status & workflow control
-  status         TrailerStatus @default(pending_production)
-  globalPriority Int           @default(9999) @map("global_priority")
-  isStockBuild   Boolean       @default(false) @map("is_stock_build")
-  isHot          Boolean       @default(false) @map("is_hot")
-  customerLocked Boolean       @default(false) @map("customer_locked")
+  status         TrailerStatus     @default(pending_production)
+  saleStatus     TrailerSaleStatus @default(available) @map("sale_status")
+  globalPriority Int               @default(9999) @map("global_priority")
+  isStockBuild   Boolean           @default(false) @map("is_stock_build")
+  isHot          Boolean           @default(false) @map("is_hot")
+  customerLocked Boolean           @default(false) @map("customer_locked")
+
+  // Free-text buyer name captured when a stock / no-customer trailer is
+  // marked sold. Kept as plain text on purpose — customer records will be
+  // owned by the GoHighLevel integration, not this table.
+  soldToName String? @map("sold_to_name") @db.VarChar(200)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
@@ -283,6 +298,7 @@ model Trailer {
   stallAlerts       StallAlert[]
 
   @@index([status, globalPriority, createdAt(sort: Desc)], map: "idx_trailers_status_priority")
+  @@index([saleStatus], map: "idx_trailers_sale_status")
   @@index([customerId, status], map: "idx_trailers_customer_status")
   @@index([currentLocationId, status], map: "idx_trailers_location_status")
   @@index([isHot, status], map: "idx_trailers_hot_status")
@@ -649,6 +665,7 @@ model Delivery {
   driverUserId            BigInt?        @map("driver_user_id")
   destinationLocationId   Int?           @map("destination_location_id")
   customerDeliveryAddress String?        @map("customer_delivery_address")
+  contactPhone            String?        @map("contact_phone") @db.VarChar(20)
   balanceDue              Decimal?       @map("balance_due") @db.Decimal(10, 2)
   paymentCollected        Decimal?       @map("payment_collected") @db.Decimal(10, 2)
   paymentMethod           PaymentMethod? @map("payment_method")
@@ -661,6 +678,7 @@ model Delivery {
   departedAt              DateTime?      @map("departed_at") @db.Timestamptz
   deliveredAt             DateTime?      @map("delivered_at") @db.Timestamptz
   failReason              String?        @map("fail_reason")
+  pickedUpByName          String?        @map("picked_up_by_name") @db.VarChar(200)
   createdByUserId         BigInt         @map("created_by_user_id")
   createdAt               DateTime       @default(now()) @map("created_at") @db.Timestamptz
   updatedAt               DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz

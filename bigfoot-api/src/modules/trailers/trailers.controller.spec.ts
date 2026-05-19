@@ -31,20 +31,34 @@ const ownerPayload: JwtPayload = {
 // ---------------------------------------------------------------------------
 
 const mockTrailersService = {
-  findAll: jest.fn().mockResolvedValue({ trailers: [mockTrailer], total: 1, page: 1, limit: 25 }),
+  findAll: jest
+    .fn()
+    .mockResolvedValue({ trailers: [mockTrailer], total: 1, page: 1, limit: 25 }),
   create: jest.fn().mockResolvedValue({
     trailer: mockTrailer,
-    stepsSummary: { trailerId: BigInt(1), series: 'xp', totalSteps: 12, firstActiveStepId: BigInt(100) },
+    stepsSummary: {
+      trailerId: BigInt(1),
+      series: 'xp',
+      totalSteps: 12,
+      firstActiveStepId: BigInt(100),
+    },
   }),
   findOne: jest.fn().mockResolvedValue({ ...mockTrailer, productionSteps: [] }),
   update: jest.fn().mockResolvedValue(mockTrailer),
   setPriority: jest.fn().mockResolvedValue({ ...mockTrailer, globalPriority: 5 }),
   toggleHot: jest.fn().mockResolvedValue({ ...mockTrailer, isHot: true }),
-  addAddon: jest.fn().mockResolvedValue({ id: BigInt(50), addonName: 'Winch', notes: null, addedAt: new Date() }),
+  addAddon: jest.fn().mockResolvedValue({
+    id: BigInt(50),
+    addonName: 'Winch',
+    notes: null,
+    addedAt: new Date(),
+  }),
   removeAddon: jest.fn().mockResolvedValue({ deleted: true }),
   uploadQbPdf: jest.fn().mockResolvedValue(mockTrailer),
   getSteps: jest.fn().mockResolvedValue([]),
-  getHistory: jest.fn().mockResolvedValue({ steps: [], qcInspections: [], auditLogs: [] }),
+  getHistory: jest
+    .fn()
+    .mockResolvedValue({ steps: [], qcInspections: [], auditLogs: [] }),
 };
 
 // ---------------------------------------------------------------------------
@@ -98,7 +112,9 @@ describe('TrailersController', () => {
     it('should update trailer fields', async () => {
       await controller.update(1, { color: 'Green' });
 
-      expect(mockTrailersService.update).toHaveBeenCalledWith(BigInt(1), { color: 'Green' });
+      expect(mockTrailersService.update).toHaveBeenCalledWith(BigInt(1), {
+        color: 'Green',
+      });
     });
   });
 
@@ -106,7 +122,9 @@ describe('TrailersController', () => {
     it('should set global priority', async () => {
       const result = await controller.setPriority(1, { globalPriority: 5 });
 
-      expect(mockTrailersService.setPriority).toHaveBeenCalledWith(BigInt(1), { globalPriority: 5 });
+      expect(mockTrailersService.setPriority).toHaveBeenCalledWith(BigInt(1), {
+        globalPriority: 5,
+      });
       expect(result.globalPriority).toBe(5);
     });
   });
@@ -115,7 +133,9 @@ describe('TrailersController', () => {
     it('should toggle isHot flag', async () => {
       const result = await controller.toggleHot(1, { isHot: true });
 
-      expect(mockTrailersService.toggleHot).toHaveBeenCalledWith(BigInt(1), { isHot: true });
+      expect(mockTrailersService.toggleHot).toHaveBeenCalledWith(BigInt(1), {
+        isHot: true,
+      });
       expect(result.isHot).toBe(true);
     });
   });
@@ -124,7 +144,9 @@ describe('TrailersController', () => {
     it('should add addon to trailer', async () => {
       const result = await controller.addAddon(1, { addonName: 'Winch' });
 
-      expect(mockTrailersService.addAddon).toHaveBeenCalledWith(BigInt(1), { addonName: 'Winch' });
+      expect(mockTrailersService.addAddon).toHaveBeenCalledWith(BigInt(1), {
+        addonName: 'Winch',
+      });
       expect(result.addonName).toBe('Winch');
     });
   });
@@ -142,7 +164,10 @@ describe('TrailersController', () => {
     it('should attach QB SO PDF', async () => {
       await controller.uploadQbPdf(1, { storageKey: 'key', storageUrl: 'url' });
 
-      expect(mockTrailersService.uploadQbPdf).toHaveBeenCalledWith(BigInt(1), { storageKey: 'key', storageUrl: 'url' });
+      expect(mockTrailersService.uploadQbPdf).toHaveBeenCalledWith(BigInt(1), {
+        storageKey: 'key',
+        storageUrl: 'url',
+      });
     });
   });
 

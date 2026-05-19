@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   Prisma,
   DeliveryStatus,
+  DeliveryBatchStatus,
   DeliveryType,
   TrailerStatus,
   SmsType,
@@ -16,6 +17,7 @@ import {
   QueryDeliveriesDto,
   CreateDeliveryDto,
   CompleteDeliveryDto,
+  CompleteFactoryPickupDto,
   FailDeliveryDto,
   UploadDeliveryPhotosDto,
 } from './dto';
@@ -30,6 +32,7 @@ const deliverySelect = {
   driverUserId: true,
   destinationLocationId: true,
   customerDeliveryAddress: true,
+  contactPhone: true,
   balanceDue: true,
   paymentCollected: true,
   paymentMethod: true,
@@ -38,6 +41,7 @@ const deliverySelect = {
   departedAt: true,
   deliveredAt: true,
   failReason: true,
+  pickedUpByName: true,
   createdAt: true,
   trailer: {
     select: {
@@ -48,9 +52,17 @@ const deliverySelect = {
     },
   },
   driverUser: { select: { id: true, fullName: true } },
-  destinationLocation: { select: { id: true, name: true, city: true, state: true } },
+  destinationLocation: {
+    select: { id: true, name: true, city: true, state: true, address: true },
+  },
   deliveryPhotos: {
-    select: { id: true, storageUrl: true, storageKey: true, photoType: true, takenAt: true },
+    select: {
+      id: true,
+      storageUrl: true,
+      storageKey: true,
+      photoType: true,
+      takenAt: true,
+    },
   },
 } satisfies Prisma.DeliverySelect;
 
@@ -60,6 +72,26 @@ export class DeliveriesService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  // ---------------------------------------------------------------------------
+  // When a batched delivery reaches a terminal state, flip the parent batch to
+  // "complete" once none of its deliveries are still open. Keeps the batch
+  // status correct whether trailers are completed all-at-once or one-by-one.
+  // ---------------------------------------------------------------------------
+  private async reconcileBatchCompletion(tx: Prisma.TransactionClient, batchId: bigint) {
+    const open = await tx.delivery.count({
+      where: {
+        deliveryBatchId: batchId,
+        status: { in: [DeliveryStatus.scheduled, DeliveryStatus.in_transit] },
+      },
+    });
+    if (open === 0) {
+      await tx.deliveryBatch.updateMany({
+        where: { id: batchId, status: { not: DeliveryBatchStatus.complete } },
+        data: { status: DeliveryBatchStatus.complete, completedAt: new Date() },
+      });
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // GET /deliveries — list with filters
@@ -99,20 +131,63 @@ export class DeliveriesService {
     });
 
     if (!trailer) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${dto.trailerId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Trailer with id ${dto.trailerId} not found`,
+      );
     }
 
     if (trailer.status !== TrailerStatus.ready_for_delivery) {
-      throw new AppError(ErrorCode.DELIVERY_NOT_DISPATCHABLE, `Trailer status is "${trailer.status}" — must be "ready_for_delivery"`);
+      throw new AppError(
+        ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+        `Trailer status is "${trailer.status}" — must be "ready_for_delivery"`,
+      );
+    }
+
+    const deliveryType = dto.deliveryType as DeliveryType;
+    const trailerId = BigInt(dto.trailerId);
+
+    // A factory pickup is recorded in one step — the customer collects the
+    // trailer at the factory, so the delivery is created already delivered
+    // and the trailer is moved to "delivered" in the same transaction.
+    if (deliveryType === DeliveryType.factory_pickup) {
+      return this.prisma.$transaction(async (tx) => {
+        const delivery = await tx.delivery.create({
+          data: {
+            trailerId,
+            deliveryType,
+            balanceDue:
+              dto.balanceDue != null ? new Prisma.Decimal(dto.balanceDue) : null,
+            paymentCollected:
+              dto.paymentCollected != null
+                ? new Prisma.Decimal(dto.paymentCollected)
+                : null,
+            pickedUpByName: dto.pickedUpByName?.trim() || null,
+            contactPhone: dto.contactPhone?.trim() || null,
+            createdByUserId,
+            status: DeliveryStatus.delivered,
+            deliveredAt: new Date(),
+          },
+          select: deliverySelect,
+        });
+
+        await tx.trailer.update({
+          where: { id: trailerId },
+          data: { status: TrailerStatus.delivered },
+        });
+
+        return delivery;
+      });
     }
 
     return this.prisma.delivery.create({
       data: {
-        trailerId: BigInt(dto.trailerId),
-        deliveryType: dto.deliveryType as DeliveryType,
+        trailerId,
+        deliveryType,
         driverUserId: dto.driverUserId ? BigInt(dto.driverUserId) : null,
         destinationLocationId: dto.destinationLocationId ?? null,
         customerDeliveryAddress: dto.customerDeliveryAddress ?? null,
+        contactPhone: dto.contactPhone?.trim() || null,
         balanceDue: dto.balanceDue != null ? new Prisma.Decimal(dto.balanceDue) : null,
         deliveryBatchId: dto.deliveryBatchId ? BigInt(dto.deliveryBatchId) : null,
         createdByUserId,
@@ -179,7 +254,10 @@ export class DeliveriesService {
     }
 
     if (delivery.status !== DeliveryStatus.scheduled) {
-      throw new AppError(ErrorCode.DELIVERY_NOT_DISPATCHABLE, `Delivery status is "${delivery.status}" — must be "scheduled" to depart`);
+      throw new AppError(
+        ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+        `Delivery status is "${delivery.status}" — must be "scheduled" to depart`,
+      );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -238,6 +316,8 @@ export class DeliveriesService {
         status: true,
         trailerId: true,
         balanceDue: true,
+        deliveryBatchId: true,
+        destinationLocationId: true,
         trailer: {
           select: {
             id: true,
@@ -252,8 +332,16 @@ export class DeliveriesService {
       throw new AppError(ErrorCode.NOT_FOUND, `Delivery with id ${id} not found`);
     }
 
-    if (delivery.status !== DeliveryStatus.in_transit) {
-      throw new AppError(ErrorCode.DELIVERY_NOT_DISPATCHABLE, `Delivery status is "${delivery.status}" — must be "in_transit" to complete`);
+    // A single delivery is completed straight from "scheduled" (no depart step);
+    // a batched delivery arrives here as "in_transit" after the batch dispatched.
+    if (
+      delivery.status !== DeliveryStatus.scheduled &&
+      delivery.status !== DeliveryStatus.in_transit
+    ) {
+      throw new AppError(
+        ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+        `Delivery status is "${delivery.status}" — must be "scheduled" or "in_transit" to complete`,
+      );
     }
 
     const balanceDue = Number(delivery.balanceDue ?? 0);
@@ -265,7 +353,8 @@ export class DeliveriesService {
         deliveredAt: new Date(),
       };
 
-      if (dto.paymentCollected != null) data.paymentCollected = new Prisma.Decimal(dto.paymentCollected);
+      if (dto.paymentCollected != null)
+        data.paymentCollected = new Prisma.Decimal(dto.paymentCollected);
       if (dto.paymentMethod) data.paymentMethod = dto.paymentMethod as PaymentMethod;
       if (dto.tcAccepted !== undefined) {
         data.tcAccepted = dto.tcAccepted;
@@ -293,11 +382,29 @@ export class DeliveriesService {
         });
       }
 
-      // Update trailer status
-      await tx.trailer.update({
-        where: { id: delivery.trailerId },
-        data: { status: TrailerStatus.delivered },
-      });
+      // Update trailer status. A delivery to a BF stock location leaves the
+      // trailer as ready_for_delivery (it's now available stock at that yard);
+      // a delivery to a customer / dealer address is terminal — delivered.
+      if (delivery.destinationLocationId != null) {
+        await tx.trailer.update({
+          where: { id: delivery.trailerId },
+          data: {
+            status: TrailerStatus.ready_for_delivery,
+            currentLocationId: delivery.destinationLocationId,
+          },
+        });
+      } else {
+        await tx.trailer.update({
+          where: { id: delivery.trailerId },
+          data: { status: TrailerStatus.delivered },
+        });
+      }
+
+      // If this delivery is part of a batch, complete the batch once every
+      // sibling delivery is also done.
+      if (delivery.deliveryBatchId != null) {
+        await this.reconcileBatchCompletion(tx, delivery.deliveryBatchId);
+      }
 
       // Send delivery_complete SMS
       const customer = delivery.trailer.customer;
@@ -314,14 +421,25 @@ export class DeliveriesService {
         });
       }
 
-      // If payment not collected and there's a balance due, notify transport_manager
-      if (balanceDue > 0 && paymentCollected < balanceDue) {
-        const transportManagers = await tx.user.findMany({
-          where: { role: 'transport_manager', isActive: true },
-          select: { id: true },
+      // Notify every active transport_manager that the delivery is complete.
+      const transportManagers = await tx.user.findMany({
+        where: { role: 'transport_manager', isActive: true },
+        select: { id: true },
+      });
+
+      if (transportManagers.length > 0) {
+        await tx.pushNotification.createMany({
+          data: transportManagers.map((tm) => ({
+            recipientUserId: tm.id,
+            trailerId: delivery.trailerId,
+            notificationType: NotificationType.delivery_complete,
+            title: `Delivery Complete — ${delivery.trailer.soNumber}`,
+            body: `Trailer ${delivery.trailer.soNumber} has been delivered.`,
+          })),
         });
 
-        if (transportManagers.length > 0) {
+        // If a balance was outstanding and not fully collected, flag it too.
+        if (balanceDue > 0 && paymentCollected < balanceDue) {
           await tx.pushNotification.createMany({
             data: transportManagers.map((tm) => ({
               recipientUserId: tm.id,
@@ -355,24 +473,47 @@ export class DeliveriesService {
   async markFailed(id: bigint, dto: FailDeliveryDto) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, trailerId: true, deliveryBatchId: true },
     });
 
     if (!delivery) {
       throw new AppError(ErrorCode.NOT_FOUND, `Delivery with id ${id} not found`);
     }
 
-    if (delivery.status === DeliveryStatus.delivered || delivery.status === DeliveryStatus.failed) {
-      throw new AppError(ErrorCode.DELIVERY_NOT_DISPATCHABLE, `Delivery is already "${delivery.status}" — cannot mark as failed`);
+    if (
+      delivery.status === DeliveryStatus.delivered ||
+      delivery.status === DeliveryStatus.failed
+    ) {
+      throw new AppError(
+        ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+        `Delivery is already "${delivery.status}" — cannot mark as failed`,
+      );
     }
 
-    return this.prisma.delivery.update({
-      where: { id },
-      data: {
-        status: DeliveryStatus.failed,
-        failReason: dto.failReason,
-      },
-      select: deliverySelect,
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.delivery.update({
+        where: { id },
+        data: {
+          status: DeliveryStatus.failed,
+          failReason: dto.failReason,
+        },
+        select: deliverySelect,
+      });
+
+      // The trailer never made it out — return it to the ready pool so it can
+      // be put on another delivery.
+      await tx.trailer.update({
+        where: { id: delivery.trailerId },
+        data: { status: TrailerStatus.ready_for_delivery },
+      });
+
+      // A failed trailer still counts as "resolved" for the batch — once no
+      // deliveries are open the batch is complete.
+      if (delivery.deliveryBatchId != null) {
+        await this.reconcileBatchCompletion(tx, delivery.deliveryBatchId);
+      }
+
+      return updated;
     });
   }
 
@@ -404,7 +545,7 @@ export class DeliveriesService {
   // ---------------------------------------------------------------------------
   // POST /deliveries/factory-pickup/:id/complete — office completes pickup
   // ---------------------------------------------------------------------------
-  async completeFactoryPickup(id: bigint) {
+  async completeFactoryPickup(id: bigint, dto: CompleteFactoryPickupDto) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id },
       select: { id: true, status: true, deliveryType: true, trailerId: true },
@@ -415,20 +556,32 @@ export class DeliveriesService {
     }
 
     if (delivery.deliveryType !== DeliveryType.factory_pickup) {
-      throw new AppError(ErrorCode.DELIVERY_NOT_DISPATCHABLE, `Delivery type is "${delivery.deliveryType}" — must be "factory_pickup"`);
+      throw new AppError(
+        ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+        `Delivery type is "${delivery.deliveryType}" — must be "factory_pickup"`,
+      );
     }
 
     if (delivery.status !== DeliveryStatus.scheduled) {
-      throw new AppError(ErrorCode.DELIVERY_NOT_DISPATCHABLE, `Delivery status is "${delivery.status}" — must be "scheduled" to complete a factory pickup`);
+      throw new AppError(
+        ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+        `Delivery status is "${delivery.status}" — must be "scheduled" to complete a factory pickup`,
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
+      const data: Prisma.DeliveryUpdateInput = {
+        status: DeliveryStatus.delivered,
+        deliveredAt: new Date(),
+      };
+      if (dto.pickedUpByName) data.pickedUpByName = dto.pickedUpByName;
+      if (dto.paymentCollected != null) {
+        data.paymentCollected = new Prisma.Decimal(dto.paymentCollected);
+      }
+
       const updated = await tx.delivery.update({
         where: { id },
-        data: {
-          status: DeliveryStatus.delivered,
-          deliveredAt: new Date(),
-        },
+        data,
         select: deliverySelect,
       });
 
@@ -439,5 +592,131 @@ export class DeliveriesService {
 
       return updated;
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE /deliveries/:id — remove a delivery, free the trailer
+  // ---------------------------------------------------------------------------
+  async remove(id: bigint) {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id },
+      select: { id: true, trailerId: true },
+    });
+
+    if (!delivery) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Delivery with id ${id} not found`);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Drop dependent rows first — photos cascade anyway, location receipts
+      // do not, and SMS logs are history so they're kept but unlinked.
+      await tx.deliveryPhoto.deleteMany({ where: { deliveryId: id } });
+      await tx.locationReceipt.deleteMany({ where: { deliveryId: id } });
+      await tx.smsLog.updateMany({
+        where: { deliveryId: id },
+        data: { deliveryId: null },
+      });
+      await tx.delivery.delete({ where: { id } });
+
+      // Free the trailer: back to ready_for_delivery, parked wherever its most
+      // recent *remaining* delivered delivery left it (i.e. where it was
+      // before this delivery). If nothing else moved it, its location stands.
+      const lastDelivered = await tx.delivery.findFirst({
+        where: {
+          trailerId: delivery.trailerId,
+          status: DeliveryStatus.delivered,
+          destinationLocationId: { not: null },
+        },
+        orderBy: { deliveredAt: 'desc' },
+        select: { destinationLocationId: true },
+      });
+
+      await tx.trailer.update({
+        where: { id: delivery.trailerId },
+        data: {
+          status: TrailerStatus.ready_for_delivery,
+          ...(lastDelivered?.destinationLocationId != null
+            ? { currentLocationId: lastDelivered.destinationLocationId }
+            : {}),
+        },
+      });
+    });
+
+    return { deleted: true };
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /deliveries/stock-inventory — trailers currently parked at each yard
+  // ---------------------------------------------------------------------------
+  // A trailer is "stock" at a location if its most recent *delivered* delivery
+  // landed at that location. Once it is delivered out again (to a customer, or
+  // a different yard) it drops off that yard's list automatically.
+  async getStockInventory() {
+    const latestPerTrailer = await this.prisma.delivery.findMany({
+      where: { status: DeliveryStatus.delivered },
+      distinct: ['trailerId'],
+      orderBy: [{ trailerId: 'asc' }, { deliveredAt: 'desc' }],
+      select: {
+        id: true,
+        deliveredAt: true,
+        destinationLocation: {
+          select: { id: true, code: true, name: true, city: true, state: true },
+        },
+        trailer: {
+          select: {
+            id: true,
+            soNumber: true,
+            trailerModel: { select: { displayName: true, series: true } },
+          },
+        },
+        driverUser: { select: { id: true, fullName: true } },
+        createdByUser: { select: { id: true, fullName: true } },
+      },
+    });
+
+    // Group the at-a-yard trailers by their location.
+    const byLocation = new Map<
+      number,
+      {
+        location: { id: number; code: string; name: string; city: string; state: string };
+        trailers: Array<{
+          deliveryId: string;
+          trailerId: string;
+          soNumber: string;
+          model: string | null;
+          deliveredAt: Date | null;
+          deliveredBy: string | null;
+        }>;
+      }
+    >();
+
+    for (const d of latestPerTrailer) {
+      if (!d.destinationLocation) continue; // delivered to a customer address — not stock
+      const loc = d.destinationLocation;
+      let entry = byLocation.get(loc.id);
+      if (!entry) {
+        entry = { location: loc, trailers: [] };
+        byLocation.set(loc.id, entry);
+      }
+      entry.trailers.push({
+        deliveryId: d.id.toString(),
+        trailerId: d.trailer.id.toString(),
+        soNumber: d.trailer.soNumber,
+        model: d.trailer.trailerModel?.displayName ?? null,
+        deliveredAt: d.deliveredAt,
+        deliveredBy: (d.driverUser ?? d.createdByUser)?.fullName ?? null,
+      });
+    }
+
+    return Array.from(byLocation.values())
+      .map((entry) => ({
+        ...entry,
+        // Newest arrivals first within each yard.
+        trailers: entry.trailers.sort(
+          (a, b) => (b.deliveredAt?.getTime() ?? 0) - (a.deliveredAt?.getTime() ?? 0),
+        ),
+        count: entry.trailers.length,
+      }))
+      .sort((a, b) => a.location.name.localeCompare(b.location.name));
   }
 }

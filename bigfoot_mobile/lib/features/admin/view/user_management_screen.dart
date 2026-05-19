@@ -379,23 +379,25 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Permanently delete user?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This permanently removes ${user.name} from the database. '
-              'This cannot be undone.',
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'The user must be deactivated first. Users with historical '
-              'activity (completed steps, inspections, deliveries, '
-              'messages) cannot be deleted — keep them deactivated to '
-              'preserve the audit trail.',
-              style: TextStyle(fontSize: 12, color: AppColors.disabled),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This permanently removes ${user.name} from the database. '
+                'This cannot be undone.',
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'The user must be deactivated first. Users with historical '
+                'activity (completed steps, inspections, deliveries, '
+                'messages) cannot be deleted — keep them deactivated to '
+                'preserve the audit trail.',
+                style: TextStyle(fontSize: 12, color: AppColors.disabled),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

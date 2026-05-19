@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from './notifications.service';
 import { CreateWorkerMessageDto } from './dto';
+import { AppError, ErrorCode } from '../../common/errors';
 
 @Injectable()
 export class MessagesService {
@@ -21,10 +22,10 @@ export class MessagesService {
     });
 
     if (!trailer) {
-      throw new NotFoundException({
-        code: 'NOT_FOUND',
-        message: `Trailer with id ${dto.trailerId} not found`,
-      });
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Trailer with id ${dto.trailerId} not found`,
+      );
     }
 
     // Validate recipient exists and is a salesperson
@@ -34,10 +35,7 @@ export class MessagesService {
     });
 
     if (!recipient) {
-      throw new NotFoundException({
-        code: 'NOT_FOUND',
-        message: `User with id ${dto.toUserId} not found`,
-      });
+      throw new AppError(ErrorCode.NOT_FOUND, `User with id ${dto.toUserId} not found`);
     }
 
     // Look up sender name

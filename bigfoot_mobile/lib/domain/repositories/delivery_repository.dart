@@ -1,5 +1,6 @@
 import '../../data/models/delivery.dart';
 import '../../data/models/delivery_batch.dart';
+import '../../data/models/stock_inventory.dart';
 import '../../data/models/user.dart';
 
 class DeliveryFormData {
@@ -36,24 +37,27 @@ abstract class DeliveryRepository {
     int? driverUserId,
     int? destinationLocationId,
     String? customerDeliveryAddress,
+    String? contactPhone,
     double? balanceDue,
     int? deliveryBatchId,
+    // factory_pickup only — recorded as already picked up on creation.
+    String? pickedUpByName,
+    double? paymentCollected,
   });
-
-  Future<void> markDeparted(int deliveryId);
 
   Future<void> markFailed(int deliveryId, String failReason);
 
-  Future<void> completeDelivery({
-    required int deliveryId,
-    required double paymentCollected,
-    required String paymentMethod,
-    required bool tcAccepted,
-    String? signatureUrl,
-    double? gpsLat,
-    double? gpsLng,
-    List<String> photoStorageKeys,
-  });
+  /// Deletes a delivery (transport manager / owner). The trailer is freed back
+  /// to ready_for_delivery at its prior location.
+  Future<void> deleteDelivery(int deliveryId);
+
+  /// One-tap completion — the driver confirms the trailer was delivered.
+  /// [paymentCollected] is the optional balance the driver collected on
+  /// delivery; omit it when nothing was collected.
+  Future<void> completeDelivery(int deliveryId, {double? paymentCollected});
+
+  /// Trailers currently parked at each stock-location yard.
+  Future<List<StockLocationGroup>> getStockInventory();
 
   Future<void> uploadPhotos({
     required int deliveryId,
@@ -63,12 +67,13 @@ abstract class DeliveryRepository {
 
   Future<List<DeliveryBatch>> getBatches();
 
-  Future<void> createBatch({
+  Future<DeliveryBatch> createBatch({
     required String batchNumber,
     required String batchType,
     int? driverUserId,
     int? destinationLocationId,
     String? destinationName,
+    List<int>? trailerIds,
   });
 
   Future<void> updateBatch({
@@ -82,5 +87,19 @@ abstract class DeliveryRepository {
 
   Future<void> dispatchBatch(int batchId);
 
-  Future<void> completeFactoryPickup(int id);
+  /// Completes a whole batch in one action — every in-transit trailer in the
+  /// batch is marked delivered. [photoStorageKeys] are optional proof photos.
+  Future<void> completeBatch(int batchId, {List<String>? photoStorageKeys});
+
+  /// Permanently deletes a batch and all of its deliveries. Trailers still
+  /// held by a not-yet-delivered delivery are freed back to ready_for_delivery.
+  Future<void> deleteBatch(int batchId);
+
+  /// Completes a factory pickup, optionally recording who collected the
+  /// trailer and any balance taken at pickup.
+  Future<void> completeFactoryPickup(
+    int id, {
+    String? pickedUpByName,
+    double? paymentCollected,
+  });
 }

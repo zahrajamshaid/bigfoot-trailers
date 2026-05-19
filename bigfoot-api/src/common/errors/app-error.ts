@@ -1,9 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import {
-  ErrorCode,
-  ERROR_HTTP_STATUS,
-  ERROR_DEFAULT_MESSAGE,
-} from './error-codes';
+import { ErrorCode, ERROR_HTTP_STATUS, ERROR_DEFAULT_MESSAGE } from './error-codes';
 
 /**
  * Typed application error — throw from any service.
@@ -16,11 +12,7 @@ import {
 export class AppError extends HttpException {
   public readonly errorCode: ErrorCode;
 
-  constructor(
-    code: ErrorCode,
-    message?: string,
-    details?: unknown,
-  ) {
+  constructor(code: ErrorCode, message?: string, details?: unknown) {
     const status = ERROR_HTTP_STATUS[code];
     const body: Record<string, unknown> = {
       code,

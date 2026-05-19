@@ -24,4 +24,14 @@ module.exports = {
     '@typescript-eslint/no-floating-promises': 'error',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
+  overrides: [
+    {
+      // Test files lean on `any` for Prisma/jest mocks — typing every mock
+      // adds noise without real safety, so the rule is relaxed for specs only.
+      files: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+      },
+    },
+  ],
 };

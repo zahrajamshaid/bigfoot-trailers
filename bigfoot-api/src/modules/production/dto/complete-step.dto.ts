@@ -18,7 +18,9 @@ export class StepCheckResultDto {
   @IsBoolean()
   passed!: boolean;
 
-  @ApiPropertyOptional({ description: 'Optional note (required/recommended when passed=false)' })
+  @ApiPropertyOptional({
+    description: 'Optional note (required/recommended when passed=false)',
+  })
   @IsOptional()
   @IsString()
   note?: string;
@@ -32,7 +34,7 @@ export class CompleteStepDto {
 
   @ApiPropertyOptional({
     description:
-      'Worker self-check results. Required when the step\'s department has active upstream checklist items.',
+      "Worker self-check results. Required when the step's department has active upstream checklist items.",
     type: [StepCheckResultDto],
   })
   @IsOptional()

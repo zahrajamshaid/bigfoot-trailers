@@ -11,7 +11,11 @@ import '../../../shared/widgets/status_badge.dart';
 
 /// QC Queue — shows all active QC steps grouped by QC department.
 class QcQueueScreen extends StatelessWidget {
-  const QcQueueScreen({super.key});
+  /// When true the queue opens with the "Rework" filter applied — used by the
+  /// dashboard "Rework Queue" deep link (`?filter=rework`).
+  final bool initialReworkOnly;
+
+  const QcQueueScreen({super.key, this.initialReworkOnly = false});
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +23,7 @@ class QcQueueScreen extends StatelessWidget {
       create: (ctx) => QcViewModel(
         repository: ctx.read<QcRepository>(),
         ws: ctx.read<WsClient>(),
+        reworkOnly: initialReworkOnly,
       )..load(),
       child: const _QcQueueView(),
     );
@@ -78,11 +83,20 @@ class _LoadedView extends StatelessWidget {
   }
 
   Map<String, List<QcQueueItem>> _filteredQueue(BuildContext context) {
-    if (!_hideWaitingFor(context)) return state.groupedQueue;
+    final hideWaiting = _hideWaitingFor(context);
+    final reworkOnly = state.reworkOnly;
+    if (!hideWaiting && !reworkOnly) return state.groupedQueue;
+
     final out = <String, List<QcQueueItem>>{};
     state.groupedQueue.forEach((dept, items) {
-      final activeOnly = items.where((i) => !i.isWaiting).toList();
-      if (activeOnly.isNotEmpty) out[dept] = activeOnly;
+      var filtered = items;
+      if (hideWaiting) {
+        filtered = filtered.where((i) => !i.isWaiting).toList();
+      }
+      if (reworkOnly) {
+        filtered = filtered.where((i) => i.isRework).toList();
+      }
+      if (filtered.isNotEmpty) out[dept] = filtered;
     });
     return out;
   }
@@ -93,36 +107,6 @@ class _LoadedView extends StatelessWidget {
     final visibleQueue = _filteredQueue(context);
     final totalCount =
         visibleQueue.values.fold<int>(0, (sum, list) => sum + list.length);
-
-    if (visibleQueue.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: () => context.read<QcViewModel>().refresh(),
-        child: ListView(
-          children: [
-            const SizedBox(height: 120),
-            Center(
-              child: Column(
-                children: [
-                  const Icon(Icons.check_circle_outline,
-                      size: 64, color: AppColors.success),
-                  const SizedBox(height: 16),
-                  const Text('Nothing to Inspect',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
-                  Text(
-                    hideWaiting
-                        ? 'All ready inspections are done.'
-                        : 'All QC queues are clear.',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
 
     // Sort department codes in order: QC_1, QC_2, ..., QC_5, FINAL_QC
     final sortedKeys = visibleQueue.keys.toList()
@@ -135,7 +119,8 @@ class _LoadedView extends StatelessWidget {
 
     return Column(
       children: [
-        // Summary header
+        // Summary header + rework filter — always visible so a deep-linked
+        // filter can be cleared even when it leaves the list empty.
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -156,26 +141,68 @@ class _LoadedView extends StatelessWidget {
                   ),
                 ),
               ),
+              FilterChip(
+                label: const Text('Rework'),
+                avatar: const Icon(Icons.replay, size: 16),
+                selected: state.reworkOnly,
+                selectedColor: AppColors.warning.withValues(alpha: 0.2),
+                visualDensity: VisualDensity.compact,
+                onSelected: (v) =>
+                    context.read<QcViewModel>().setReworkOnly(v),
+              ),
             ],
           ),
         ),
-        // Grouped list
+        // Grouped list (or empty state)
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => context.read<QcViewModel>().refresh(),
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              itemCount: sortedKeys.length,
-              itemBuilder: (context, index) {
-                final deptCode = sortedKeys[index];
-                final items = visibleQueue[deptCode]!;
-                return _DepartmentGroup(
-                  departmentCode: deptCode,
-                  departmentName: items.first.departmentName,
-                  items: items,
-                );
-              },
-            ),
+            child: visibleQueue.isEmpty
+                ? ListView(
+                    children: [
+                      const SizedBox(height: 120),
+                      Center(
+                        child: Column(
+                          children: [
+                            const Icon(Icons.check_circle_outline,
+                                size: 64, color: AppColors.success),
+                            const SizedBox(height: 16),
+                            Text(
+                              state.reworkOnly
+                                  ? 'No Rework Items'
+                                  : 'Nothing to Inspect',
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              state.reworkOnly
+                                  ? 'No rework inspections in the queue.'
+                                  : hideWaiting
+                                      ? 'All ready inspections are done.'
+                                      : 'All QC queues are clear.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    itemCount: sortedKeys.length,
+                    itemBuilder: (context, index) {
+                      final deptCode = sortedKeys[index];
+                      final items = visibleQueue[deptCode]!;
+                      return _DepartmentGroup(
+                        departmentCode: deptCode,
+                        departmentName: items.first.departmentName,
+                        items: items,
+                      );
+                    },
+                  ),
           ),
         ),
       ],

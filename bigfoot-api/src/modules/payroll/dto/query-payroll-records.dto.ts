@@ -15,7 +15,9 @@ export class QueryPayrollRecordsDto {
   @Type(() => Number)
   departmentId?: number;
 
-  @ApiPropertyOptional({ description: 'Filter by week start date (YYYY-MM-DD, must be a Sunday)' })
+  @ApiPropertyOptional({
+    description: 'Filter by week start date (YYYY-MM-DD, must be a Sunday)',
+  })
   @IsOptional()
   @IsDateString()
   weekStartDate?: string;

@@ -315,6 +315,22 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
             theme: AppTheme.light,
             debugShowCheckedModeBanner: false,
             routerConfig: _appRouter.router,
+            // Clamp the OS text-scale factor so a device set to a very large
+            // accessibility font cannot blow fixed-height layouts (stat cards,
+            // nav bar, list tiles) past their bounds and trigger bottom
+            // overflow. 1.3 still gives a meaningful accessibility boost.
+            builder: (context, child) {
+              final mq = MediaQuery.of(context);
+              return MediaQuery(
+                data: mq.copyWith(
+                  textScaler: mq.textScaler.clamp(
+                    minScaleFactor: 0.85,
+                    maxScaleFactor: 1.3,
+                  ),
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
           ),
         ),
       ),

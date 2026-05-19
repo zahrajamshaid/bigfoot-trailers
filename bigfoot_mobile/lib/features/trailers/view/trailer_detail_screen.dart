@@ -53,19 +53,21 @@ class _TrailerDetailBody extends StatelessWidget {
             ),
           TrailerDetailError(message: final msg) => Scaffold(
               appBar: AppBar(title: Text('Trailer #$trailerId')),
-              body: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                    const SizedBox(height: 12),
-                    Text(msg),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: () => context.read<TrailerDetailViewModel>().load(),
-                      child: const Text('Retry'),
-                    ),
-                  ],
+              body: SingleChildScrollView(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                      const SizedBox(height: 12),
+                      Text(msg),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: () => context.read<TrailerDetailViewModel>().load(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -458,6 +460,12 @@ class _InfoTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // Sale status — banner + (for stock / no-customer trailers) the
+        // Sale Pending / Sold actions. Sits at the very top so the sold
+        // state is the first thing visible.
+        _SaleStatusSection(trailer: t),
+        const SizedBox(height: 8),
+
         // Status header
         Card(
           child: Padding(
@@ -502,7 +510,11 @@ class _InfoTab extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _DetailRow('Customer', t.customer?.name ?? (t.isStockBuild ? 'Stock Build' : 'None')),
+                _DetailRow(
+                    'Customer',
+                    t.customer?.name ??
+                        t.soldToName ??
+                        (t.isStockBuild ? 'Stock Build' : 'None')),
                 _DetailRow('Color', t.color ?? '-'),
                 _DetailRow('Size', t.size ?? '-'),
                 _DetailRow('Priority', t.globalPriority < 9999 ? '#${t.globalPriority}' : 'Default'),
@@ -581,6 +593,278 @@ class _InfoTab extends StatelessWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// Sale-status banner + actions.
+///
+/// A trailer attached to a customer is always "Sold" (the banner shows the
+/// buyer). Stock builds / trailers with no customer can be moved between
+/// Available → Sale Pending → Sold by owner / sales / production_manager.
+/// Marking Sold opens the customer picker so a buyer is recorded.
+class _SaleStatusSection extends StatelessWidget {
+  final dynamic trailer;
+  const _SaleStatusSection({required this.trailer});
+
+  bool get _hasCustomer => trailer.customer != null;
+
+  /// A customer trailer is implicitly sold; otherwise use the stored flag.
+  String get _effectiveStatus {
+    if (_hasCustomer) return 'sold';
+    final s = trailer.saleStatus as String?;
+    return (s == null || s.isEmpty) ? 'available' : s;
+  }
+
+  static bool _canManage(BuildContext context) {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    final role = auth.user.role;
+    return role == UserRole.owner ||
+        role == UserRole.sales ||
+        role == UserRole.productionManager;
+  }
+
+  Future<void> _setStatus(
+    BuildContext context,
+    String status, {
+    String? soldToName,
+  }) async {
+    final cubit = context.read<TrailerDetailViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await cubit.updateSaleStatus(status, soldToName: soldToName);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(switch (status) {
+            'sold' => 'Trailer marked as sold',
+            'sale_pending' => 'Trailer marked as sale pending',
+            _ => 'Trailer marked as available',
+          }),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } on ApiException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Update failed: ${e.displayMessage}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Update failed: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  /// Mark sold — prompt for the buyer's name (free text) so the sale is
+  /// attributed. Customer records are handled by the GoHighLevel integration,
+  /// so this is intentionally a plain text field rather than a picker.
+  Future<void> _markSold(BuildContext context) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _MarkSoldDialog(soNumber: trailer.soNumber as String),
+    );
+    if (name == null || !context.mounted) return;
+    await _setStatus(context, 'sold', soldToName: name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _effectiveStatus;
+    final canManage = _canManage(context);
+
+    final (bannerColor, bannerIcon, bannerLabel) = switch (status) {
+      'sold' => (AppColors.success, Icons.sell, 'SOLD'),
+      'sale_pending' => (AppColors.warning, Icons.pending_actions, 'SALE PENDING'),
+      _ => (AppColors.disabled, Icons.inventory_2_outlined, 'AVAILABLE'),
+    };
+
+    final subtitle = switch (status) {
+      'sold' => () {
+          final buyer = _hasCustomer
+              ? trailer.customer.name as String?
+              : trailer.soldToName as String?;
+          return (buyer != null && buyer.trim().isNotEmpty)
+              ? 'Sold to $buyer'
+              : 'Marked sold';
+        }(),
+      'sale_pending' => 'A sale is in progress for this trailer',
+      _ => 'Not yet sold — available for a customer',
+    };
+
+    // Actions only apply to stock / no-customer trailers. A customer trailer
+    // is sold by definition, so it just shows the banner.
+    final showActions = !_hasCustomer && canManage;
+
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: bannerColor.withValues(alpha: 0.4)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: bannerColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(bannerIcon, size: 20, color: bannerColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        bannerLabel,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: bannerColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.disabled,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (showActions) ...[
+              const Divider(height: 20),
+              Row(
+                children: [
+                  // Revert to available — shown for sale_pending and sold.
+                  if (status == 'sale_pending' || status == 'sold')
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _setStatus(context, 'available'),
+                        icon: const Icon(Icons.undo, size: 16),
+                        label: Text(
+                            status == 'sold' ? 'Mark Available' : 'Available'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.disabled,
+                          side: BorderSide(
+                              color: AppColors.disabled.withValues(alpha: 0.6)),
+                        ),
+                      ),
+                    ),
+                  if (status == 'available')
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _setStatus(context, 'sale_pending'),
+                        icon: const Icon(Icons.pending_actions, size: 16),
+                        label: const Text('Sale Pending'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.warning,
+                          side: BorderSide(
+                              color: AppColors.warning.withValues(alpha: 0.6)),
+                        ),
+                      ),
+                    ),
+                  if (status != 'sold') ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _markSold(context),
+                        icon: const Icon(Icons.sell, size: 16),
+                        label: const Text('Sold'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.success,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Plain buyer-name prompt shown by "Mark Sold". Returns the trimmed name,
+/// or null if dismissed. The name is required — submitting empty shows an
+/// inline error rather than closing the dialog.
+class _MarkSoldDialog extends StatefulWidget {
+  final String soNumber;
+  const _MarkSoldDialog({required this.soNumber});
+
+  @override
+  State<_MarkSoldDialog> createState() => _MarkSoldDialogState();
+}
+
+class _MarkSoldDialogState extends State<_MarkSoldDialog> {
+  final _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = "Enter the buyer's name");
+      return;
+    }
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Mark ${widget.soNumber} as sold'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: 'Buyer name *',
+          hintText: 'Who bought this trailer?',
+          errorText: _error,
+          prefixIcon: const Icon(Icons.person_outline),
+        ),
+        onChanged: (_) {
+          if (_error != null) setState(() => _error = null);
+        },
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _submit,
+          icon: const Icon(Icons.sell, size: 16),
+          label: const Text('Mark Sold'),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+        ),
       ],
     );
   }
@@ -1103,6 +1387,17 @@ class _HistoryTab extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
         final entry = history[i];
+
+        // Icon + accent colour vary by event type so completions read at a
+        // glance against roll-backs and generic audit events.
+        final (IconData icon, Color color) = switch (entry.eventType) {
+          'step_completed' => (Icons.check_circle, AppColors.success),
+          'step_reversed' => (Icons.undo, AppColors.warning),
+          'qc_pass' => (Icons.verified, AppColors.success),
+          'qc_fail' => (Icons.cancel, AppColors.error),
+          _ => (Icons.history, AppColors.navy),
+        };
+
         return ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -1110,19 +1405,40 @@ class _HistoryTab extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.navy.withValues(alpha: 0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.history, size: 16, color: AppColors.navy),
+            child: Icon(icon, size: 16, color: color),
           ),
           title: Text(entry.action,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (entry.userName != null)
-                Text(entry.userName!,
-                    style: const TextStyle(fontSize: 11, color: AppColors.disabled)),
+              // Which account performed the action — shown prominently so
+              // it is always clear who completed each stage of the queue.
+              if (entry.userName != null && entry.userName!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline,
+                          size: 13, color: AppColors.navy),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          entry.userName!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.navy,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (entry.timestamp != null)
                 Text(
                   DateFormat.yMMMd().add_jm().format(entry.timestamp!),

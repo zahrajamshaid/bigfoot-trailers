@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { AppError, ErrorCode } from '../../common/errors';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -134,23 +134,23 @@ describe('AuthService', () => {
       });
     });
 
-    it('should throw UnauthorizedException for non-existent email', async () => {
+    it('should throw AppError for non-existent email', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
         service.login('nobody@example.com', 'AnyPassword1'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.UNAUTHORIZED });
     });
 
-    it('should throw UnauthorizedException for wrong password', async () => {
+    it('should throw AppError for wrong password', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ ...mockUser });
 
       await expect(
         service.login('admin@bigfoottrailers.com', 'WrongPassword1'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.UNAUTHORIZED });
     });
 
-    it('should throw ForbiddenException for deactivated account', async () => {
+    it('should throw AppError for deactivated account', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         ...mockUser,
         isActive: false,
@@ -158,7 +158,7 @@ describe('AuthService', () => {
 
       await expect(
         service.login('admin@bigfoottrailers.com', 'ValidPass123'),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
     });
 
     it('should not reveal whether email exists in error message', async () => {
@@ -168,7 +168,7 @@ describe('AuthService', () => {
         await service.login('nobody@example.com', 'AnyPassword1');
         fail('Should have thrown');
       } catch (error) {
-        const response = (error as UnauthorizedException).getResponse() as Record<string, string>;
+        const response = (error as AppError).getResponse() as Record<string, string>;
         expect(response.message).toBe('Invalid email or password');
       }
     });
@@ -206,12 +206,12 @@ describe('AuthService', () => {
       expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
     });
 
-    it('should throw UnauthorizedException for invalid token', async () => {
+    it('should throw AppError for invalid token', async () => {
       mockPrisma.refreshToken.findUnique.mockResolvedValue(null);
 
-      await expect(service.refresh('invalid-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.refresh('invalid-token')).rejects.toMatchObject({
+        errorCode: ErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('should revoke all tokens on reuse of revoked token', async () => {
@@ -225,9 +225,9 @@ describe('AuthService', () => {
       });
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 3 });
 
-      await expect(service.refresh(rawToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.refresh(rawToken)).rejects.toMatchObject({
+        errorCode: ErrorCode.UNAUTHORIZED,
+      });
 
       // All tokens for user should be revoked
       expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
@@ -236,7 +236,7 @@ describe('AuthService', () => {
       });
     });
 
-    it('should throw UnauthorizedException for expired token', async () => {
+    it('should throw AppError for expired token', async () => {
       const rawToken = 'expired-refresh-token';
       const hashedToken = service.hashToken(rawToken);
 
@@ -246,12 +246,12 @@ describe('AuthService', () => {
         expiresAt: new Date(Date.now() - 1000), // Expired
       });
 
-      await expect(service.refresh(rawToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.refresh(rawToken)).rejects.toMatchObject({
+        errorCode: ErrorCode.UNAUTHORIZED,
+      });
     });
 
-    it('should throw ForbiddenException if user deactivated since token issued', async () => {
+    it('should throw AppError if user deactivated since token issued', async () => {
       const rawToken = 'deactivated-user-token';
       const hashedToken = service.hashToken(rawToken);
 
@@ -261,9 +261,9 @@ describe('AuthService', () => {
         user: { ...mockRefreshToken.user, isActive: false },
       });
 
-      await expect(service.refresh(rawToken)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.refresh(rawToken)).rejects.toMatchObject({
+        errorCode: ErrorCode.FORBIDDEN,
+      });
     });
   });
 

@@ -1,5 +1,4 @@
 import { AuditLogInterceptor } from './audit-log.interceptor';
-import { AuditLogService } from './audit-log.service';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { of } from 'rxjs';
 

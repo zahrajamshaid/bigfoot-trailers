@@ -43,18 +43,25 @@ export class SubmitInspectionDto {
   @IsEnum(QcResultDto)
   result!: QcResultDto;
 
-  @ApiPropertyOptional({ description: 'Required when result=fail. Describes the defect.' })
+  @ApiPropertyOptional({
+    description: 'Required when result=fail. Describes the defect.',
+  })
   @IsOptional()
   @IsString()
   failNotes?: string;
 
-  @ApiPropertyOptional({ description: 'Required when result=fail. Target department for rework.' })
+  @ApiPropertyOptional({
+    description: 'Required when result=fail. Target department for rework.',
+  })
   @IsOptional()
   @IsInt()
   @Type(() => Number)
   reworkTargetDepartmentId?: number;
 
-  @ApiProperty({ description: 'Array of checklist results — one per active checklist item', type: [ChecklistResultEntryDto] })
+  @ApiProperty({
+    description: 'Array of checklist results — one per active checklist item',
+    type: [ChecklistResultEntryDto],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ChecklistResultEntryDto)

@@ -77,8 +77,12 @@ describe('Delivery Flow (e2e)', () => {
     const trailerId = BigInt(createRes.body.data.trailer.id);
 
     await completeFullWorkflow(
-      prisma, httpServer, trailerId, worker.id,
-      qcInspector.token, checklistItemMap,
+      prisma,
+      httpServer,
+      trailerId,
+      worker.id,
+      qcInspector.token,
+      checklistItemMap,
     );
 
     // Confirm trailer is ready_for_delivery
@@ -193,8 +197,12 @@ describe('Delivery Flow (e2e)', () => {
 
     // Complete workflow
     await completeFullWorkflow(
-      prisma, httpServer, trailerId, worker.id,
-      qcInspector.token, checklistItemMap,
+      prisma,
+      httpServer,
+      trailerId,
+      worker.id,
+      qcInspector.token,
+      checklistItemMap,
     );
 
     // Verify trailer_complete SMS was queued by FINAL_QC pass

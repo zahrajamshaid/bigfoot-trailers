@@ -9,7 +9,8 @@ import { CreateAddonDto } from './dto/addon.dto';
 import { SetPriorityDto } from './dto/priority.dto';
 import { ToggleHotDto } from './dto/hot.dto';
 import { UploadQbPdfDto } from './dto/qb-pdf.dto';
-import { Prisma, TrailerStatus } from '@prisma/client';
+import { UpdateSaleStatusDto, TrailerSaleStatusDto } from './dto/sale-status.dto';
+import { Prisma, TrailerStatus, TrailerSaleStatus, DeliveryStatus } from '@prisma/client';
 
 /** Select shape for trailer detail — includes model, customer, location, and current step info. */
 const TRAILER_DETAIL_SELECT = {
@@ -29,6 +30,8 @@ const TRAILER_DETAIL_SELECT = {
   qbSoId: true,
   qbInvoicedAt: true,
   status: true,
+  saleStatus: true,
+  soldToName: true,
   globalPriority: true,
   isStockBuild: true,
   isHot: true,
@@ -61,6 +64,8 @@ const TRAILER_LIST_SELECT = {
   optionsNotes: true,
   specialNote: true,
   status: true,
+  saleStatus: true,
+  soldToName: true,
   globalPriority: true,
   isStockBuild: true,
   isHot: true,
@@ -79,7 +84,14 @@ const TRAILER_LIST_SELECT = {
     },
   },
   currentLocation: {
-    select: { id: true, code: true, name: true, city: true, state: true, shortLabel: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      city: true,
+      state: true,
+      shortLabel: true,
+    },
   },
   // Only the active step — used to render the current department on the card.
   productionSteps: {
@@ -115,11 +127,29 @@ export class TrailersService {
     if (query.isHot !== undefined) where.isHot = query.isHot;
     if (query.customerId) where.customerId = BigInt(query.customerId);
     if (query.locationId) where.currentLocationId = query.locationId;
+    if (query.saleStatus) where.saleStatus = query.saleStatus as TrailerSaleStatus;
     if (query.series) {
       where.trailerModel = { series: query.series };
     }
+    // Hide trailers already committed to a delivery — used by the delivery /
+    // batch creation forms so a trailer can't be double-booked.
+    if (query.excludeOpenDeliveries) {
+      where.deliveries = {
+        none: {
+          status: { in: [DeliveryStatus.scheduled, DeliveryStatus.in_transit] },
+        },
+      };
+    }
     if (query.search) {
-      where.soNumber = { contains: query.search, mode: 'insensitive' };
+      // Match SO number OR customer name — both the linked customer record
+      // (name / company) and the free-text buyer name on stock builds.
+      const term = query.search;
+      where.OR = [
+        { soNumber: { contains: term, mode: 'insensitive' } },
+        { soldToName: { contains: term, mode: 'insensitive' } },
+        { customer: { name: { contains: term, mode: 'insensitive' } } },
+        { customer: { company: { contains: term, mode: 'insensitive' } } },
+      ];
     }
 
     const [trailers, total] = await this.prisma.$transaction([
@@ -146,7 +176,10 @@ export class TrailersService {
       select: { id: true },
     });
     if (existingSo) {
-      throw new AppError(ErrorCode.SO_NUMBER_EXISTS, `A trailer with SO number "${dto.soNumber}" already exists`);
+      throw new AppError(
+        ErrorCode.SO_NUMBER_EXISTS,
+        `A trailer with SO number "${dto.soNumber}" already exists`,
+      );
     }
 
     // Validate trailer model exists
@@ -155,7 +188,10 @@ export class TrailersService {
       select: { id: true, series: true },
     });
     if (!model) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Trailer model with id ${dto.trailerModelId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Trailer model with id ${dto.trailerModelId} not found`,
+      );
     }
 
     // Validate customer exists if provided
@@ -165,7 +201,10 @@ export class TrailersService {
         select: { id: true },
       });
       if (!customer) {
-        throw new AppError(ErrorCode.NOT_FOUND, `Customer with id ${dto.customerId} not found`);
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          `Customer with id ${dto.customerId} not found`,
+        );
       }
     }
 
@@ -181,14 +220,20 @@ export class TrailersService {
     let currentLocationId = factory.id;
     if (dto.isStockBuild) {
       if (!dto.stockLocationId) {
-        throw new AppError(ErrorCode.BAD_REQUEST, 'stockLocationId is required when isStockBuild=true');
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          'stockLocationId is required when isStockBuild=true',
+        );
       }
       const stockLocation = await this.prisma.location.findUnique({
         where: { id: dto.stockLocationId },
         select: { id: true, isActive: true },
       });
       if (!stockLocation || !stockLocation.isActive) {
-        throw new AppError(ErrorCode.BAD_REQUEST, `Stock location ${dto.stockLocationId} is invalid or inactive`);
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          `Stock location ${dto.stockLocationId} is invalid or inactive`,
+        );
       }
       currentLocationId = stockLocation.id;
     }
@@ -209,6 +254,13 @@ export class TrailersService {
           isStockBuild: dto.isStockBuild ?? false,
           qbSoId: dto.qbSoId ?? null,
           status: TrailerStatus.pending_production,
+          soldToName: dto.soldToName?.trim() || null,
+          // A trailer created against a customer (record or free-text name)
+          // is, by definition, sold.
+          saleStatus:
+            dto.customerId || dto.soldToName?.trim()
+              ? TrailerSaleStatus.sold
+              : TrailerSaleStatus.available,
         },
         select: TRAILER_DETAIL_SELECT,
       });
@@ -243,7 +295,9 @@ export class TrailersService {
             reworkCount: true,
             becameActiveAt: true,
             completedAt: true,
-            department: { select: { id: true, code: true, displayName: true, isQcStep: true } },
+            department: {
+              select: { id: true, code: true, displayName: true, isQcStep: true },
+            },
           },
           orderBy: { stepOrder: 'asc' },
         },
@@ -352,7 +406,10 @@ export class TrailersService {
         select: { id: true },
       });
       if (!factory) {
-        throw new AppError(ErrorCode.NOT_FOUND, 'No factory location found in the system');
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          'No factory location found in the system',
+        );
       }
       data.currentLocation = { connect: { id: factory.id } };
     }
@@ -362,9 +419,21 @@ export class TrailersService {
       data.trailerModel = { connect: { id: dto.trailerModelId } };
     }
     if (dto.customerId !== undefined) {
-      data.customer = dto.customerId === null
-        ? { disconnect: true }
-        : { connect: { id: BigInt(dto.customerId) } };
+      if (dto.customerId === null) {
+        data.customer = { disconnect: true };
+      } else {
+        data.customer = { connect: { id: BigInt(dto.customerId) } };
+        // Attaching a customer makes the trailer sold (mirrors create()).
+        data.saleStatus = TrailerSaleStatus.sold;
+      }
+    }
+
+    // Free-text customer / buyer name. Non-empty marks the trailer sold;
+    // an empty string clears the name and reverts it to available.
+    if (dto.soldToName !== undefined) {
+      const name = dto.soldToName.trim();
+      data.soldToName = name || null;
+      data.saleStatus = name ? TrailerSaleStatus.sold : TrailerSaleStatus.available;
     }
     if (dto.color !== undefined) data.color = dto.color;
     if (dto.sizeFt !== undefined) data.sizeFt = dto.sizeFt;
@@ -419,6 +488,68 @@ export class TrailersService {
   }
 
   // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/sale-status — set available / sale_pending / sold
+  //
+  // Marking a trailer sold requires a buyer name (free text) — unless the
+  // trailer already has a customer record, in which case it is the buyer.
+  // The name is stored as plain text; customer records are owned by the
+  // GoHighLevel integration, not this table.
+  // ---------------------------------------------------------------------------
+  async updateSaleStatus(id: bigint, dto: UpdateSaleStatusDto) {
+    const existing = await this.prisma.trailer.findUnique({
+      where: { id },
+      select: { id: true, customerId: true, status: true },
+    });
+    if (!existing) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    const soldToName = dto.soldToName?.trim();
+
+    if (
+      dto.saleStatus === TrailerSaleStatusDto.SOLD &&
+      !soldToName &&
+      existing.customerId === null
+    ) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'A buyer name is required to mark a trailer as sold',
+      );
+    }
+
+    const data: Prisma.TrailerUpdateInput = {
+      saleStatus: dto.saleStatus as TrailerSaleStatus,
+      // A buyer name only belongs on a sold trailer — clear it otherwise.
+      soldToName:
+        dto.saleStatus === TrailerSaleStatusDto.SOLD ? (soldToName ?? null) : null,
+    };
+
+    // A stock trailer parked at one of our yards (production status
+    // "delivered", last delivery landed at a Location) that is now sold needs
+    // to be hauled to its buyer — flip it back to "ready_for_delivery" so a
+    // delivery can be created for it.
+    if (
+      dto.saleStatus === TrailerSaleStatusDto.SOLD &&
+      existing.status === TrailerStatus.delivered
+    ) {
+      const lastDelivered = await this.prisma.delivery.findFirst({
+        where: { trailerId: id, status: DeliveryStatus.delivered },
+        orderBy: { deliveredAt: 'desc' },
+        select: { destinationLocationId: true },
+      });
+      if (lastDelivered?.destinationLocationId != null) {
+        data.status = TrailerStatus.ready_for_delivery;
+      }
+    }
+
+    return this.prisma.trailer.update({
+      where: { id },
+      data,
+      select: TRAILER_DETAIL_SELECT,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /trailers/:id/addons — add addon
   // ---------------------------------------------------------------------------
   async addAddon(trailerId: bigint, dto: CreateAddonDto) {
@@ -449,7 +580,10 @@ export class TrailersService {
       select: { id: true },
     });
     if (!addon) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Addon with id ${addonId} not found on trailer ${trailerId}`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Addon with id ${addonId} not found on trailer ${trailerId}`,
+      );
     }
 
     await this.prisma.trailerAddon.delete({ where: { id: addonId } });
@@ -545,7 +679,13 @@ export class TrailersService {
           select: { id: true, fullName: true },
         },
         department: {
-          select: { id: true, code: true, displayName: true, isQcStep: true, completionType: true },
+          select: {
+            id: true,
+            code: true,
+            displayName: true,
+            isQcStep: true,
+            completionType: true,
+          },
         },
       },
       orderBy: { stepOrder: 'asc' },
@@ -620,7 +760,13 @@ export class TrailersService {
           deliveredAt: true,
           destinationLocation: { select: { code: true, name: true } },
           deliveryPhotos: {
-            select: { id: true, storageUrl: true, storageKey: true, takenAt: true, photoType: true },
+            select: {
+              id: true,
+              storageUrl: true,
+              storageKey: true,
+              takenAt: true,
+              photoType: true,
+            },
             orderBy: { takenAt: 'asc' },
           },
         },

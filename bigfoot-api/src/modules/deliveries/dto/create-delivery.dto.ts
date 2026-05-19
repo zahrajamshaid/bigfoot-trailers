@@ -1,4 +1,12 @@
-import { IsInt, IsEnum, IsOptional, IsNumber, IsString, Min } from 'class-validator';
+import {
+  IsInt,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+  IsString,
+  Min,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { DeliveryTypeDto } from './query-deliveries.dto';
@@ -30,6 +38,12 @@ export class CreateDeliveryDto {
   @IsString()
   customerDeliveryAddress?: string;
 
+  @ApiPropertyOptional({ description: 'Contact phone for this delivery (driver SMS)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  contactPhone?: string;
+
   @ApiPropertyOptional({ description: 'Balance due from customer' })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -42,4 +56,20 @@ export class CreateDeliveryDto {
   @IsInt()
   @Type(() => Number)
   deliveryBatchId?: number;
+
+  // --- factory_pickup only -------------------------------------------------
+  // A factory pickup is recorded in one step: the customer collects the
+  // trailer at the factory, so the delivery is created already completed.
+  @ApiPropertyOptional({ description: 'factory_pickup: who collected the trailer' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  pickedUpByName?: string;
+
+  @ApiPropertyOptional({ description: 'factory_pickup: balance collected at pickup' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Type(() => Number)
+  paymentCollected?: number;
 }

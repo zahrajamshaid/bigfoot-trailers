@@ -61,6 +61,53 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
+/// Color-coded sale-status chip. Renders nothing for `available` since that
+/// is the neutral default — only `sale_pending` and `sold` get a badge.
+class SaleStatusBadge extends StatelessWidget {
+  final String saleStatus;
+  const SaleStatusBadge({super.key, required this.saleStatus});
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = _resolve(saleStatus);
+    if (resolved == null) return const SizedBox.shrink();
+    final (label, color, icon) = resolved;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: AppColors.white),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (String, Color, IconData)? _resolve(String s) {
+    switch (s) {
+      case 'sold':
+        return ('SOLD', AppColors.success, Icons.sell);
+      case 'sale_pending':
+        return ('SALE PENDING', AppColors.warning, Icons.pending_actions);
+      default:
+        return null;
+    }
+  }
+}
+
 /// Color-coded series badge.
 class SeriesBadge extends StatelessWidget {
   final String series;

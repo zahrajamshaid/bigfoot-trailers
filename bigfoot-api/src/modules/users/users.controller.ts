@@ -56,6 +56,18 @@ export class UsersController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /users/drivers — active drivers for delivery assignment
+  // (transport_manager + owner; must be BEFORE the :id route)
+  // ---------------------------------------------------------------------------
+  @Get('drivers')
+  @Roles(UserRole.OWNER, UserRole.TRANSPORT_MANAGER)
+  @ApiOperation({ summary: 'List active drivers for delivery assignment' })
+  @ApiResponse({ status: 200, description: 'Active drivers' })
+  async findDrivers() {
+    return this.usersService.findDrivers();
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /users/:id
   // ---------------------------------------------------------------------------
   @Get(':id')
@@ -71,7 +83,9 @@ export class UsersController {
   // PATCH /users/:id — owner can update everything, self can update limited fields
   // ---------------------------------------------------------------------------
   @Patch(':id')
-  @ApiOperation({ summary: 'Update user details (owner: all fields, self: name/phone/password)' })
+  @ApiOperation({
+    summary: 'Update user details (owner: all fields, self: name/phone/password)',
+  })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'User updated' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -99,7 +113,10 @@ export class UsersController {
   @ApiOperation({ summary: 'Deactivate a user (soft-delete, owner only)' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'User deactivated' })
-  @ApiResponse({ status: 403, description: 'Forbidden — cannot delete last owner or self' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — cannot delete last owner or self',
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   async softDelete(
     @Param('id', ParseIntPipe) id: number,
@@ -136,7 +153,10 @@ export class UsersController {
   })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'User permanently deleted' })
-  @ApiResponse({ status: 400, description: 'User still active or has historical activity' })
+  @ApiResponse({
+    status: 400,
+    description: 'User still active or has historical activity',
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   async hardDelete(
     @Param('id', ParseIntPipe) id: number,

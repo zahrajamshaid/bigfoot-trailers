@@ -75,8 +75,10 @@ export class OrphanCleanupProcessor implements OnModuleInit, OnModuleDestroy {
               await this.storageService.deleteObject(key);
               deleted++;
               this.logger.log(`Deleted orphaned file: ${key}`);
-            } catch (err: any) {
-              this.logger.error(`Failed to delete orphan ${key}: ${err?.message}`);
+            } catch (err) {
+              this.logger.error(
+                `Failed to delete orphan ${key}: ${(err as Error)?.message}`,
+              );
             }
           }
         }
@@ -85,8 +87,8 @@ export class OrphanCleanupProcessor implements OnModuleInit, OnModuleDestroy {
       if (deleted > 0) {
         this.logger.log(`Orphan cleanup complete: ${deleted} files deleted`);
       }
-    } catch (err: any) {
-      this.logger.error(`Orphan cleanup failed: ${err?.message}`);
+    } catch (err) {
+      this.logger.error(`Orphan cleanup failed: ${(err as Error)?.message}`);
     }
 
     return deleted;

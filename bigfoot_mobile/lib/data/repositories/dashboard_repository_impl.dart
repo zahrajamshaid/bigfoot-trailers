@@ -65,7 +65,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
     );
     final data = resp.data ?? const <String, dynamic>{};
     return DashboardStats(
-      pendingInspections: (data['pendingInspections'] as num?)?.toInt() ?? 0,
+      // Fall back to the legacy `pendingInspections` key so the card still
+      // populates against an API that hasn't been redeployed with the
+      // renamed field yet.
+      readyForInspection: (data['readyForInspection'] as num?)?.toInt() ??
+          (data['pendingInspections'] as num?)?.toInt() ??
+          0,
       inspectionsToday: (data['inspectionsToday'] as num?)?.toInt() ?? 0,
       failRateToday: (data['failRateToday'] as num?)?.toDouble() ?? 0,
       reworkQueue: (data['reworkQueue'] as num?)?.toInt() ?? 0,

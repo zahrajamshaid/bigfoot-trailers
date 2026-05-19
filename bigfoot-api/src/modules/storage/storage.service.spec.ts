@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StorageService, VALID_FILE_TYPES } from './storage.service';
 
@@ -197,9 +196,9 @@ describe('StorageService', () => {
     });
 
     it('should throw for invalid prefix', async () => {
-      await expect(
-        service.generateDownloadUrl('hacker/evil.exe'),
-      ).rejects.toThrow('Invalid storage key prefix');
+      await expect(service.generateDownloadUrl('hacker/evil.exe')).rejects.toThrow(
+        'Invalid storage key prefix',
+      );
     });
   });
 

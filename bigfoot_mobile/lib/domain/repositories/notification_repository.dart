@@ -4,4 +4,7 @@ import '../../data/models/app_notification.dart';
 abstract class NotificationRepository {
   Future<List<AppNotification>> getHistory({int page, int limit});
   Future<void> registerPushToken(String token);
+
+  /// Permanently deletes a single notification from the user's history.
+  Future<void> deleteNotification(String id);
 }

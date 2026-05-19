@@ -34,13 +34,21 @@ class QcLoaded extends QcState {
   final Map<String, List<QcQueueItem>> groupedQueue;
   final bool isRefreshing;
 
-  const QcLoaded({required this.groupedQueue, this.isRefreshing = false});
+  /// When true the UI shows only rework inspections. Set by the "Rework only"
+  /// filter chip or a `?filter=rework` deep link.
+  final bool reworkOnly;
+
+  const QcLoaded({
+    required this.groupedQueue,
+    this.isRefreshing = false,
+    this.reworkOnly = false,
+  });
 
   int get totalCount =>
       groupedQueue.values.fold(0, (sum, list) => sum + list.length);
 
   @override
-  List<Object?> get props => [groupedQueue, isRefreshing];
+  List<Object?> get props => [groupedQueue, isRefreshing, reworkOnly];
 }
 
 class QcError extends QcState {
@@ -56,10 +64,15 @@ class QcViewModel extends Cubit<QcState> {
   final QcRepository _repository;
   final WsClient _ws;
   StreamSubscription<WsEvent>? _wsSub;
+  bool _reworkOnly;
 
-  QcViewModel({required QcRepository repository, required WsClient ws})
-      : _repository = repository,
+  QcViewModel({
+    required QcRepository repository,
+    required WsClient ws,
+    bool reworkOnly = false,
+  })  : _repository = repository,
         _ws = ws,
+        _reworkOnly = reworkOnly,
         super(const QcInitial()) {
     _wsSub = _ws.events.listen(_onWsEvent);
   }
@@ -68,7 +81,7 @@ class QcViewModel extends Cubit<QcState> {
     emit(const QcLoading());
     try {
       final grouped = await _repository.getQcQueues();
-      emit(QcLoaded(groupedQueue: grouped));
+      emit(QcLoaded(groupedQueue: grouped, reworkOnly: _reworkOnly));
     } on ApiException catch (e) {
       emit(QcError(e.displayMessage));
     } on NetworkException catch (e) {
@@ -81,9 +94,26 @@ class QcViewModel extends Cubit<QcState> {
   Future<void> refresh() async {
     final current = state;
     if (current is QcLoaded) {
-      emit(QcLoaded(groupedQueue: current.groupedQueue, isRefreshing: true));
+      emit(QcLoaded(
+        groupedQueue: current.groupedQueue,
+        isRefreshing: true,
+        reworkOnly: _reworkOnly,
+      ));
     }
     await load();
+  }
+
+  /// Toggles the "rework only" view filter without re-fetching the queue.
+  void setReworkOnly(bool value) {
+    _reworkOnly = value;
+    final current = state;
+    if (current is QcLoaded) {
+      emit(QcLoaded(
+        groupedQueue: current.groupedQueue,
+        isRefreshing: current.isRefreshing,
+        reworkOnly: value,
+      ));
+    }
   }
 
   Future<List<QcChecklistItem>> fetchChecklistItems({

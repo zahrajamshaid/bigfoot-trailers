@@ -7,8 +7,8 @@ export interface CreateAuditLogEntry {
   entityType: string;
   entityId: number | bigint;
   action: string;
-  oldValues?: Record<string, any> | null;
-  newValues?: Record<string, any> | null;
+  oldValues?: Prisma.InputJsonValue | null;
+  newValues?: Prisma.InputJsonValue | null;
   ipAddress?: string | null;
 }
 
@@ -43,10 +43,7 @@ export class AuditLogService {
    * Append-only: create a single audit log entry.
    * Can be called inside or outside a transaction.
    */
-  async create(
-    entry: CreateAuditLogEntry,
-    tx?: Prisma.TransactionClient,
-  ): Promise<void> {
+  async create(entry: CreateAuditLogEntry, tx?: Prisma.TransactionClient): Promise<void> {
     const client = tx ?? this.prisma;
     await client.auditLog.create({
       data: {

@@ -19,11 +19,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
-import {
-  CreateCustomerDto,
-  UpdateCustomerDto,
-  QueryCustomersDto,
-} from './dto';
+import { CreateCustomerDto, UpdateCustomerDto, QueryCustomersDto } from './dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 
 @ApiTags('Customers')
@@ -77,10 +73,7 @@ export class CustomersController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Customer updated' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateCustomerDto,
-  ) {
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCustomerDto) {
     return this.customersService.update(BigInt(id), dto);
   }
 
@@ -96,7 +89,10 @@ export class CustomersController {
   })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Customer deleted' })
-  @ApiResponse({ status: 400, description: 'Customer has referencing trailers (and cascadeTrailers not set)' })
+  @ApiResponse({
+    status: 400,
+    description: 'Customer has referencing trailers (and cascadeTrailers not set)',
+  })
   @ApiResponse({ status: 404, description: 'Customer not found' })
   async remove(
     @Param('id', ParseIntPipe) id: number,

@@ -9,12 +9,14 @@ class Delivery {
   final int? driverUserId;
   final int? destinationLocationId;
   final String? customerDeliveryAddress;
+  final String? contactPhone;
   final String deliveryType; // factory_pickup, stack_to_dealer, stack_to_location, single_pull
   final String status; // scheduled, in_transit, delivered, failed
   final double? balanceDue;
   final double? paymentCollected;
   final String? paymentMethod; // cashiers_check, debit, cash
   final String? failReason;
+  final String? pickedUpByName;
   final bool? tcAccepted;
   final DateTime? departedAt;
   final DateTime? deliveredAt;
@@ -37,12 +39,14 @@ class Delivery {
     this.driverUserId,
     this.destinationLocationId,
     this.customerDeliveryAddress,
+    this.contactPhone,
     required this.deliveryType,
     required this.status,
     this.balanceDue,
     this.paymentCollected,
     this.paymentMethod,
     this.failReason,
+    this.pickedUpByName,
     this.tcAccepted,
     this.departedAt,
     this.deliveredAt,
@@ -147,6 +151,7 @@ class DeliveryLocationInfo {
   final String name;
   final String? city;
   final String? state;
+  final String? address;
   final String? shortLabel;
 
   const DeliveryLocationInfo({
@@ -154,6 +159,7 @@ class DeliveryLocationInfo {
     required this.name,
     this.city,
     this.state,
+    this.address,
     this.shortLabel,
   });
 

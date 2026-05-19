@@ -22,7 +22,7 @@ class DashboardData extends Equatable {
   final double myPointsWeek;
   final String? nextTrailerSo;
   final String? nextTrailerColor;
-  final int pendingInspections;
+  final int readyForInspection;
   final int inspectionsToday;
   final double failRateToday;
   final int reworkQueue;
@@ -46,7 +46,7 @@ class DashboardData extends Equatable {
     this.myPointsWeek = 0,
     this.nextTrailerSo,
     this.nextTrailerColor,
-    this.pendingInspections = 0,
+    this.readyForInspection = 0,
     this.inspectionsToday = 0,
     this.failRateToday = 0,
     this.reworkQueue = 0,
@@ -71,7 +71,7 @@ class DashboardData extends Equatable {
     double? myPointsWeek,
     String? nextTrailerSo,
     String? nextTrailerColor,
-    int? pendingInspections,
+    int? readyForInspection,
     int? inspectionsToday,
     double? failRateToday,
     int? reworkQueue,
@@ -95,7 +95,7 @@ class DashboardData extends Equatable {
       myPointsWeek: myPointsWeek ?? this.myPointsWeek,
       nextTrailerSo: nextTrailerSo ?? this.nextTrailerSo,
       nextTrailerColor: nextTrailerColor ?? this.nextTrailerColor,
-      pendingInspections: pendingInspections ?? this.pendingInspections,
+      readyForInspection: readyForInspection ?? this.readyForInspection,
       inspectionsToday: inspectionsToday ?? this.inspectionsToday,
       failRateToday: failRateToday ?? this.failRateToday,
       reworkQueue: reworkQueue ?? this.reworkQueue,
@@ -114,7 +114,7 @@ class DashboardData extends Equatable {
         activeTrailers, readyForDelivery, hotTrailers, stalledSteps,
         weeklyCompleted, qcFailRate, myQueueCount, myPointsToday,
         myPointsWeek, nextTrailerSo, nextTrailerColor,
-        pendingInspections, inspectionsToday, failRateToday, reworkQueue,
+        readyForInspection, inspectionsToday, failRateToday, reworkQueue,
         activeDeliveries, upcomingDeliveries, completedThisWeek,
         scheduledDeliveries, inTransitCount, readyForPickup, recentActivity,
       ];
@@ -255,7 +255,7 @@ class DashboardViewModel extends Cubit<DashboardState> {
       myQueueCount: stats.myQueueCount,
       myPointsToday: stats.myPointsToday,
       myPointsWeek: stats.myPointsWeek,
-      pendingInspections: stats.pendingInspections,
+      readyForInspection: stats.readyForInspection,
       inspectionsToday: stats.inspectionsToday,
       failRateToday: stats.failRateToday,
       reworkQueue: stats.reworkQueue,

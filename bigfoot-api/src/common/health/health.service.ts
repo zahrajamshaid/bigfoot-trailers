@@ -23,10 +23,7 @@ export class HealthService {
   ) {}
 
   async check(): Promise<HealthCheckResult> {
-    const [db, redis] = await Promise.all([
-      this.checkDatabase(),
-      this.checkRedis(),
-    ]);
+    const [db, redis] = await Promise.all([this.checkDatabase(), this.checkRedis()]);
 
     const allOk = db.status === 'ok' && redis.status === 'ok';
     const allDown = db.status === 'down' && redis.status === 'down';
@@ -65,7 +62,11 @@ export class HealthService {
       return { status: 'down', latencyMs: Date.now() - start };
     } finally {
       if (client) {
-        try { client.disconnect(); } catch { /* ignore */ }
+        try {
+          client.disconnect();
+        } catch {
+          /* ignore */
+        }
       }
     }
   }

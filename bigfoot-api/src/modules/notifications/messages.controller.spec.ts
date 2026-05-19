@@ -12,9 +12,7 @@ describe('MessagesController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MessagesController],
-      providers: [
-        { provide: MessagesService, useValue: mockMessagesService },
-      ],
+      providers: [{ provide: MessagesService, useValue: mockMessagesService }],
     }).compile();
 
     controller = module.get<MessagesController>(MessagesController);

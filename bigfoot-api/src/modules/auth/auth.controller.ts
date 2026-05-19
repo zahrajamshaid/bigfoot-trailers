@@ -1,17 +1,5 @@
-import {
-  Controller,
-  Post,
-  Patch,
-  Body,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { Controller, Post, Patch, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshDto, LogoutDto, PushTokenDto } from './dto';
@@ -74,10 +62,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Register or update FCM device push token' })
   @ApiResponse({ status: 200, description: 'Push token updated' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async updatePushToken(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: PushTokenDto,
-  ) {
+  async updatePushToken(@CurrentUser() user: JwtPayload, @Body() dto: PushTokenDto) {
     await this.authService.updatePushToken(BigInt(user.sub), dto.pushToken);
     return { message: 'Push token updated' };
   }

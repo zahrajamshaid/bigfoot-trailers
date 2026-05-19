@@ -26,6 +26,14 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
+  Future<void> deleteNotification(String id) async {
+    await _api.delete<Map<String, dynamic>>(
+      '${ApiEndpoints.notifications}/$id',
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+  }
+
+  @override
   Future<void> registerPushToken(String token) async {
     await _api.patch<Map<String, dynamic>>(
       ApiEndpoints.authPushToken,

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { ReworkRoutingService } from './rework-routing.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -16,10 +16,7 @@ describe('ReworkRoutingService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ReworkRoutingService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [ReworkRoutingService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<ReworkRoutingService>(ReworkRoutingService);
@@ -36,7 +33,12 @@ describe('ReworkRoutingService', () => {
       },
       workflowTemplate: {
         findFirst: jest.fn().mockResolvedValue({
-          department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld', isQcStep: false },
+          department: {
+            id: 1,
+            code: 'XP_JIG',
+            displayName: 'XP Jig Weld',
+            isQcStep: false,
+          },
         }),
       },
       productionStep: {
@@ -109,9 +111,9 @@ describe('ReworkRoutingService', () => {
       },
     });
 
-    await expect(
-      service.routeRework(BigInt(1), 999, 'Bad', tx),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.routeRework(BigInt(1), 999, 'Bad', tx)).rejects.toMatchObject({
+      errorCode: ErrorCode.QC_INVALID_REWORK_TARGET,
+    });
   });
 
   it('should throw if trailer not found', async () => {
@@ -121,9 +123,9 @@ describe('ReworkRoutingService', () => {
       },
     });
 
-    await expect(
-      service.routeRework(BigInt(999), 1, 'Bad', tx),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.routeRework(BigInt(999), 1, 'Bad', tx)).rejects.toMatchObject({
+      errorCode: ErrorCode.NOT_FOUND,
+    });
   });
 
   it('should throw if no production step found for trailer in target dept', async () => {
@@ -135,9 +137,9 @@ describe('ReworkRoutingService', () => {
       },
     });
 
-    await expect(
-      service.routeRework(BigInt(1), 1, 'Bad', tx),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.routeRework(BigInt(1), 1, 'Bad', tx)).rejects.toMatchObject({
+      errorCode: ErrorCode.QC_INVALID_REWORK_TARGET,
+    });
   });
 
   it('should reset completedAt, completedByUserId on rework step', async () => {

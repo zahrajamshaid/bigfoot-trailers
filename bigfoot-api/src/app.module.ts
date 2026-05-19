@@ -95,8 +95,6 @@ import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer
-      .apply(RequestLoggerMiddleware, SanitizeMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestLoggerMiddleware, SanitizeMiddleware).forRoutes('*');
   }
 }

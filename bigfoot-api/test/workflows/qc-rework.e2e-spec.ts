@@ -179,17 +179,13 @@ describe('QC Rework Workflow (e2e)', () => {
         expect(active!.departmentCode).toBe('QC_1');
 
         // Fail QC_1 → route to XP_JIG
-        const failRes = await submitQcInspection(
-          httpServer,
-          qcInspector.token,
-          {
-            stepId: active!.id,
-            result: 'fail',
-            checklistItemId: checklistItemMap.get('QC_1')!,
-            failNotes: `Defect found — fail #${failNum}`,
-            reworkTargetDepartmentId: xpJigDeptId,
-          },
-        );
+        const failRes = await submitQcInspection(httpServer, qcInspector.token, {
+          stepId: active!.id,
+          result: 'fail',
+          checklistItemId: checklistItemMap.get('QC_1')!,
+          failNotes: `Defect found — fail #${failNum}`,
+          reworkTargetDepartmentId: xpJigDeptId,
+        });
         expect(failRes.status).toBe(200);
 
         // Verify rework step state

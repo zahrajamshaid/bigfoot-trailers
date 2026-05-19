@@ -1,10 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  ConflictException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { UsersService } from './users.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto, UserRoleDto } from './dto/create-user.dto';
@@ -63,10 +58,7 @@ describe('UsersService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        UsersService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [UsersService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
@@ -125,10 +117,12 @@ describe('UsersService', () => {
       });
     });
 
-    it('should throw NotFoundException for non-existent user', async () => {
+    it('should throw AppError for non-existent user', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('should never include passwordHash in response', async () => {
@@ -189,25 +183,31 @@ describe('UsersService', () => {
       expect(createCall.data.passwordHash.startsWith('$2')).toBe(true); // bcrypt hash prefix
     });
 
-    it('should throw ConflictException for duplicate email', async () => {
+    it('should throw AppError for duplicate email', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: BigInt(99) }); // email exists
 
-      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(createDto)).rejects.toMatchObject({
+        errorCode: ErrorCode.SO_NUMBER_EXISTS,
+      });
     });
 
-    it('should throw BadRequestException for invalid department id', async () => {
+    it('should throw AppError for invalid department id', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.department.findUnique.mockResolvedValue(null); // dept not found
 
-      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto)).rejects.toMatchObject({
+        errorCode: ErrorCode.BAD_REQUEST,
+      });
     });
 
-    it('should throw BadRequestException for invalid location id', async () => {
+    it('should throw AppError for invalid location id', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.department.findUnique.mockResolvedValue({ id: 1 });
       mockPrisma.location.findUnique.mockResolvedValue(null); // location not found
 
-      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto)).rejects.toMatchObject({
+        errorCode: ErrorCode.BAD_REQUEST,
+      });
     });
 
     it('should allow creating without optional fields', async () => {
@@ -307,7 +307,7 @@ describe('UsersService', () => {
           BigInt(1), // self, not a manager
           'worker',
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
     });
 
     it('should forbid production_manager from assigning owner role', async () => {
@@ -318,18 +318,13 @@ describe('UsersService', () => {
           BigInt(2),
           'production_manager',
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
     });
 
     it('should allow owner to assign owner role', async () => {
       mockPrisma.user.update.mockResolvedValue({ ...mockSafeUser, role: 'owner' });
 
-      await service.update(
-        BigInt(1),
-        { role: UserRoleDto.OWNER },
-        BigInt(10),
-        'owner',
-      );
+      await service.update(BigInt(1), { role: UserRoleDto.OWNER }, BigInt(10), 'owner');
 
       expect(mockPrisma.user.update).toHaveBeenCalled();
     });
@@ -342,18 +337,18 @@ describe('UsersService', () => {
           BigInt(99), // random user
           'worker',
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
     });
 
-    it('should throw NotFoundException for non-existent user', async () => {
+    it('should throw AppError for non-existent user', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
         service.update(BigInt(999), { fullName: 'X' }, BigInt(10), 'owner'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
 
-    it('should throw ConflictException if new email is taken', async () => {
+    it('should throw AppError if new email is taken', async () => {
       // First call: find user being updated
       mockPrisma.user.findUnique
         .mockResolvedValueOnce({
@@ -366,24 +361,14 @@ describe('UsersService', () => {
         .mockResolvedValueOnce({ id: BigInt(50) }); // email taken
 
       await expect(
-        service.update(
-          BigInt(1),
-          { email: 'taken@bigfoot.com' },
-          BigInt(10),
-          'owner',
-        ),
-      ).rejects.toThrow(ConflictException);
+        service.update(BigInt(1), { email: 'taken@bigfoot.com' }, BigInt(10), 'owner'),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.SO_NUMBER_EXISTS });
     });
 
     it('should hash new password when provided', async () => {
       mockPrisma.user.update.mockResolvedValue(mockSafeUser);
 
-      await service.update(
-        BigInt(1),
-        { password: 'NewSecure456!' },
-        BigInt(1),
-        'worker',
-      );
+      await service.update(BigInt(1), { password: 'NewSecure456!' }, BigInt(1), 'worker');
 
       const updateCall = mockPrisma.user.update.mock.calls[0][0];
       expect(updateCall.data.passwordHash).toBeDefined();
@@ -422,24 +407,24 @@ describe('UsersService', () => {
       });
     });
 
-    it('should throw NotFoundException for non-existent user', async () => {
+    it('should throw AppError for non-existent user', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.softDelete(BigInt(999), BigInt(10))).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.softDelete(BigInt(999), BigInt(10))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
-    it('should throw ConflictException for already-deactivated user', async () => {
+    it('should throw AppError for already-deactivated user', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         id: BigInt(2),
         role: 'worker',
         isActive: false,
       });
 
-      await expect(service.softDelete(BigInt(2), BigInt(10))).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.softDelete(BigInt(2), BigInt(10))).rejects.toMatchObject({
+        errorCode: ErrorCode.BAD_REQUEST,
+      });
     });
 
     it('should prevent self-deletion', async () => {
@@ -449,9 +434,9 @@ describe('UsersService', () => {
         isActive: true,
       });
 
-      await expect(service.softDelete(BigInt(10), BigInt(10))).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.softDelete(BigInt(10), BigInt(10))).rejects.toMatchObject({
+        errorCode: ErrorCode.FORBIDDEN,
+      });
     });
 
     it('should prevent deleting the last owner', async () => {
@@ -462,9 +447,9 @@ describe('UsersService', () => {
       });
       mockPrisma.user.count.mockResolvedValue(1); // only 1 owner
 
-      await expect(service.softDelete(BigInt(10), BigInt(20))).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.softDelete(BigInt(10), BigInt(20))).rejects.toMatchObject({
+        errorCode: ErrorCode.FORBIDDEN,
+      });
     });
 
     it('should allow deleting an owner when others exist', async () => {

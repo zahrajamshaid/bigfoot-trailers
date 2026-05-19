@@ -25,6 +25,7 @@ class TrailerRepositoryImpl implements TrailerRepository {
     String? status,
     String? series,
     int? locationId,
+    String? saleStatus,
     bool hotOnly = false,
   }) async {
     final params = <String, dynamic>{
@@ -35,6 +36,7 @@ class TrailerRepositoryImpl implements TrailerRepository {
     if (status != null) params['status'] = status;
     if (series != null) params['series'] = series;
     if (locationId != null) params['locationId'] = locationId;
+    if (saleStatus != null) params['saleStatus'] = saleStatus;
     if (hotOnly) params['isHot'] = true;
 
     final cacheKey = _listCacheKey(params);
@@ -115,6 +117,23 @@ class TrailerRepositoryImpl implements TrailerRepository {
       ApiEndpoints.trailerHot(id),
       data: {'isHot': isHot},
     );
+  }
+
+  @override
+  Future<Trailer> updateSaleStatus(
+    int id,
+    String saleStatus, {
+    String? soldToName,
+  }) async {
+    final response = await _api.patch<Map<String, dynamic>>(
+      ApiEndpoints.trailerSaleStatus(id),
+      data: {
+        'saleStatus': saleStatus,
+        if (soldToName != null) 'soldToName': soldToName,
+      },
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return Trailer.fromJson(response.data!);
   }
 
   @override

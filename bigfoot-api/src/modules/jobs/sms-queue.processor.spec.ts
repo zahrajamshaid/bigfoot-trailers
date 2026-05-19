@@ -11,10 +11,7 @@ describe('SmsQueueProcessor', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SmsQueueProcessor,
-        { provide: SmsService, useValue: mockSmsService },
-      ],
+      providers: [SmsQueueProcessor, { provide: SmsService, useValue: mockSmsService }],
     }).compile();
 
     processor = module.get<SmsQueueProcessor>(SmsQueueProcessor);
@@ -42,7 +39,9 @@ describe('SmsQueueProcessor', () => {
     it('should not run concurrently', async () => {
       // Simulate a slow processing
       let resolve: () => void;
-      const promise = new Promise<number>((r) => { resolve = () => r(1); });
+      const promise = new Promise<number>((r) => {
+        resolve = () => r(1);
+      });
       mockSmsService.processQueuedMessages.mockReturnValue(promise);
 
       // Start first run

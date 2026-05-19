@@ -19,12 +19,13 @@ class PayrollRepositoryImpl implements PayrollRepository {
 
   @override
   Future<List<PayrollRecord>> getRecords({int? userId}) async {
-    final resp = await _api.get<List<dynamic>>(
+    final resp = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.payrollRecords,
       queryParameters: {if (userId != null) 'userId': userId},
-      fromJson: (d) => d as List<dynamic>,
+      fromJson: (d) => d as Map<String, dynamic>,
     );
-    return (resp.data ?? [])
+    final items = (resp.data?['items'] as List<dynamic>?) ?? const [];
+    return items
         .whereType<Map<String, dynamic>>()
         .map(PayrollRecord.fromJson)
         .toList();
@@ -50,11 +51,12 @@ class PayrollRepositoryImpl implements PayrollRepository {
 
   @override
   Future<List<PointValue>> getPointValues() async {
-    final resp = await _api.get<List<dynamic>>(
+    final resp = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.payrollPointValues,
-      fromJson: (d) => d as List<dynamic>,
+      fromJson: (d) => d as Map<String, dynamic>,
     );
-    return (resp.data ?? [])
+    final items = (resp.data?['items'] as List<dynamic>?) ?? const [];
+    return items
         .whereType<Map<String, dynamic>>()
         .map(PointValue.fromJson)
         .toList();
@@ -100,11 +102,12 @@ class PayrollRepositoryImpl implements PayrollRepository {
 
   @override
   Future<List<DollarRate>> getDollarRates() async {
-    final resp = await _api.get<List<dynamic>>(
+    final resp = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.payrollDollarRates,
-      fromJson: (d) => d as List<dynamic>,
+      fromJson: (d) => d as Map<String, dynamic>,
     );
-    return (resp.data ?? [])
+    final items = (resp.data?['items'] as List<dynamic>?) ?? const [];
+    return items
         .whereType<Map<String, dynamic>>()
         .map(DollarRate.fromJson)
         .toList();

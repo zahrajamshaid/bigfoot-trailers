@@ -62,7 +62,14 @@ describe('QcController', () => {
       checklistResults: [],
       photoStorageKeys: ['photo.jpg'],
     };
-    const requester = { sub: 10, email: 'test@test.com', role: 'qc_inspector', departmentId: null, iat: 0, exp: 0 };
+    const requester = {
+      sub: 10,
+      email: 'test@test.com',
+      role: 'qc_inspector',
+      departmentId: null,
+      iat: 0,
+      exp: 0,
+    };
     mockQcService.submitInspection.mockResolvedValue({ inspectionId: BigInt(500) });
 
     await controller.submitInspection(dto, requester);

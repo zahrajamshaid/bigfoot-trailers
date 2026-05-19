@@ -88,9 +88,7 @@ export class ProductionController {
   @ApiOperation({ summary: 'Upstream self-check items for this step' })
   @ApiParam({ name: 'step_id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Checklist items for the step' })
-  async getChecklistItemsForStep(
-    @Param('step_id', ParseIntPipe) stepId: number,
-  ) {
+  async getChecklistItemsForStep(@Param('step_id', ParseIntPipe) stepId: number) {
     return this.productionService.getChecklistItemsForStep(BigInt(stepId));
   }
 
@@ -150,7 +148,10 @@ export class ProductionController {
   })
   @ApiParam({ name: 'trailer_id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer moved to target step' })
-  @ApiResponse({ status: 403, description: 'Forbidden — owner or production_manager only' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — owner or production_manager only',
+  })
   @ApiResponse({ status: 404, description: 'Trailer or step not found' })
   async jumpToStep(
     @Param('trailer_id', ParseIntPipe) trailerId: number,

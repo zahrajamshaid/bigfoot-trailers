@@ -31,8 +31,8 @@ export class SmsQueueProcessor implements OnModuleInit, OnModuleDestroy {
       if (count > 0) {
         this.logger.log(`Processed ${count} queued SMS messages`);
       }
-    } catch (err: any) {
-      this.logger.error(`SMS queue processing failed: ${err?.message}`);
+    } catch (err) {
+      this.logger.error(`SMS queue processing failed: ${(err as Error)?.message}`);
     } finally {
       this.processing = false;
     }

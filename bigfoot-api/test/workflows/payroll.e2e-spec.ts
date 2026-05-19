@@ -20,11 +20,7 @@ function getCurrentWeekSunday(): string {
   const now = new Date();
   const dayOfWeek = now.getUTCDay();
   const sunday = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() - dayOfWeek,
-    ),
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayOfWeek),
   );
   return sunday.toISOString().split('T')[0];
 }
@@ -92,8 +88,13 @@ describe('Payroll Aggregation (e2e)', () => {
 
       const trailerId = BigInt(res.body.data.trailer.id);
       await completeFullWorkflow(
-        prisma, httpServer, trailerId, workerAlpha.id,
-        qcInspector.token, checklistItemMap, 5,
+        prisma,
+        httpServer,
+        trailerId,
+        workerAlpha.id,
+        qcInspector.token,
+        checklistItemMap,
+        5,
       );
     }
 
@@ -106,8 +107,13 @@ describe('Payroll Aggregation (e2e)', () => {
 
     const yetiTrailerId = BigInt(yetiRes.body.data.trailer.id);
     await completeFullWorkflow(
-      prisma, httpServer, yetiTrailerId, workerBeta.id,
-      qcInspector.token, checklistItemMap, 3,
+      prisma,
+      httpServer,
+      yetiTrailerId,
+      workerBeta.id,
+      qcInspector.token,
+      checklistItemMap,
+      3,
     );
 
     // GET /payroll/records/week/:week_start
@@ -121,17 +127,13 @@ describe('Payroll Aggregation (e2e)', () => {
     expect(report.isLocked).toBe(false);
 
     // Worker Alpha: 2 trailers × 6 production steps × 5 pts = 60 total points
-    const wAlpha = report.workers.find(
-      (w: any) => w.fullName === 'Worker Alpha',
-    );
+    const wAlpha = report.workers.find((w: any) => w.fullName === 'Worker Alpha');
     expect(wAlpha).toBeTruthy();
     expect(wAlpha.totalPoints).toBe(60);
     expect(wAlpha.totalStepsCompleted).toBe(12); // 6 prod × 2 trailers
 
     // Worker Beta: 1 trailer × 6 production steps × 3 pts = 18 total points
-    const wBeta = report.workers.find(
-      (w: any) => w.fullName === 'Worker Beta',
-    );
+    const wBeta = report.workers.find((w: any) => w.fullName === 'Worker Beta');
     expect(wBeta).toBeTruthy();
     expect(wBeta.totalPoints).toBe(18);
     expect(wBeta.totalStepsCompleted).toBe(6);

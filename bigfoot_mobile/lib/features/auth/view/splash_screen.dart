@@ -103,58 +103,65 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
             ),
-            Center(
-              child: FadeTransition(
-                opacity: _fadeIn,
-                child: ScaleTransition(
-                  scale: _scale,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 72,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.amber,
-                          borderRadius: BorderRadius.circular(999),
+            LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: FadeTransition(
+                      opacity: _fadeIn,
+                      child: ScaleTransition(
+                        scale: _scale,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AppColors.amber,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                            const SizedBox(height: 26),
+                            Text(
+                              'BIGFOOT',
+                              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                    color: AppColors.white,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 6,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'TRAILERS',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: AppColors.amber,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 10,
+                                  ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Built to haul. Ready to move.',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.white.withValues(alpha: 0.7),
+                                    letterSpacing: 0.3,
+                                  ),
+                            ),
+                            const SizedBox(height: 44),
+                            const SizedBox(
+                              width: 26,
+                              height: 26,
+                              child: CircularProgressIndicator(
+                                color: AppColors.amber,
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 26),
-                      Text(
-                        'BIGFOOT',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              color: AppColors.white,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 6,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'TRAILERS',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: AppColors.amber,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 10,
-                            ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Built to haul. Ready to move.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.white.withValues(alpha: 0.7),
-                              letterSpacing: 0.3,
-                            ),
-                      ),
-                      const SizedBox(height: 44),
-                      const SizedBox(
-                        width: 26,
-                        height: 26,
-                        child: CircularProgressIndicator(
-                          color: AppColors.amber,
-                          strokeWidth: 2.5,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

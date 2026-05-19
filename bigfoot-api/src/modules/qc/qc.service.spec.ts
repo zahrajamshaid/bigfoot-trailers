@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { QcService } from './qc.service';
 import { ReworkRoutingService } from './rework-routing.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SmsService } from '../notifications/sms.service';
 import { QcResultDto } from './dto';
 
 // ---------------------------------------------------------------------------
@@ -46,13 +44,10 @@ const mockTrailer = {
   status: 'in_production',
   trailerModel: { series: 'xp' },
   customer: { smsPhone: '+1234567890', smsOptOut: false },
+  addons: [],
 };
 
-const mockChecklistItems = [
-  { id: 1 },
-  { id: 2 },
-  { id: 3 },
-];
+const mockChecklistItems = [{ id: 1 }, { id: 2 }, { id: 3 }];
 
 const baseInspectionDto = {
   productionStepId: 200,
@@ -112,6 +107,11 @@ const mockPrisma = {
   },
   smsLog: {
     create: jest.fn(),
+    findFirst: jest.fn(),
+    findUnique: jest.fn(),
+  },
+  productionStepCheck: {
+    findMany: jest.fn(),
   },
   department: {
     findUnique: jest.fn(),
@@ -128,6 +128,10 @@ const mockNotificationsService = {
   onQcFail: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockSmsService = {
+  sendImmediately: jest.fn().mockResolvedValue(undefined),
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -142,6 +146,7 @@ describe('QcService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ReworkRoutingService, useValue: mockReworkRouting },
         { provide: NotificationsService, useValue: mockNotificationsService },
+        { provide: SmsService, useValue: mockSmsService },
       ],
     }).compile();
 
@@ -155,7 +160,13 @@ describe('QcService', () => {
   describe('findChecklistItems', () => {
     it('should return all checklist items with no filters', async () => {
       const items = [
-        { id: 1, departmentId: 15, itemLabel: 'Check welds', sortOrder: 0, isActive: true },
+        {
+          id: 1,
+          departmentId: 15,
+          itemLabel: 'Check welds',
+          sortOrder: 0,
+          isActive: true,
+        },
       ];
       mockPrisma.qcChecklistItem.findMany.mockResolvedValue(items);
 
@@ -164,7 +175,7 @@ describe('QcService', () => {
       expect(result).toEqual(items);
       expect(mockPrisma.qcChecklistItem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {},
+          where: { requiresAddonKey: null },
         }),
       );
     });
@@ -176,7 +187,7 @@ describe('QcService', () => {
 
       expect(mockPrisma.qcChecklistItem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { departmentId: 15 },
+          where: { departmentId: 15, requiresAddonKey: null },
         }),
       );
     });
@@ -199,7 +210,11 @@ describe('QcService', () => {
   // =========================================================================
   describe('createChecklistItem', () => {
     it('should create a checklist item for a valid QC department', async () => {
-      mockPrisma.department.findUnique.mockResolvedValue({ id: 15, isQcStep: true, displayName: 'Quality Control 1' });
+      mockPrisma.department.findUnique.mockResolvedValue({
+        id: 15,
+        isQcStep: true,
+        displayName: 'Quality Control 1',
+      });
       mockPrisma.qcChecklistItem.create.mockResolvedValue({
         id: 1,
         departmentId: 15,
@@ -222,15 +237,19 @@ describe('QcService', () => {
 
       await expect(
         service.createChecklistItem({ departmentId: 999, itemLabel: 'X' }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
 
     it('should throw if department is not a QC department', async () => {
-      mockPrisma.department.findUnique.mockResolvedValue({ id: 1, isQcStep: false, displayName: 'XP Jig Weld' });
+      mockPrisma.department.findUnique.mockResolvedValue({
+        id: 1,
+        isQcStep: false,
+        displayName: 'XP Jig Weld',
+      });
 
       await expect(
         service.createChecklistItem({ departmentId: 1, itemLabel: 'X' }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
     });
   });
 
@@ -263,12 +282,12 @@ describe('QcService', () => {
       expect(result.isActive).toBe(false);
     });
 
-    it('should throw NotFoundException for non-existent item', async () => {
+    it('should throw AppError for non-existent item', async () => {
       mockPrisma.qcChecklistItem.findUnique.mockResolvedValue(null);
 
       await expect(
         service.updateChecklistItem(999, { itemLabel: 'X' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -319,7 +338,7 @@ describe('QcService', () => {
 
       await expect(
         service.submitInspection(baseInspectionDto, BigInt(10)),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.STEP_NOT_ACTIVE });
     });
 
     it('should throw if step is not a QC step', async () => {
@@ -327,7 +346,7 @@ describe('QcService', () => {
 
       await expect(
         service.submitInspection(baseInspectionDto, BigInt(10)),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
     });
 
     it('should throw if step does not exist', async () => {
@@ -335,7 +354,7 @@ describe('QcService', () => {
 
       await expect(
         service.submitInspection(baseInspectionDto, BigInt(10)),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
 
     it('should throw QC_CHECKLIST_INCOMPLETE if not all items answered', async () => {
@@ -360,7 +379,7 @@ describe('QcService', () => {
 
       await expect(
         service.submitInspection(incompleteDto, BigInt(10)),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.QC_CHECKLIST_INCOMPLETE });
     });
   });
 
@@ -526,7 +545,7 @@ describe('QcService', () => {
 
       await expect(
         service.submitInspection(noTargetDto, BigInt(10)),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.QC_REWORK_TARGET_REQUIRED });
     });
 
     it('should throw if fail_notes is missing on fail', async () => {
@@ -543,7 +562,7 @@ describe('QcService', () => {
 
       await expect(
         service.submitInspection(noNotesDto, BigInt(10)),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
     });
 
     it('should send push notification to production_manager on fail', async () => {
@@ -700,12 +719,30 @@ describe('QcService', () => {
         inspectorUser: { id: BigInt(10), fullName: 'Inspector Bob' },
         reworkTargetDept: null,
         reworkSentToStep: null,
-        productionStep: { stepOrder: 2, department: { code: 'QC_1', displayName: 'Quality Control 1' } },
-        checklistResults: [{ id: BigInt(1), passed: true, note: null, checklistItem: { id: 1, itemLabel: 'Check welds' } }],
-        photos: [{ id: BigInt(1), storageUrl: 'qc/photo1.jpg', storageKey: 'qc/photo1.jpg', takenAt: new Date() }],
+        productionStep: {
+          stepOrder: 2,
+          department: { code: 'QC_1', displayName: 'Quality Control 1' },
+        },
+        checklistResults: [
+          {
+            id: BigInt(1),
+            passed: true,
+            note: null,
+            checklistItem: { id: 1, itemLabel: 'Check welds' },
+          },
+        ],
+        photos: [
+          {
+            id: BigInt(1),
+            storageUrl: 'qc/photo1.jpg',
+            storageKey: 'qc/photo1.jpg',
+            takenAt: new Date(),
+          },
+        ],
       };
 
       mockPrisma.qcInspection.findUnique.mockResolvedValue(mockInspection);
+      mockPrisma.productionStepCheck.findMany.mockResolvedValue([]);
 
       const result = await service.findInspection(BigInt(500));
 
@@ -714,10 +751,12 @@ describe('QcService', () => {
       expect(result.photos).toHaveLength(1);
     });
 
-    it('should throw NotFoundException for non-existent inspection', async () => {
+    it('should throw AppError for non-existent inspection', async () => {
       mockPrisma.qcInspection.findUnique.mockResolvedValue(null);
 
-      await expect(service.findInspection(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.findInspection(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -739,10 +778,12 @@ describe('QcService', () => {
       expect(result[1].result).toBe('pass');
     });
 
-    it('should throw NotFoundException for non-existent step', async () => {
+    it('should throw AppError for non-existent step', async () => {
       mockPrisma.productionStep.findUnique.mockResolvedValue(null);
 
-      await expect(service.findInspectionsByStep(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.findInspectionsByStep(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 });

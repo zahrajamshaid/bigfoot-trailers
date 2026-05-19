@@ -1,7 +1,9 @@
 import {
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
+  Param,
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
@@ -24,5 +26,20 @@ export class NotificationsController {
     @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit: number,
   ) {
     return this.notificationsService.getHistory(BigInt(requester.sub), page, limit);
+  }
+
+  @Delete(':id')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Delete a notification from the current user history' })
+  @ApiResponse({ status: 200, description: 'Notification deleted' })
+  @ApiResponse({ status: 404, description: 'Notification not found' })
+  async delete(
+    @CurrentUser() requester: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.notificationsService.deleteNotification(
+      BigInt(requester.sub),
+      BigInt(id),
+    );
   }
 }

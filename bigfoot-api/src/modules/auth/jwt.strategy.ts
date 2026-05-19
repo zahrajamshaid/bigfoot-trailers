@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
+import { AppError, ErrorCode } from '../../common/errors';
 
 /** Full decoded JWT payload including iat/exp set by jsonwebtoken. */
 interface JwtTokenPayload {
@@ -45,7 +46,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('User account is deactivated or not found');
+      throw new AppError(
+        ErrorCode.UNAUTHORIZED,
+        'User account is deactivated or not found',
+      );
     }
 
     return {

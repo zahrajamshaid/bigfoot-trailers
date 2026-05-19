@@ -47,9 +47,7 @@ export type WsEventType = (typeof WsEvent)[keyof typeof WsEvent];
   pingInterval: 30000,
   pingTimeout: 10000,
 })
-export class NotificationsGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 

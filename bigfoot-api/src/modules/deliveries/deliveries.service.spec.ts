@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { DeliveriesService } from './deliveries.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -38,7 +35,9 @@ const mockPrisma: Record<string, any> = {
   $transaction: jest.fn(),
 };
 
-mockPrisma.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => fn(mockPrisma));
+mockPrisma.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) =>
+  fn(mockPrisma),
+);
 
 const mockNotificationsService = {
   onDeliveryDispatched: jest.fn(),
@@ -98,7 +97,9 @@ describe('DeliveriesService', () => {
 
     service = module.get<DeliveriesService>(DeliveriesService);
     jest.clearAllMocks();
-    mockPrisma.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => fn(mockPrisma));
+    mockPrisma.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) =>
+      fn(mockPrisma),
+    );
   });
 
   // =========================================================================
@@ -116,10 +117,18 @@ describe('DeliveriesService', () => {
 
     it('should apply status, type, and driver filters', async () => {
       mockPrisma.delivery.findMany.mockResolvedValue([]);
-      await service.findAll({ status: 'scheduled' as any, deliveryType: 'single_pull' as any, driverUserId: 5 });
+      await service.findAll({
+        status: 'scheduled' as any,
+        deliveryType: 'single_pull' as any,
+        driverUserId: 5,
+      });
       expect(mockPrisma.delivery.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'scheduled', deliveryType: 'single_pull', driverUserId: BigInt(5) },
+          where: {
+            status: 'scheduled',
+            deliveryType: 'single_pull',
+            driverUserId: BigInt(5),
+          },
         }),
       );
     });
@@ -141,11 +150,14 @@ describe('DeliveriesService', () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(mockTrailerReady);
       mockPrisma.delivery.create.mockResolvedValue({ id: BigInt(100) });
 
-      const result = await service.create({
-        trailerId: 1,
-        deliveryType: 'single_pull' as any,
-        driverUserId: 5,
-      }, BigInt(10));
+      const result = await service.create(
+        {
+          trailerId: 1,
+          deliveryType: 'single_pull' as any,
+          driverUserId: 5,
+        },
+        BigInt(10),
+      );
 
       expect(result.id).toBe(BigInt(100));
       expect(mockPrisma.delivery.create).toHaveBeenCalledWith(
@@ -164,22 +176,28 @@ describe('DeliveriesService', () => {
 
       await expect(
         service.create({ trailerId: 2, deliveryType: 'single_pull' as any }, BigInt(10)),
-      ).rejects.toThrow('ready_for_delivery');
+      ).rejects.toMatchObject({ errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE });
     });
 
-    it('should throw NotFoundException if trailer not found', async () => {
+    it('should throw AppError if trailer not found', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create({ trailerId: 999, deliveryType: 'single_pull' as any }, BigInt(10)),
-      ).rejects.toThrow(NotFoundException);
+        service.create(
+          { trailerId: 999, deliveryType: 'single_pull' as any },
+          BigInt(10),
+        ),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
 
     it('should create factory_pickup delivery type', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(mockTrailerReady);
       mockPrisma.delivery.create.mockResolvedValue({ id: BigInt(100) });
 
-      await service.create({ trailerId: 1, deliveryType: 'factory_pickup' as any }, BigInt(10));
+      await service.create(
+        { trailerId: 1, deliveryType: 'factory_pickup' as any },
+        BigInt(10),
+      );
       expect(mockPrisma.delivery.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ deliveryType: 'factory_pickup' }),
@@ -191,11 +209,14 @@ describe('DeliveriesService', () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(mockTrailerReady);
       mockPrisma.delivery.create.mockResolvedValue({ id: BigInt(100) });
 
-      await service.create({
-        trailerId: 1,
-        deliveryType: 'stack_to_dealer' as any,
-        destinationLocationId: 3,
-      }, BigInt(10));
+      await service.create(
+        {
+          trailerId: 1,
+          deliveryType: 'stack_to_dealer' as any,
+          destinationLocationId: 3,
+        },
+        BigInt(10),
+      );
 
       expect(mockPrisma.delivery.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -215,9 +236,11 @@ describe('DeliveriesService', () => {
       expect(result.id).toBe(BigInt(100));
     });
 
-    it('should throw NotFoundException', async () => {
+    it('should throw AppError', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(null);
-      await expect(service.findOne(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -227,7 +250,10 @@ describe('DeliveriesService', () => {
   describe('markDeparted', () => {
     it('should mark delivery as in_transit and send SMS', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryScheduled);
-      mockPrisma.delivery.update.mockResolvedValue({ ...mockDeliveryScheduled, status: 'in_transit' });
+      mockPrisma.delivery.update.mockResolvedValue({
+        ...mockDeliveryScheduled,
+        status: 'in_transit',
+      });
       mockPrisma.trailer.update.mockResolvedValue({});
       mockPrisma.smsLog.create.mockResolvedValue({});
 
@@ -266,12 +292,16 @@ describe('DeliveriesService', () => {
 
     it('should throw if delivery not scheduled', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryInTransit);
-      await expect(service.markDeparted(BigInt(101))).rejects.toThrow(BadRequestException);
+      await expect(service.markDeparted(BigInt(101))).rejects.toMatchObject({
+        errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+      });
     });
 
-    it('should throw NotFoundException', async () => {
+    it('should throw AppError', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(null);
-      await expect(service.markDeparted(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.markDeparted(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -323,23 +353,45 @@ describe('DeliveriesService', () => {
       );
     });
 
-    it('should NOT send payment_not_collected when fully paid', async () => {
+    it('should send delivery_complete but NOT payment_not_collected when fully paid', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryInTransit);
       mockPrisma.delivery.update.mockResolvedValue({ status: 'delivered' });
       mockPrisma.trailer.update.mockResolvedValue({});
       mockPrisma.smsLog.create.mockResolvedValue({});
       mockPrisma.user.findMany.mockResolvedValue([{ id: BigInt(20) }]);
+      mockPrisma.pushNotification.createMany.mockResolvedValue({ count: 1 });
 
       await service.markComplete(BigInt(101), {
         paymentCollected: 5000, // full amount
       });
 
-      expect(mockPrisma.pushNotification.createMany).not.toHaveBeenCalled();
+      const types = mockPrisma.pushNotification.createMany.mock.calls.flatMap(
+        (call: any[]) => call[0].data.map((n: any) => n.notificationType),
+      );
+      expect(types).toContain('delivery_complete');
+      expect(types).not.toContain('payment_not_collected');
     });
 
-    it('should throw if delivery not in_transit', async () => {
+    it('should complete a scheduled single delivery directly (no depart step)', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryScheduled);
-      await expect(service.markComplete(BigInt(100), {})).rejects.toThrow(BadRequestException);
+      mockPrisma.delivery.update.mockResolvedValue({ status: 'delivered' });
+      mockPrisma.trailer.update.mockResolvedValue({});
+      mockPrisma.smsLog.create.mockResolvedValue({});
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      const result = await service.markComplete(BigInt(100), {});
+
+      expect(result.status).toBe('delivered');
+      expect(mockPrisma.trailer.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'delivered' } }),
+      );
+    });
+
+    it('should throw if delivery already delivered', async () => {
+      mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryDelivered);
+      await expect(service.markComplete(BigInt(102), {})).rejects.toMatchObject({
+        errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+      });
     });
   });
 
@@ -349,7 +401,10 @@ describe('DeliveriesService', () => {
   describe('markFailed', () => {
     it('should mark delivery as failed', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryInTransit);
-      mockPrisma.delivery.update.mockResolvedValue({ status: 'failed', failReason: 'Road closed' });
+      mockPrisma.delivery.update.mockResolvedValue({
+        status: 'failed',
+        failReason: 'Road closed',
+      });
 
       const result = await service.markFailed(BigInt(101), { failReason: 'Road closed' });
       expect(result.status).toBe('failed');
@@ -359,7 +414,7 @@ describe('DeliveriesService', () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryDelivered);
       await expect(
         service.markFailed(BigInt(102), { failReason: 'test' }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE });
     });
   });
 
@@ -379,11 +434,14 @@ describe('DeliveriesService', () => {
       expect(result.photosAdded).toBe(2);
     });
 
-    it('should throw NotFoundException', async () => {
+    it('should throw AppError', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(null);
       await expect(
-        service.uploadPhotos(BigInt(999), { storageKeys: ['a.jpg'], photoType: 'damage' as any }),
-      ).rejects.toThrow(NotFoundException);
+        service.uploadPhotos(BigInt(999), {
+          storageKeys: ['a.jpg'],
+          photoType: 'damage' as any,
+        }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -393,21 +451,49 @@ describe('DeliveriesService', () => {
   describe('completeFactoryPickup', () => {
     it('should complete a factory pickup', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockFactoryPickup);
-      mockPrisma.delivery.update.mockResolvedValue({ ...mockFactoryPickup, status: 'delivered' });
+      mockPrisma.delivery.update.mockResolvedValue({
+        ...mockFactoryPickup,
+        status: 'delivered',
+      });
       mockPrisma.trailer.update.mockResolvedValue({});
 
-      const result = await service.completeFactoryPickup(BigInt(103));
+      const result = await service.completeFactoryPickup(BigInt(103), {});
       expect(result.status).toBe('delivered');
+    });
+
+    it('should record picked-up-by name and amount collected', async () => {
+      mockPrisma.delivery.findUnique.mockResolvedValue(mockFactoryPickup);
+      mockPrisma.delivery.update.mockResolvedValue({
+        ...mockFactoryPickup,
+        status: 'delivered',
+      });
+      mockPrisma.trailer.update.mockResolvedValue({});
+
+      await service.completeFactoryPickup(BigInt(103), {
+        pickedUpByName: 'Jane Hauler',
+        paymentCollected: 250,
+      });
+
+      const updateArg = mockPrisma.delivery.update.mock.calls[0][0];
+      expect(updateArg.data.pickedUpByName).toBe('Jane Hauler');
+      expect(Number(updateArg.data.paymentCollected)).toBe(250);
     });
 
     it('should throw if not a factory_pickup type', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(mockDeliveryScheduled);
-      await expect(service.completeFactoryPickup(BigInt(100))).rejects.toThrow('factory_pickup');
+      await expect(service.completeFactoryPickup(BigInt(100), {})).rejects.toMatchObject({
+        errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+      });
     });
 
     it('should throw if not scheduled', async () => {
-      mockPrisma.delivery.findUnique.mockResolvedValue({ ...mockFactoryPickup, status: 'delivered' });
-      await expect(service.completeFactoryPickup(BigInt(103))).rejects.toThrow(BadRequestException);
+      mockPrisma.delivery.findUnique.mockResolvedValue({
+        ...mockFactoryPickup,
+        status: 'delivered',
+      });
+      await expect(service.completeFactoryPickup(BigInt(103), {})).rejects.toMatchObject({
+        errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE,
+      });
     });
   });
 });

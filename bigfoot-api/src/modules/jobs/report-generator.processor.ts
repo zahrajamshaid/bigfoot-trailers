@@ -54,7 +54,9 @@ export class ReportGeneratorProcessor implements OnModuleInit, OnModuleDestroy {
         select: { id: true },
       });
       if (alreadyLocked) {
-        this.logger.log(`Week ${weekStart.toISOString().split('T')[0]} already locked, skipping`);
+        this.logger.log(
+          `Week ${weekStart.toISOString().split('T')[0]} already locked, skipping`,
+        );
         return 0;
       }
 
@@ -77,7 +79,12 @@ export class ReportGeneratorProcessor implements OnModuleInit, OnModuleDestroy {
       // Group by (userId, departmentId)
       const aggregateMap = new Map<
         string,
-        { userId: bigint; departmentId: number; totalPoints: number; trailerIds: Set<string> }
+        {
+          userId: bigint;
+          departmentId: number;
+          totalPoints: number;
+          trailerIds: Set<string>;
+        }
       >();
 
       for (const step of completedSteps) {
@@ -128,8 +135,8 @@ export class ReportGeneratorProcessor implements OnModuleInit, OnModuleDestroy {
         `Weekly records generated: ${upsertCount} records for week ${weekStart.toISOString().split('T')[0]}`,
       );
       return upsertCount;
-    } catch (err: any) {
-      this.logger.error(`Report generation failed: ${err?.message}`);
+    } catch (err) {
+      this.logger.error(`Report generation failed: ${(err as Error)?.message}`);
       return 0;
     } finally {
       this.processing = false;

@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { TrailersService } from './trailers.service';
 import { WorkflowGeneratorService } from './workflow-generator.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -34,8 +30,20 @@ const mockTrailer = {
   customerLocked: false,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
-  trailerModel: { id: 1, code: 'XP_14ET', displayName: '14K ET XP', series: 'xp', weightRating: '14,000 lb' },
-  customer: { id: BigInt(100), name: 'John Doe', company: null, smsPhone: '+1234567890', customerType: 'end_user' },
+  trailerModel: {
+    id: 1,
+    code: 'XP_14ET',
+    displayName: '14K ET XP',
+    series: 'xp',
+    weightRating: '14,000 lb',
+  },
+  customer: {
+    id: BigInt(100),
+    name: 'John Doe',
+    company: null,
+    smsPhone: '+1234567890',
+    customerType: 'end_user',
+  },
   currentLocation: { id: 1, code: 'MULBERRY', name: 'Bigfoot Trailers Mulberry' },
   addons: [],
 };
@@ -67,6 +75,7 @@ const mockPrisma = {
   },
   location: {
     findFirst: jest.fn(),
+    findUnique: jest.fn(),
   },
   trailerAddon: {
     create: jest.fn(),
@@ -77,6 +86,9 @@ const mockPrisma = {
     findMany: jest.fn(),
   },
   qcInspection: {
+    findMany: jest.fn(),
+  },
+  delivery: {
     findMany: jest.fn(),
   },
   auditLog: {
@@ -196,37 +208,55 @@ describe('TrailersService', () => {
       expect(mockWorkflowGenerator.generateSteps).toHaveBeenCalled();
     });
 
-    it('should throw ConflictException for duplicate SO number', async () => {
+    it('should throw AppError for duplicate SO number', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue({ id: BigInt(99) });
 
-      await expect(service.create(createDto, BigInt(10))).rejects.toThrow(ConflictException);
+      await expect(service.create(createDto, BigInt(10))).rejects.toMatchObject({
+        errorCode: ErrorCode.SO_NUMBER_EXISTS,
+      });
     });
 
-    it('should throw BadRequestException for invalid trailer model', async () => {
+    it('should throw AppError for invalid trailer model', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
       mockPrisma.trailerModel.findUnique.mockResolvedValue(null);
 
-      await expect(service.create(createDto, BigInt(10))).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto, BigInt(10))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
-    it('should throw BadRequestException for invalid customer id', async () => {
+    it('should throw AppError for invalid customer id', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
       mockPrisma.trailerModel.findUnique.mockResolvedValue({ id: 1, series: 'xp' });
       mockPrisma.customer.findUnique.mockResolvedValue(null);
 
-      await expect(service.create(createDto, BigInt(10))).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto, BigInt(10))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('should allow creating without customerId (stock build)', async () => {
-      const stockDto = { soNumber: 'SO-3001', trailerModelId: 1, isStockBuild: true };
+      const stockDto = {
+        soNumber: 'SO-3001',
+        trailerModelId: 1,
+        isStockBuild: true,
+        stockLocationId: 1,
+      };
 
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
       mockPrisma.trailerModel.findUnique.mockResolvedValue({ id: 1, series: 'xp' });
       mockPrisma.location.findFirst.mockResolvedValue({ id: 1 });
+      mockPrisma.location.findUnique.mockResolvedValue({ id: 1, isActive: true });
 
       mockPrisma.$transaction.mockImplementation(async (fn: any) => {
         const txClient = {
-          trailer: { create: jest.fn().mockResolvedValue({ ...mockTrailer, customerId: null, isStockBuild: true }) },
+          trailer: {
+            create: jest.fn().mockResolvedValue({
+              ...mockTrailer,
+              customerId: null,
+              isStockBuild: true,
+            }),
+          },
         };
         mockWorkflowGenerator.generateSteps.mockResolvedValue({
           trailerId: BigInt(1),
@@ -242,14 +272,14 @@ describe('TrailersService', () => {
       expect(result.trailer).toBeDefined();
     });
 
-    it('should throw BadRequestException if no factory location exists', async () => {
+    it('should throw AppError if no factory location exists', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
       mockPrisma.trailerModel.findUnique.mockResolvedValue({ id: 1, series: 'xp' });
       mockPrisma.location.findFirst.mockResolvedValue(null);
 
       await expect(
         service.create({ soNumber: 'SO-4001', trailerModelId: 1 }, BigInt(10)),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -269,10 +299,12 @@ describe('TrailersService', () => {
       expect(result.trailerModel.code).toBe('XP_14ET');
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -284,7 +316,10 @@ describe('TrailersService', () => {
       mockPrisma.trailer.findUnique.mockResolvedValue({ id: BigInt(1) });
       mockPrisma.trailer.update.mockResolvedValue({ ...mockTrailer, color: 'Green' });
 
-      const result = await service.update(BigInt(1), { color: 'Green', optionsNotes: 'Updated' });
+      await service.update(BigInt(1), {
+        color: 'Green',
+        optionsNotes: 'Updated',
+      });
 
       expect(mockPrisma.trailer.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -306,10 +341,12 @@ describe('TrailersService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
-      await expect(service.update(BigInt(999), { color: 'Red' })).rejects.toThrow(NotFoundException);
+      await expect(service.update(BigInt(999), { color: 'Red' })).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -321,7 +358,7 @@ describe('TrailersService', () => {
       mockPrisma.trailer.findUnique.mockResolvedValue({ id: BigInt(1) });
       mockPrisma.trailer.update.mockResolvedValue({ ...mockTrailer, globalPriority: 5 });
 
-      const result = await service.setPriority(BigInt(1), { globalPriority: 5 });
+      await service.setPriority(BigInt(1), { globalPriority: 5 });
 
       expect(mockPrisma.trailer.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -330,10 +367,12 @@ describe('TrailersService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
-      await expect(service.setPriority(BigInt(999), { globalPriority: 1 })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.setPriority(BigInt(999), { globalPriority: 1 }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -354,10 +393,12 @@ describe('TrailersService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
-      await expect(service.toggleHot(BigInt(999), { isHot: true })).rejects.toThrow(NotFoundException);
+      await expect(service.toggleHot(BigInt(999), { isHot: true })).rejects.toMatchObject(
+        { errorCode: ErrorCode.NOT_FOUND },
+      );
     });
   });
 
@@ -379,10 +420,12 @@ describe('TrailersService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
-      await expect(service.addAddon(BigInt(999), { addonName: 'X' })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.addAddon(BigInt(999), { addonName: 'X' }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -393,13 +436,17 @@ describe('TrailersService', () => {
       const result = await service.removeAddon(BigInt(1), BigInt(50));
 
       expect(result.deleted).toBe(true);
-      expect(mockPrisma.trailerAddon.delete).toHaveBeenCalledWith({ where: { id: BigInt(50) } });
+      expect(mockPrisma.trailerAddon.delete).toHaveBeenCalledWith({
+        where: { id: BigInt(50) },
+      });
     });
 
-    it('should throw NotFoundException if addon does not belong to trailer', async () => {
+    it('should throw AppError if addon does not belong to trailer', async () => {
       mockPrisma.trailerAddon.findFirst.mockResolvedValue(null);
 
-      await expect(service.removeAddon(BigInt(1), BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.removeAddon(BigInt(1), BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -430,12 +477,12 @@ describe('TrailersService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
       await expect(
         service.uploadQbPdf(BigInt(999), { storageKey: 'x', storageUrl: 'x' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -461,10 +508,12 @@ describe('TrailersService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
-      await expect(service.getSteps(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.getSteps(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -477,6 +526,7 @@ describe('TrailersService', () => {
       mockPrisma.$transaction.mockResolvedValue([
         [{ id: BigInt(100), stepOrder: 1 }], // steps
         [{ id: BigInt(200), result: 'pass' }], // qcInspections
+        [{ id: BigInt(400), deliveryType: 'factory_pickup' }], // deliveries
         [{ id: BigInt(300), action: 'create' }], // auditLogs
       ]);
 
@@ -484,13 +534,16 @@ describe('TrailersService', () => {
 
       expect(result.steps).toHaveLength(1);
       expect(result.qcInspections).toHaveLength(1);
+      expect(result.deliveries).toHaveLength(1);
       expect(result.auditLogs).toHaveLength(1);
     });
 
-    it('should throw NotFoundException for non-existent trailer', async () => {
+    it('should throw AppError for non-existent trailer', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
-      await expect(service.getHistory(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.getHistory(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 });

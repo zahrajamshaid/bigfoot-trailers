@@ -17,7 +17,9 @@ export class JumpToStepDto {
   @Type(() => Number)
   stepId!: number;
 
-  @ApiPropertyOptional({ description: 'Optional reason recorded on every rollback row + audit log' })
+  @ApiPropertyOptional({
+    description: 'Optional reason recorded on every rollback row + audit log',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

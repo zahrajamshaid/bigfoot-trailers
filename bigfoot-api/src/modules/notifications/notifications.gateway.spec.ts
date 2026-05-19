@@ -6,7 +6,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 describe('NotificationsGateway', () => {
   let gateway: NotificationsGateway;
-  let jwtService: JwtService;
 
   const mockJwtService = {
     verify: jest.fn(),
@@ -29,7 +28,6 @@ describe('NotificationsGateway', () => {
     }).compile();
 
     gateway = module.get<NotificationsGateway>(NotificationsGateway);
-    jwtService = module.get<JwtService>(JwtService);
 
     // Mock the server
     gateway.server = {
@@ -65,7 +63,9 @@ describe('NotificationsGateway', () => {
 
       await gateway.handleConnection(mockClient as any);
 
-      expect(mockJwtService.verify).toHaveBeenCalledWith('valid-token', { secret: 'test-secret' });
+      expect(mockJwtService.verify).toHaveBeenCalledWith('valid-token', {
+        secret: 'test-secret',
+      });
       expect(mockClient.data.userId).toBe(10);
       expect(mockClient.data.role).toBe('production_manager');
       expect(mockClient.join).toHaveBeenCalledWith('user:10');
@@ -90,7 +90,9 @@ describe('NotificationsGateway', () => {
     });
 
     it('should disconnect client with invalid token', async () => {
-      mockJwtService.verify.mockImplementation(() => { throw new Error('invalid'); });
+      mockJwtService.verify.mockImplementation(() => {
+        throw new Error('invalid');
+      });
 
       const mockClient = {
         id: 'client-3',
@@ -122,7 +124,9 @@ describe('NotificationsGateway', () => {
 
       await gateway.handleConnection(mockClient as any);
 
-      expect(mockJwtService.verify).toHaveBeenCalledWith('header-token', { secret: 'test-secret' });
+      expect(mockJwtService.verify).toHaveBeenCalledWith('header-token', {
+        secret: 'test-secret',
+      });
       expect(mockClient.data.userId).toBe(5);
     });
 
@@ -286,7 +290,9 @@ describe('NotificationsGateway', () => {
       const mockEmit = jest.fn();
       gateway.server = { to: mockTo, emit: mockEmit } as any;
 
-      gateway.emitToRole('production_manager', WsEvent.TRAILER_STALLED, { stalled: true });
+      gateway.emitToRole('production_manager', WsEvent.TRAILER_STALLED, {
+        stalled: true,
+      });
 
       expect(mockTo).toHaveBeenCalledWith('role:production_manager');
     });

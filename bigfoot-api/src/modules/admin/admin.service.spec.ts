@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { AdminService } from './admin.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from './audit-log.service';
@@ -103,7 +103,10 @@ describe('AdminService', () => {
   // ===========================================================================
   describe('updateDepartment', () => {
     it('should update stall threshold and create audit log', async () => {
-      mockPrisma.department.findUnique.mockResolvedValue({ id: 1, stallThresholdHours: 48 });
+      mockPrisma.department.findUnique.mockResolvedValue({
+        id: 1,
+        stallThresholdHours: 48,
+      });
       mockPrisma.department.update.mockResolvedValue({
         id: 1,
         code: 'XP_JIG',
@@ -133,10 +136,12 @@ describe('AdminService', () => {
       );
     });
 
-    it('should throw NotFoundException if department does not exist', async () => {
+    it('should throw AppError if department does not exist', async () => {
       mockPrisma.department.findUnique.mockResolvedValue(null);
 
-      await expect(service.updateDepartment(999, 72)).rejects.toThrow(NotFoundException);
+      await expect(service.updateDepartment(999, 72)).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -146,8 +151,8 @@ describe('AdminService', () => {
   describe('getWeeklyProductionReport', () => {
     it('should throw INVALID_WEEK_START if date is not a Sunday', async () => {
       // 2026-03-25 is a Wednesday
-      await expect(service.getWeeklyProductionReport('2026-03-25')).rejects.toThrow(
-        BadRequestException,
+      await expect(service.getWeeklyProductionReport('2026-03-25')).rejects.toMatchObject(
+        { errorCode: ErrorCode.INVALID_WEEK_START },
       );
     });
 
@@ -204,7 +209,7 @@ describe('AdminService', () => {
     it('should throw INVALID_WEEK_START if not a Sunday', async () => {
       await expect(
         service.lockAndSendWeeklyReport('2026-03-25', 1),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.INVALID_WEEK_START });
     });
 
     it('should throw PAYROLL_WEEK_LOCKED if already locked', async () => {
@@ -212,7 +217,7 @@ describe('AdminService', () => {
 
       await expect(
         service.lockAndSendWeeklyReport('2026-03-22', 1),
-      ).rejects.toThrow('Payroll for this week has been locked');
+      ).rejects.toMatchObject({ errorCode: ErrorCode.PAYROLL_WEEK_LOCKED });
     });
 
     it('should lock payroll records and create audit log', async () => {

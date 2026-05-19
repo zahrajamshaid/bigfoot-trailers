@@ -12,12 +12,14 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
   driverUserId: (json['driverUserId'] as num?)?.toInt(),
   destinationLocationId: (json['destinationLocationId'] as num?)?.toInt(),
   customerDeliveryAddress: json['customerDeliveryAddress'] as String?,
+  contactPhone: json['contactPhone'] as String?,
   deliveryType: json['deliveryType'] as String,
   status: json['status'] as String,
   balanceDue: (json['balanceDue'] as num?)?.toDouble(),
   paymentCollected: (json['paymentCollected'] as num?)?.toDouble(),
   paymentMethod: json['paymentMethod'] as String?,
   failReason: json['failReason'] as String?,
+  pickedUpByName: json['pickedUpByName'] as String?,
   tcAccepted: json['tcAccepted'] as bool?,
   departedAt: json['departedAt'] == null
       ? null
@@ -57,12 +59,14 @@ Map<String, dynamic> _$DeliveryToJson(Delivery instance) => <String, dynamic>{
   'driverUserId': instance.driverUserId,
   'destinationLocationId': instance.destinationLocationId,
   'customerDeliveryAddress': instance.customerDeliveryAddress,
+  'contactPhone': instance.contactPhone,
   'deliveryType': instance.deliveryType,
   'status': instance.status,
   'balanceDue': instance.balanceDue,
   'paymentCollected': instance.paymentCollected,
   'paymentMethod': instance.paymentMethod,
   'failReason': instance.failReason,
+  'pickedUpByName': instance.pickedUpByName,
   'tcAccepted': instance.tcAccepted,
   'departedAt': instance.departedAt?.toIso8601String(),
   'deliveredAt': instance.deliveredAt?.toIso8601String(),
@@ -153,6 +157,7 @@ DeliveryLocationInfo _$DeliveryLocationInfoFromJson(
   name: json['name'] as String,
   city: json['city'] as String?,
   state: json['state'] as String?,
+  address: json['address'] as String?,
   shortLabel: json['shortLabel'] as String?,
 );
 
@@ -163,6 +168,7 @@ Map<String, dynamic> _$DeliveryLocationInfoToJson(
   'name': instance.name,
   'city': instance.city,
   'state': instance.state,
+  'address': instance.address,
   'shortLabel': instance.shortLabel,
 };
 

@@ -129,9 +129,7 @@ export class ProductionService {
     const series = step.trailer.trailerModel.series as unknown as QcSeriesScope;
     const addonKeys = step.trailer.addons.map((a) => a.addonName);
 
-    const addonClauses: Prisma.QcChecklistItemWhereInput[] = [
-      { requiresAddonKey: null },
-    ];
+    const addonClauses: Prisma.QcChecklistItemWhereInput[] = [{ requiresAddonKey: null }];
     if (addonKeys.length > 0) {
       addonClauses.push({ requiresAddonKey: '*' });
       addonClauses.push({ requiresAddonKey: { in: addonKeys } });
@@ -234,10 +232,7 @@ export class ProductionService {
           trailerModelId: step.trailer.trailerModelId,
           departmentId: step.departmentId,
           effectiveFrom: { lte: new Date() },
-          OR: [
-            { effectiveTo: null },
-            { effectiveTo: { gte: new Date() } },
-          ],
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
         },
         orderBy: { effectiveFrom: 'desc' },
       });
@@ -319,10 +314,8 @@ export class ProductionService {
 
         const canActivateExisting =
           existingNext &&
-          (
-            existingNext.status === ProductionStepStatus.waiting ||
-            (step.isRework && existingNext.status === ProductionStepStatus.complete)
-          );
+          (existingNext.status === ProductionStepStatus.waiting ||
+            (step.isRework && existingNext.status === ProductionStepStatus.complete));
 
         if (canActivateExisting) {
           // Activate (or reopen) the next step.
@@ -435,7 +428,10 @@ export class ProductionService {
 
     if (!step) throw new AppError(ErrorCode.NOT_FOUND, 'Production step not found');
     if (step.status !== ProductionStepStatus.complete) {
-      throw new AppError(ErrorCode.STEP_NOT_ACTIVE, 'Only completed steps can be reversed');
+      throw new AppError(
+        ErrorCode.STEP_NOT_ACTIVE,
+        'Only completed steps can be reversed',
+      );
     }
 
     // Authorization: only the completing worker or a manager/owner can reverse
@@ -726,8 +722,10 @@ export class ProductionService {
       if (rolledBackStepIds.includes(s.id)) droppedFromDeptIds.add(s.departmentId);
     }
     for (const s of upstream) {
-      if (forcedCompleteUpstreamIds.includes(s.id) &&
-          s.status === ProductionStepStatus.active) {
+      if (
+        forcedCompleteUpstreamIds.includes(s.id) &&
+        s.status === ProductionStepStatus.active
+      ) {
         droppedFromDeptIds.add(s.departmentId);
       }
     }
@@ -828,10 +826,7 @@ export class ProductionService {
       .filter((s) => s.status === ProductionStepStatus.waiting)
       .map((s) => s.trailerId);
 
-    const currentStageByTrailer = new Map<
-      string,
-      { code: string; name: string }
-    >();
+    const currentStageByTrailer = new Map<string, { code: string; name: string }>();
     if (waitingTrailerIds.length > 0) {
       const activeSteps = await this.prisma.productionStep.findMany({
         where: {
@@ -858,13 +853,13 @@ export class ProductionService {
         : null;
 
       const reworkFailNotes = step.isRework
-        ? step.reworkedFromInspections[0]?.failNotes ?? null
+        ? (step.reworkedFromInspections[0]?.failNotes ?? null)
         : null;
 
       const isActive = step.status === ProductionStepStatus.active;
       const currentStage = isActive
         ? { code: step.department.code, name: step.department.displayName }
-        : currentStageByTrailer.get(step.trailerId.toString()) ?? null;
+        : (currentStageByTrailer.get(step.trailerId.toString()) ?? null);
 
       return {
         stepId: step.id,

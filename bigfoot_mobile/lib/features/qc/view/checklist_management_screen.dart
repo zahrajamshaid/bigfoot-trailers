@@ -153,20 +153,22 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Checklist Item'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: labelCtrl,
-              decoration: const InputDecoration(labelText: 'Label'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: sortCtrl,
-              decoration: const InputDecoration(labelText: 'Sort Order'),
-              keyboardType: TextInputType.number,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelCtrl,
+                decoration: const InputDecoration(labelText: 'Label'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: sortCtrl,
+                decoration: const InputDecoration(labelText: 'Sort Order'),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

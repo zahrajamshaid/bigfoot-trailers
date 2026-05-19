@@ -83,44 +83,52 @@ async function main() {
   ]);
   console.log(`✅ Locations seeded: ${locations.length}`);
 
-  // ─── TRAILER MODELS (7 rows) ──────────────────────────────────────────────
-  const trailerModels = await Promise.all([
-    prisma.trailerModel.upsert({
-      where: { code: 'XP_14ET' },
-      update: {},
-      create: { code: 'XP_14ET', displayName: '14K ET XP', series: TrailerSeries.xp, weightRating: '14,000 lb' },
-    }),
-    prisma.trailerModel.upsert({
-      where: { code: 'XP_175ET' },
-      update: {},
-      create: { code: 'XP_175ET', displayName: '17.5K ET XP', series: TrailerSeries.xp, weightRating: '17,500 lb' },
-    }),
-    prisma.trailerModel.upsert({
-      where: { code: 'YETI_15K' },
-      update: {},
-      create: { code: 'YETI_15K', displayName: '15K Yeti', series: TrailerSeries.yeti, weightRating: '15,000 lb' },
-    }),
-    prisma.trailerModel.upsert({
-      where: { code: 'YETI_18K' },
-      update: {},
-      create: { code: 'YETI_18K', displayName: '18K Yeti', series: TrailerSeries.yeti, weightRating: '18,000 lb' },
-    }),
-    prisma.trailerModel.upsert({
-      where: { code: 'YETI_21K' },
-      update: {},
-      create: { code: 'YETI_21K', displayName: '21K Yeti', series: TrailerSeries.yeti, weightRating: '21,000 lb' },
-    }),
-    prisma.trailerModel.upsert({
-      where: { code: 'DO_STANDARD' },
-      update: {},
-      create: { code: 'DO_STANDARD', displayName: 'Deck Over', series: TrailerSeries.deck_over, weightRating: null },
-    }),
-    prisma.trailerModel.upsert({
-      where: { code: 'GN_STANDARD' },
-      update: {},
-      create: { code: 'GN_STANDARD', displayName: 'Gooseneck / Dump', series: TrailerSeries.gooseneck_dump, weightRating: null },
-    }),
-  ]);
+  // ─── TRAILER MODELS ───────────────────────────────────────────────────────
+  const trailerModelData: {
+    code: string;
+    displayName: string;
+    series: TrailerSeries;
+    weightRating: string | null;
+  }[] = [
+    // XP series
+    { code: 'XP_10K', displayName: '10K XP', series: TrailerSeries.xp, weightRating: '10,000 lb' },
+    { code: 'XP_14K', displayName: '14K XP', series: TrailerSeries.xp, weightRating: '14,000 lb' },
+    { code: 'XP_17K', displayName: '17K XP', series: TrailerSeries.xp, weightRating: '17,000 lb' },
+    { code: 'XP_14ET', displayName: '14K ET XP', series: TrailerSeries.xp, weightRating: '14,000 lb' },
+    { code: 'XP_175ET', displayName: '17.5K ET XP', series: TrailerSeries.xp, weightRating: '17,500 lb' },
+    // Yeti series
+    { code: 'YETI_15K', displayName: '15K Yeti', series: TrailerSeries.yeti, weightRating: '15,000 lb' },
+    { code: 'YETI_18K', displayName: '18K Yeti', series: TrailerSeries.yeti, weightRating: '18,000 lb' },
+    { code: 'YETI_21K', displayName: '21K Yeti', series: TrailerSeries.yeti, weightRating: '21,000 lb' },
+    // Deck Over series
+    { code: 'DO_10K', displayName: '10K Deck Over', series: TrailerSeries.deck_over, weightRating: '10,000 lb' },
+    { code: 'DO_14K', displayName: '14K Deck Over', series: TrailerSeries.deck_over, weightRating: '14,000 lb' },
+    { code: 'DO_17K', displayName: '17K Deck Over', series: TrailerSeries.deck_over, weightRating: '17,000 lb' },
+    { code: 'DO_22K', displayName: '22K Deck Over', series: TrailerSeries.deck_over, weightRating: '22,000 lb' },
+    { code: 'DO_26K', displayName: '26K Deck Over', series: TrailerSeries.deck_over, weightRating: '26,000 lb' },
+    { code: 'DO_30K', displayName: '30K Deck Over', series: TrailerSeries.deck_over, weightRating: '30,000 lb' },
+    { code: 'DO_STANDARD', displayName: 'Deck Over', series: TrailerSeries.deck_over, weightRating: null },
+    // Gooseneck / Dump series
+    { code: 'GN_15K', displayName: '15K Gooseneck', series: TrailerSeries.gooseneck_dump, weightRating: '15,000 lb' },
+    { code: 'GN_18K', displayName: '18K Gooseneck', series: TrailerSeries.gooseneck_dump, weightRating: '18,000 lb' },
+    { code: 'GN_22K', displayName: '22K Gooseneck', series: TrailerSeries.gooseneck_dump, weightRating: '22,000 lb' },
+    { code: 'GN_26K', displayName: '26K Gooseneck', series: TrailerSeries.gooseneck_dump, weightRating: '26,000 lb' },
+    { code: 'GN_30K', displayName: '30K Gooseneck', series: TrailerSeries.gooseneck_dump, weightRating: '30,000 lb' },
+    { code: 'DUMP_15K', displayName: '15K Dump', series: TrailerSeries.gooseneck_dump, weightRating: '15,000 lb' },
+    { code: 'DUMP_18K', displayName: '18K Dump', series: TrailerSeries.gooseneck_dump, weightRating: '18,000 lb' },
+    { code: 'DUMP_26K_GN', displayName: '26K GN Dump', series: TrailerSeries.gooseneck_dump, weightRating: '26,000 lb' },
+    { code: 'GN_STANDARD', displayName: 'Gooseneck / Dump', series: TrailerSeries.gooseneck_dump, weightRating: null },
+  ];
+
+  const trailerModels = await Promise.all(
+    trailerModelData.map((m) =>
+      prisma.trailerModel.upsert({
+        where: { code: m.code },
+        update: {},
+        create: m,
+      }),
+    ),
+  );
   console.log(`✅ Trailer models seeded: ${trailerModels.length}`);
 
   // ─── CUSTOMERS — Stock locations (4 rows) ─────────────────────────────────

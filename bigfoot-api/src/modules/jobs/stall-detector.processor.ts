@@ -105,8 +105,8 @@ export class StallDetectorProcessor implements OnModuleInit, OnModuleDestroy {
           `Stall detected: ${step.trailer.soNumber} in ${step.department.displayName} (${hoursActive.toFixed(1)}h)`,
         );
       }
-    } catch (err: any) {
-      this.logger.error(`Stall detection failed: ${err?.message}`);
+    } catch (err) {
+      this.logger.error(`Stall detection failed: ${(err as Error)?.message}`);
     } finally {
       this.processing = false;
     }

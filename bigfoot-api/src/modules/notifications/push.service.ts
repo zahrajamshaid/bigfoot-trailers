@@ -6,8 +6,24 @@ import { NotificationType } from '@prisma/client';
 // ---------------------------------------------------------------------------
 // Firebase Admin — lazy-loaded to allow graceful degradation when
 // firebase-admin is not installed or credentials are missing.
+// Minimal structural types covering only the surface this service uses.
 // ---------------------------------------------------------------------------
-let firebaseAdmin: any = null;
+interface FirebaseMessaging {
+  send(message: {
+    token: string;
+    notification: { title: string; body: string };
+    data?: Record<string, string>;
+  }): Promise<string>;
+}
+
+interface FirebaseAdmin {
+  apps?: unknown[];
+  initializeApp(config: { credential: unknown }): void;
+  credential: { cert(serviceAccount: Record<string, string>): unknown };
+  messaging(): FirebaseMessaging;
+}
+
+let firebaseAdmin: FirebaseAdmin | null = null;
 
 // ---------------------------------------------------------------------------
 // Push notification payloads
@@ -34,15 +50,16 @@ export class PushService implements OnModuleInit {
   async onModuleInit() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      firebaseAdmin = require('firebase-admin');
+      const admin: FirebaseAdmin = require('firebase-admin');
+      firebaseAdmin = admin;
       const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
       const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
       const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
 
       if (projectId && clientEmail && privateKey) {
-        if (!firebaseAdmin.apps?.length) {
-          firebaseAdmin.initializeApp({
-            credential: firebaseAdmin.credential.cert({
+        if (!admin.apps?.length) {
+          admin.initializeApp({
+            credential: admin.credential.cert({
               projectId,
               clientEmail,
               privateKey: privateKey.replace(/\\n/g, '\n'),
@@ -52,7 +69,9 @@ export class PushService implements OnModuleInit {
         this.fcmInitialised = true;
         this.logger.log('Firebase Admin SDK initialised');
       } else {
-        this.logger.warn('Firebase credentials not configured — push notifications disabled');
+        this.logger.warn(
+          'Firebase credentials not configured — push notifications disabled',
+        );
       }
     } catch {
       this.logger.warn('firebase-admin not available — push notifications disabled');
@@ -101,9 +120,10 @@ export class PushService implements OnModuleInit {
           notification: { title: payload.title, body: payload.body },
           data: payload.data,
         });
-      } catch (err: any) {
+      } catch (err) {
         // Handle invalid/expired FCM tokens gracefully
-        const errorCode = err?.code ?? err?.errorInfo?.code ?? '';
+        const fcmError = err as { code?: string; errorInfo?: { code?: string } };
+        const errorCode = fcmError?.code ?? fcmError?.errorInfo?.code ?? '';
         if (
           errorCode === 'messaging/registration-token-not-registered' ||
           errorCode === 'messaging/invalid-registration-token'
@@ -111,7 +131,9 @@ export class PushService implements OnModuleInit {
           this.logger.warn(`Invalid FCM token for user ${user.id} — clearing`);
           invalidTokenUserIds.push(user.id);
         } else {
-          this.logger.error(`FCM send failed for user ${user.id}: ${err?.message}`);
+          this.logger.error(
+            `FCM send failed for user ${user.id}: ${(err as Error)?.message}`,
+          );
         }
       }
     }

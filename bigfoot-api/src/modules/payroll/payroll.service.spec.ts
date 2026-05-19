@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { PayrollService } from './payroll.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -17,6 +14,7 @@ const mockPrisma: Record<string, any> = {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   },
   department: {
     findUnique: jest.fn(),
@@ -27,11 +25,13 @@ const mockPrisma: Record<string, any> = {
   deptDollarRate: {
     findMany: jest.fn(),
     create: jest.fn(),
+    count: jest.fn(),
   },
   payrollRecord: {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     upsert: jest.fn(),
+    count: jest.fn(),
   },
   productionStep: {
     findMany: jest.fn(),
@@ -42,8 +42,11 @@ const mockPrisma: Record<string, any> = {
   $transaction: jest.fn(),
 };
 
-// Wire up $transaction to pass mockPrisma as the tx argument
-mockPrisma.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => fn(mockPrisma));
+// Wire up $transaction: callback form passes mockPrisma as the tx argument;
+// array form (batch) resolves each operation like a real interactive transaction.
+mockPrisma.$transaction.mockImplementation((arg: unknown) =>
+  Array.isArray(arg) ? Promise.all(arg) : (arg as (tx: any) => Promise<any>)(mockPrisma),
+);
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -58,10 +61,7 @@ describe('PayrollService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PayrollService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [PayrollService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<PayrollService>(PayrollService);
@@ -74,8 +74,10 @@ describe('PayrollService', () => {
   describe('findPointValues', () => {
     it('should return point values with no filters', async () => {
       mockPrisma.pointValue.findMany.mockResolvedValue([]);
+      mockPrisma.pointValue.count.mockResolvedValue(0);
       const result = await service.findPointValues({});
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
       expect(mockPrisma.pointValue.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: {} }),
       );
@@ -122,20 +124,26 @@ describe('PayrollService', () => {
     it('should reject QC departments — QC departments do not award points', async () => {
       mockPrisma.department.findUnique.mockResolvedValue(mockQcDept);
 
-      await expect(service.createPointValue(dto)).rejects.toThrow(BadRequestException);
+      await expect(service.createPointValue(dto)).rejects.toMatchObject({
+        errorCode: ErrorCode.BAD_REQUEST,
+      });
     });
 
     it('should reject if department not found', async () => {
       mockPrisma.department.findUnique.mockResolvedValue(null);
 
-      await expect(service.createPointValue(dto)).rejects.toThrow(BadRequestException);
+      await expect(service.createPointValue(dto)).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('should reject if trailer model not found', async () => {
       mockPrisma.department.findUnique.mockResolvedValue(mockProductionDept);
       mockPrisma.trailerModel.findUnique.mockResolvedValue(null);
 
-      await expect(service.createPointValue(dto)).rejects.toThrow(BadRequestException);
+      await expect(service.createPointValue(dto)).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -151,15 +159,20 @@ describe('PayrollService', () => {
       expect(result.points).toBe(4.0);
     });
 
-    it('should throw NotFoundException if not found', async () => {
+    it('should throw AppError if not found', async () => {
       mockPrisma.pointValue.findUnique.mockResolvedValue(null);
 
-      await expect(service.updatePointValue(999, { points: 4.0 })).rejects.toThrow(NotFoundException);
+      await expect(service.updatePointValue(999, { points: 4.0 })).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('should update effectiveTo date', async () => {
       mockPrisma.pointValue.findUnique.mockResolvedValue({ id: 1 });
-      mockPrisma.pointValue.update.mockResolvedValue({ id: 1, effectiveTo: '2026-06-30' });
+      mockPrisma.pointValue.update.mockResolvedValue({
+        id: 1,
+        effectiveTo: '2026-06-30',
+      });
 
       await service.updatePointValue(1, { effectiveTo: '2026-06-30' });
       expect(mockPrisma.pointValue.update).toHaveBeenCalledWith(
@@ -176,8 +189,10 @@ describe('PayrollService', () => {
   describe('findDollarRates', () => {
     it('should return rates with no filters', async () => {
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([]);
+      mockPrisma.deptDollarRate.count.mockResolvedValue(0);
       const result = await service.findDollarRates({});
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('should filter by departmentId', async () => {
@@ -196,7 +211,10 @@ describe('PayrollService', () => {
     const dto = { departmentId: 1, dollarPerPoint: 12.5, effectiveFrom: '2026-01-01' };
 
     it('should create a dollar rate', async () => {
-      mockPrisma.department.findUnique.mockResolvedValue({ id: 1, displayName: 'XP Jig Weld' });
+      mockPrisma.department.findUnique.mockResolvedValue({
+        id: 1,
+        displayName: 'XP Jig Weld',
+      });
       mockPrisma.deptDollarRate.create.mockResolvedValue({ id: 1, ...dto });
 
       const result = await service.createDollarRate(dto);
@@ -206,7 +224,9 @@ describe('PayrollService', () => {
     it('should reject if department not found', async () => {
       mockPrisma.department.findUnique.mockResolvedValue(null);
 
-      await expect(service.createDollarRate(dto)).rejects.toThrow(BadRequestException);
+      await expect(service.createDollarRate(dto)).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
   });
 
@@ -216,13 +236,19 @@ describe('PayrollService', () => {
   describe('findPayrollRecords', () => {
     it('should return records with no filters', async () => {
       mockPrisma.payrollRecord.findMany.mockResolvedValue([]);
+      mockPrisma.payrollRecord.count.mockResolvedValue(0);
       const result = await service.findPayrollRecords({});
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
 
     it('should filter by userId, departmentId, weekStartDate', async () => {
       mockPrisma.payrollRecord.findMany.mockResolvedValue([]);
-      await service.findPayrollRecords({ userId: 10, departmentId: 1, weekStartDate: '2026-03-22' });
+      await service.findPayrollRecords({
+        userId: 10,
+        departmentId: 1,
+        weekStartDate: '2026-03-22',
+      });
       expect(mockPrisma.payrollRecord.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -241,8 +267,12 @@ describe('PayrollService', () => {
   describe('findWeeklyReport', () => {
     it('should reject if week_start is not a Sunday', async () => {
       // 2026-03-25 is a Wednesday
-      await expect(service.findWeeklyReport('2026-03-25')).rejects.toThrow(BadRequestException);
-      await expect(service.findWeeklyReport('2026-03-25')).rejects.toThrow('not a Sunday');
+      await expect(service.findWeeklyReport('2026-03-25')).rejects.toMatchObject({
+        errorCode: ErrorCode.INVALID_WEEK_START,
+      });
+      await expect(service.findWeeklyReport('2026-03-25')).rejects.toThrow(
+        'not a Sunday',
+      );
     });
 
     it('should return weekly report for a valid Sunday', async () => {
@@ -256,7 +286,11 @@ describe('PayrollService', () => {
           isRework: false,
           trailer: { id: BigInt(1), trailerModelId: 1 },
           department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
-          completedByUser: { id: BigInt(10), fullName: 'John Doe', email: 'john@test.com' },
+          completedByUser: {
+            id: BigInt(10),
+            fullName: 'John Doe',
+            email: 'john@test.com',
+          },
         },
         {
           id: BigInt(2),
@@ -266,11 +300,19 @@ describe('PayrollService', () => {
           isRework: true,
           trailer: { id: BigInt(2), trailerModelId: 1 },
           department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
-          completedByUser: { id: BigInt(10), fullName: 'John Doe', email: 'john@test.com' },
+          completedByUser: {
+            id: BigInt(10),
+            fullName: 'John Doe',
+            email: 'john@test.com',
+          },
         },
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
-        { departmentId: 1, dollarPerPoint: new Prisma.Decimal(12.5), effectiveFrom: new Date('2026-01-01') },
+        {
+          departmentId: 1,
+          dollarPerPoint: new Prisma.Decimal(12.5),
+          effectiveFrom: new Date('2026-01-01'),
+        },
       ]);
       mockPrisma.payrollRecord.findFirst.mockResolvedValue(null);
 
@@ -295,11 +337,19 @@ describe('PayrollService', () => {
           isRework: true,
           trailer: { id: BigInt(1), trailerModelId: 1 },
           department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
-          completedByUser: { id: BigInt(10), fullName: 'John Doe', email: 'john@test.com' },
+          completedByUser: {
+            id: BigInt(10),
+            fullName: 'John Doe',
+            email: 'john@test.com',
+          },
         },
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
-        { departmentId: 1, dollarPerPoint: new Prisma.Decimal(12.5), effectiveFrom: new Date('2026-01-01') },
+        {
+          departmentId: 1,
+          dollarPerPoint: new Prisma.Decimal(12.5),
+          effectiveFrom: new Date('2026-01-01'),
+        },
       ]);
       mockPrisma.payrollRecord.findFirst.mockResolvedValue(null);
 
@@ -347,8 +397,16 @@ describe('PayrollService', () => {
         },
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
-        { departmentId: 1, dollarPerPoint: new Prisma.Decimal(12.5), effectiveFrom: new Date('2026-01-01') },
-        { departmentId: 9, dollarPerPoint: new Prisma.Decimal(10.0), effectiveFrom: new Date('2026-01-01') },
+        {
+          departmentId: 1,
+          dollarPerPoint: new Prisma.Decimal(12.5),
+          effectiveFrom: new Date('2026-01-01'),
+        },
+        {
+          departmentId: 9,
+          dollarPerPoint: new Prisma.Decimal(10.0),
+          effectiveFrom: new Date('2026-01-01'),
+        },
       ]);
       mockPrisma.payrollRecord.findFirst.mockResolvedValue(null);
 
@@ -368,13 +426,17 @@ describe('PayrollService', () => {
   // =========================================================================
   describe('lockWeek', () => {
     it('should reject non-Sunday week_start', async () => {
-      await expect(service.lockWeek('2026-03-25', BigInt(1))).rejects.toThrow(BadRequestException);
+      await expect(service.lockWeek('2026-03-25', BigInt(1))).rejects.toMatchObject({
+        errorCode: ErrorCode.INVALID_WEEK_START,
+      });
     });
 
     it('should reject if week already locked', async () => {
       mockPrisma.payrollRecord.findFirst.mockResolvedValue({ id: BigInt(1) });
 
-      await expect(service.lockWeek('2026-03-22', BigInt(1))).rejects.toThrow('already locked');
+      await expect(service.lockWeek('2026-03-22', BigInt(1))).rejects.toMatchObject({
+        errorCode: ErrorCode.PAYROLL_WEEK_LOCKED,
+      });
     });
 
     it('should lock a week and generate payroll records', async () => {
@@ -396,7 +458,11 @@ describe('PayrollService', () => {
         },
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
-        { departmentId: 1, dollarPerPoint: new Prisma.Decimal(12.5), effectiveFrom: new Date('2026-01-01') },
+        {
+          departmentId: 1,
+          dollarPerPoint: new Prisma.Decimal(12.5),
+          effectiveFrom: new Date('2026-01-01'),
+        },
       ]);
       mockPrisma.payrollRecord.upsert.mockResolvedValue({
         id: BigInt(1),
@@ -434,7 +500,11 @@ describe('PayrollService', () => {
         },
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
-        { departmentId: 1, dollarPerPoint: new Prisma.Decimal(12.5), effectiveFrom: new Date('2026-01-01') },
+        {
+          departmentId: 1,
+          dollarPerPoint: new Prisma.Decimal(12.5),
+          effectiveFrom: new Date('2026-01-01'),
+        },
       ]);
       mockPrisma.payrollRecord.upsert.mockResolvedValue({
         id: BigInt(1),
@@ -447,7 +517,7 @@ describe('PayrollService', () => {
         lockedAt: new Date(),
       });
 
-      const result = await service.lockWeek('2026-03-22', BigInt(1));
+      await service.lockWeek('2026-03-22', BigInt(1));
 
       // Gross pay should be 0 because 0 points * 12.5 = 0
       expect(mockPrisma.payrollRecord.upsert).toHaveBeenCalledWith(
@@ -464,10 +534,12 @@ describe('PayrollService', () => {
   // getWorkerSummary
   // =========================================================================
   describe('getWorkerSummary', () => {
-    it('should throw NotFoundException if user not found', async () => {
+    it('should throw AppError if user not found', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.getWorkerSummary(BigInt(999))).rejects.toThrow(NotFoundException);
+      await expect(service.getWorkerSummary(BigInt(999))).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('should return current week summary with points and earnings', async () => {
@@ -491,7 +563,11 @@ describe('PayrollService', () => {
         },
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
-        { departmentId: 1, dollarPerPoint: new Prisma.Decimal(12.5), effectiveFrom: new Date('2026-01-01') },
+        {
+          departmentId: 1,
+          dollarPerPoint: new Prisma.Decimal(12.5),
+          effectiveFrom: new Date('2026-01-01'),
+        },
       ]);
 
       const result = await service.getWorkerSummary(BigInt(10));

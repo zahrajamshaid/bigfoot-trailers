@@ -30,11 +30,7 @@ interface ValidatedEnv {
   THROTTLE_LIMIT: number;
 }
 
-const REQUIRED_VARS = [
-  'DATABASE_URL',
-  'JWT_SECRET',
-  'REDIS_HOST',
-] as const;
+const REQUIRED_VARS = ['DATABASE_URL', 'JWT_SECRET', 'REDIS_HOST'] as const;
 
 const REQUIRED_IN_PRODUCTION = [
   'DO_SPACES_ENDPOINT',
@@ -50,9 +46,7 @@ const REQUIRED_IN_PRODUCTION = [
   'CORS_ORIGINS',
 ] as const;
 
-export function validateEnv(
-  config: Record<string, unknown>,
-): ValidatedEnv {
+export function validateEnv(config: Record<string, unknown>): ValidatedEnv {
   const logger = new Logger('EnvValidation');
   const errors: string[] = [];
 
@@ -69,7 +63,9 @@ export function validateEnv(
     errors.push('JWT_SECRET must be at least 32 characters');
   }
   if (jwtSecret === 'CHANGE_ME_TO_A_64_CHAR_RANDOM_STRING') {
-    errors.push('JWT_SECRET is still set to the default placeholder — generate a real secret');
+    errors.push(
+      'JWT_SECRET is still set to the default placeholder — generate a real secret',
+    );
   }
 
   // Production-only requirements

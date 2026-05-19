@@ -725,82 +725,91 @@ class _SuccessView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Animated checkmark
-          ScaleTransition(
-            scale: scaleAnimation,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle,
-                size: 80,
-                color: AppColors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Step Complete!',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: AppColors.white,
-            ),
-          ),
-          if (result != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              result!.pointsAwarded > 0
-                  ? '+${result!.pointsAwarded.toStringAsFixed(1)} points'
-                  : 'Rework — 0 points',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.white,
-              ),
-            ),
-            if (result!.nextDepartment != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Next → ${result!.nextDepartment}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.white,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Animated checkmark
+                  ScaleTransition(
+                    scale: scaleAnimation,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: AppColors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check_circle,
+                        size: 80,
+                        color: AppColors.white,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ],
-          const SizedBox(height: 40),
-          TextButton(
-            onPressed: onClose,
-            child: const Text(
-              'Close',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.white,
-                fontWeight: FontWeight.w600,
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Step Complete!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.white,
+                    ),
+                  ),
+                  if (result != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      result!.pointsAwarded > 0
+                          ? '+${result!.pointsAwarded.toStringAsFixed(1)} points'
+                          : 'Rework — 0 points',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.white,
+                      ),
+                    ),
+                    if (result!.nextDepartment != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Next → ${result!.nextDepartment}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 40),
+                  TextButton(
+                    onPressed: onClose,
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

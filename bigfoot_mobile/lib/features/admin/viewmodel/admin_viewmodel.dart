@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/models/trailer.dart';
 import '../../../domain/repositories/admin_repository.dart';
 
 // Re-export domain types for screens
@@ -76,6 +77,9 @@ class AdminViewModel extends Cubit<int> {
 
   Future<List<AdminWorkflowTemplate>> getWorkflowTemplates() =>
       _repository.getWorkflowTemplates();
+
+  Future<List<TrailerModelInfo>> getTrailerModels() =>
+      _repository.getTrailerModels();
 
   Future<AdminAuditResult> getAuditLogs({
     String? entityType,

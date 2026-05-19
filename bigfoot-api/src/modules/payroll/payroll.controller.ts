@@ -117,7 +117,11 @@ export class PayrollController {
   @Get('records/week/:week_start')
   @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Full weekly payroll report for a specific Sunday' })
-  @ApiParam({ name: 'week_start', type: 'string', description: 'YYYY-MM-DD (must be a Sunday)' })
+  @ApiParam({
+    name: 'week_start',
+    type: 'string',
+    description: 'YYYY-MM-DD (must be a Sunday)',
+  })
   @ApiResponse({ status: 200, description: 'Weekly payroll report' })
   @ApiResponse({ status: 400, description: 'INVALID_WEEK_START' })
   async findWeeklyReport(@Param('week_start') weekStart: string) {
@@ -131,8 +135,12 @@ export class PayrollController {
   @Roles(UserRole.OWNER)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Lock a week\'s payroll' })
-  @ApiParam({ name: 'week_start', type: 'string', description: 'YYYY-MM-DD (must be a Sunday)' })
+  @ApiOperation({ summary: "Lock a week's payroll" })
+  @ApiParam({
+    name: 'week_start',
+    type: 'string',
+    description: 'YYYY-MM-DD (must be a Sunday)',
+  })
   @ApiResponse({ status: 200, description: 'Payroll week locked' })
   @ApiResponse({ status: 400, description: 'INVALID_WEEK_START or PAYROLL_WEEK_LOCKED' })
   async lockWeek(

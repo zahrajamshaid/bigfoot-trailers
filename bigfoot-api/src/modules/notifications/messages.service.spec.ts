@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { MessagesService } from './messages.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from './notifications.service';
@@ -41,7 +41,11 @@ describe('MessagesService', () => {
         soNumber: 'SO-1001',
       });
       mockPrisma.user.findUnique
-        .mockResolvedValueOnce({ id: BigInt(20), role: 'sales', fullName: 'Sales Person' }) // recipient
+        .mockResolvedValueOnce({
+          id: BigInt(20),
+          role: 'sales',
+          fullName: 'Sales Person',
+        }) // recipient
         .mockResolvedValueOnce({ fullName: 'John Worker' }); // sender
       mockPrisma.workerMessage.create.mockResolvedValue({
         id: BigInt(1),
@@ -80,18 +84,15 @@ describe('MessagesService', () => {
       );
     });
 
-    it('should throw NotFoundException if trailer not found', async () => {
+    it('should throw NOT_FOUND if trailer not found', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create(
-          { trailerId: 999, toUserId: 20, messageText: 'Test' },
-          BigInt(10),
-        ),
-      ).rejects.toThrow(NotFoundException);
+        service.create({ trailerId: 999, toUserId: 20, messageText: 'Test' }, BigInt(10)),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
 
-    it('should throw NotFoundException if recipient not found', async () => {
+    it('should throw NOT_FOUND if recipient not found', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue({
         id: BigInt(100),
         soNumber: 'SO-1001',
@@ -103,7 +104,7 @@ describe('MessagesService', () => {
           { trailerId: 100, toUserId: 999, messageText: 'Test' },
           BigInt(10),
         ),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 });

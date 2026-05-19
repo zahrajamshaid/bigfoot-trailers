@@ -37,6 +37,16 @@ export class UpdateTrailerDto {
   @Type(() => Number)
   customerId?: number | null;
 
+  @ApiPropertyOptional({
+    description:
+      'Free-text customer / buyer name. Non-empty marks the trailer sold; ' +
+      'empty string clears it back to available.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  soldToName?: string;
+
   @ApiPropertyOptional({ description: 'Paint color' })
   @IsOptional()
   @IsString()
@@ -65,7 +75,9 @@ export class UpdateTrailerDto {
   @IsBoolean()
   isStockBuild?: boolean;
 
-  @ApiPropertyOptional({ description: 'Destination stock location ID when isStockBuild=true' })
+  @ApiPropertyOptional({
+    description: 'Destination stock location ID when isStockBuild=true',
+  })
   @IsOptional()
   @IsInt()
   @Type(() => Number)

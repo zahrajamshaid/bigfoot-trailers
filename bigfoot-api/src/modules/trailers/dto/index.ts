@@ -5,3 +5,4 @@ export { CreateAddonDto } from './addon.dto';
 export { SetPriorityDto } from './priority.dto';
 export { ToggleHotDto } from './hot.dto';
 export { UploadQbPdfDto } from './qb-pdf.dto';
+export { UpdateSaleStatusDto, TrailerSaleStatusDto } from './sale-status.dto';

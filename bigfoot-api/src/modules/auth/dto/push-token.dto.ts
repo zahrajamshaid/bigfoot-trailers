@@ -7,7 +7,10 @@ export class PushTokenDto {
   @IsNotEmpty()
   pushToken!: string;
 
-  @ApiPropertyOptional({ description: 'Human-readable device label', example: 'iPhone 15 Pro' })
+  @ApiPropertyOptional({
+    description: 'Human-readable device label',
+    example: 'iPhone 15 Pro',
+  })
   @IsString()
   @IsOptional()
   @MaxLength(100)

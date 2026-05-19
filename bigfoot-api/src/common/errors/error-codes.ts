@@ -85,21 +85,29 @@ export const ERROR_DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   [ErrorCode.STEP_ALREADY_COMPLETE]: 'Step has already been marked complete',
   [ErrorCode.REWORK_POINTS_MUST_BE_ZERO]: 'Rework steps cannot award points',
   [ErrorCode.QC_PHOTO_REQUIRED]: 'At least one photo is required per QC inspection',
-  [ErrorCode.QC_CHECKLIST_INCOMPLETE]: 'All checklist items must be answered before submission',
-  [ErrorCode.QC_INVALID_REWORK_TARGET]: 'The rework target department is not in this trailer\'s workflow',
-  [ErrorCode.QC_REWORK_TARGET_REQUIRED]: 'rework_target_department_id is required when result is fail',
-  [ErrorCode.QC_ONLY_INSPECTOR]: 'Only qc_inspector or production_manager can submit QC inspections',
-  [ErrorCode.CUSTOMER_LOCKED]: 'Cannot change customer after QuickBooks invoice has been created',
+  [ErrorCode.QC_CHECKLIST_INCOMPLETE]:
+    'All checklist items must be answered before submission',
+  [ErrorCode.QC_INVALID_REWORK_TARGET]:
+    "The rework target department is not in this trailer's workflow",
+  [ErrorCode.QC_REWORK_TARGET_REQUIRED]:
+    'A rework target department must be selected when the QC result is a fail',
+  [ErrorCode.QC_ONLY_INSPECTOR]:
+    'Only a QC inspector or production manager can submit QC inspections',
+  [ErrorCode.CUSTOMER_LOCKED]:
+    'Cannot change customer after QuickBooks invoice has been created',
   [ErrorCode.PAYROLL_WEEK_LOCKED]: 'Payroll for this week has already been locked',
-  [ErrorCode.INVALID_WEEK_START]: 'The provided week_start date is not a Sunday',
+  [ErrorCode.INVALID_WEEK_START]: 'The week start date must be a Sunday',
   [ErrorCode.DELIVERY_NOT_DISPATCHABLE]: 'Trailer is not in ready_for_delivery status',
   [ErrorCode.BATCH_NOT_BUILDING]: 'Cannot modify a batch that is not in building status',
-  [ErrorCode.LOCATION_RECEIPT_WRONG_LOCATION]: 'Receiving user\'s location does not match delivery destination',
-  [ErrorCode.PRESIGN_INVALID_FILE_TYPE]: 'The requested file type is not a permitted upload category',
+  [ErrorCode.LOCATION_RECEIPT_WRONG_LOCATION]:
+    "Receiving user's location does not match delivery destination",
+  [ErrorCode.PRESIGN_INVALID_FILE_TYPE]:
+    'The requested file type is not a permitted upload category',
   [ErrorCode.BAD_REQUEST]: 'Invalid request',
   [ErrorCode.UNAUTHORIZED]: 'Authentication required',
   [ErrorCode.FORBIDDEN]: 'You do not have permission to perform this action',
-  [ErrorCode.STEP_REVERSAL_NOT_AUTHORIZED]: 'Only the completing worker or a production manager can reverse a step',
+  [ErrorCode.STEP_REVERSAL_NOT_AUTHORIZED]:
+    'Only the completing worker or a production manager can reverse a step',
   [ErrorCode.NOT_FOUND]: 'The requested resource was not found',
   [ErrorCode.SO_NUMBER_EXISTS]: 'A trailer with this SO number already exists',
   [ErrorCode.TOO_MANY_REQUESTS]: 'Too many requests — please try again later',

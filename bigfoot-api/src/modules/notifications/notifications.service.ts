@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PushService } from './push.service';
 import { SmsService } from './sms.service';
 import { NotificationsGateway, WsEvent } from './notifications.gateway';
-import { NotificationType, SmsType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AppError, ErrorCode } from '../../common/errors';
 
 // ---------------------------------------------------------------------------
 // Payload interfaces for each notification scenario
@@ -116,9 +116,7 @@ export class NotificationsService {
   // =========================================================================
   async getHistory(userId: bigint, page = 1, limit = 100) {
     const safePage = Number.isFinite(page) && page > 0 ? page : 1;
-    const safeLimit = Number.isFinite(limit)
-      ? Math.min(Math.max(limit, 1), 200)
-      : 100;
+    const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 200) : 100;
 
     const skip = (safePage - 1) * safeLimit;
 
@@ -151,6 +149,27 @@ export class NotificationsService {
   }
 
   // =========================================================================
+  // DELETE NOTIFICATION — remove a single notification from the user history
+  // =========================================================================
+  async deleteNotification(userId: bigint, notificationId: bigint) {
+    // Scope the delete to the requesting user so one user can never remove
+    // another's notifications. deleteMany returns a count instead of throwing
+    // on no match, letting us return a clean 404 ourselves.
+    const result = await this.prisma.pushNotification.deleteMany({
+      where: { id: notificationId, recipientUserId: userId },
+    });
+
+    if (result.count === 0) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Notification with id ${notificationId} not found`,
+      );
+    }
+
+    return { deleted: true };
+  }
+
+  // =========================================================================
   // STEP_COMPLETED — fires on dept channel + next QC dept channel
   // =========================================================================
   async onStepCompleted(payload: StepCompletedPayload) {
@@ -170,7 +189,11 @@ export class NotificationsService {
 
     // Also emit to the next department (the QC dept)
     if (payload.nextDepartmentId) {
-      this.gateway.emitToDepartment(payload.nextDepartmentId, WsEvent.STEP_COMPLETED, data);
+      this.gateway.emitToDepartment(
+        payload.nextDepartmentId,
+        WsEvent.STEP_COMPLETED,
+        data,
+      );
     }
 
     // Push notification to QC inspectors when the next step is QC. WS pushes

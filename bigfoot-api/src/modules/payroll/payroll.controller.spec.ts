@@ -41,7 +41,12 @@ describe('PayrollController', () => {
   });
 
   it('createPointValue delegates to service', async () => {
-    const dto = { trailerModelId: 1, departmentId: 1, points: 3.5, effectiveFrom: '2026-01-01' };
+    const dto = {
+      trailerModelId: 1,
+      departmentId: 1,
+      points: 3.5,
+      effectiveFrom: '2026-01-01',
+    };
     mockPayrollService.createPointValue.mockResolvedValue({ id: 1, ...dto });
 
     await controller.createPointValue(dto);
@@ -86,7 +91,9 @@ describe('PayrollController', () => {
   });
 
   it('findWeeklyReport delegates to service', async () => {
-    mockPayrollService.findWeeklyReport.mockResolvedValue({ weekStartDate: '2026-03-22' });
+    mockPayrollService.findWeeklyReport.mockResolvedValue({
+      weekStartDate: '2026-03-22',
+    });
 
     await controller.findWeeklyReport('2026-03-22');
 
@@ -94,7 +101,14 @@ describe('PayrollController', () => {
   });
 
   it('lockWeek delegates to service with BigInt userId', async () => {
-    const requester = { sub: 1, email: 'owner@test.com', role: 'owner', departmentId: null, iat: 0, exp: 0 };
+    const requester = {
+      sub: 1,
+      email: 'owner@test.com',
+      role: 'owner',
+      departmentId: null,
+      iat: 0,
+      exp: 0,
+    };
     mockPayrollService.lockWeek.mockResolvedValue({ isLocked: true });
 
     await controller.lockWeek('2026-03-22', requester);

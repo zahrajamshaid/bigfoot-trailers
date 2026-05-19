@@ -9,6 +9,7 @@ abstract final class ApiEndpoints {
 
   // ── Users ────────────────────────────────────────────────────────────────
   static const String users = '/users';
+  static const String usersDrivers = '/users/drivers';
   static String user(int id) => '/users/$id';
   static String userRole(int id) => '/users/$id/role';
   static String userReactivate(int id) => '/users/$id/reactivate';
@@ -19,6 +20,7 @@ abstract final class ApiEndpoints {
   static String trailer(int id) => '/trailers/$id';
   static String trailerPriority(int id) => '/trailers/$id/priority';
   static String trailerHot(int id) => '/trailers/$id/hot';
+  static String trailerSaleStatus(int id) => '/trailers/$id/sale-status';
   static String trailerAddons(int id) => '/trailers/$id/addons';
   static String trailerAddon(int trailerId, int addonId) =>
       '/trailers/$trailerId/addons/$addonId';
@@ -75,8 +77,11 @@ abstract final class ApiEndpoints {
   static String deliveryBatch(int id) => '/deliveries/batches/$id';
   static String deliveryBatchDepart(int id) =>
       '/deliveries/batches/$id/depart';
+  static String deliveryBatchComplete(int id) =>
+      '/deliveries/batches/$id/complete';
   static String factoryPickupComplete(int id) =>
       '/deliveries/factory-pickup/$id/complete';
+  static const String deliveryStockInventory = '/deliveries/stock-inventory';
 
   // ── Customers ────────────────────────────────────────────────────────────
   static const String customers = '/customers';

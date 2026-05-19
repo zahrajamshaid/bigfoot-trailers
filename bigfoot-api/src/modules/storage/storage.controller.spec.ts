@@ -13,9 +13,7 @@ describe('StorageController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [StorageController],
-      providers: [
-        { provide: StorageService, useValue: mockStorageService },
-      ],
+      providers: [{ provide: StorageService, useValue: mockStorageService }],
     }).compile();
 
     controller = module.get<StorageController>(StorageController);
@@ -59,7 +57,9 @@ describe('StorageController', () => {
 
       const result = await controller.presignDownload('qc/100/uuid.jpg');
 
-      expect(mockStorageService.generateDownloadUrl).toHaveBeenCalledWith('qc/100/uuid.jpg');
+      expect(mockStorageService.generateDownloadUrl).toHaveBeenCalledWith(
+        'qc/100/uuid.jpg',
+      );
       expect(result.downloadUrl).toBe('https://signed.url');
     });
   });

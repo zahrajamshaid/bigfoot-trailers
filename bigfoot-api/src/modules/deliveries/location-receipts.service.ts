@@ -1,10 +1,7 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateLocationReceiptDto } from './dto';
+import { AppError, ErrorCode } from '../../common/errors';
 
 @Injectable()
 export class LocationReceiptsService {
@@ -34,33 +31,33 @@ export class LocationReceiptsService {
     });
 
     if (!delivery) {
-      throw new NotFoundException({
-        code: 'NOT_FOUND',
-        message: `Delivery with id ${dto.deliveryId} not found`,
-      });
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Delivery with id ${dto.deliveryId} not found`,
+      );
     }
 
     // Validate the trailer matches
     if (delivery.trailerId !== BigInt(dto.trailerId)) {
-      throw new BadRequestException({
-        code: 'BAD_REQUEST',
-        message: `Trailer ${dto.trailerId} does not match delivery ${dto.deliveryId}`,
-      });
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Trailer ${dto.trailerId} does not match delivery ${dto.deliveryId}`,
+      );
     }
 
     // Validate user's location matches delivery destination
     if (!delivery.destinationLocationId) {
-      throw new BadRequestException({
-        code: 'BAD_REQUEST',
-        message: `Delivery ${dto.deliveryId} does not have a destination location`,
-      });
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Delivery ${dto.deliveryId} does not have a destination location`,
+      );
     }
 
     if (userLocationId !== delivery.destinationLocationId) {
-      throw new BadRequestException({
-        code: 'LOCATION_RECEIPT_WRONG_LOCATION',
-        message: `Your location (${userLocationId}) does not match the delivery destination (${delivery.destinationLocation?.name})`,
-      });
+      throw new AppError(
+        ErrorCode.LOCATION_RECEIPT_WRONG_LOCATION,
+        `Your location (${userLocationId}) does not match the delivery destination (${delivery.destinationLocation?.name})`,
+      );
     }
 
     return this.prisma.locationReceipt.create({

@@ -1,5 +1,5 @@
 // BigInt JSON serialization — Prisma returns BigInt for BIGSERIAL PKs
-(BigInt.prototype as any).toJSON = function () {
+(BigInt.prototype as unknown as { toJSON: () => number }).toJSON = function () {
   return Number(this);
 };
 
@@ -74,7 +74,7 @@ async function bootstrap(): Promise<void> {
           callback(null, true);
           return;
         }
-      } catch (_) {
+      } catch {
         // Fall through to the explicit allowlist.
       }
 
@@ -94,10 +94,7 @@ async function bootstrap(): Promise<void> {
   // ── Global pipes, filters, interceptors ──────────────────────────────────
   app.useGlobalPipes(globalValidationPipe);
   app.useGlobalFilters(new GlobalExceptionFilter());
-  app.useGlobalInterceptors(
-    new LoggingInterceptor(),
-    new ResponseEnvelopeInterceptor(),
-  );
+  app.useGlobalInterceptors(new LoggingInterceptor(), new ResponseEnvelopeInterceptor());
 
   // ── Swagger / OpenAPI (disabled in production) ───────────────────────────
   const nodeEnv = config.get<string>('NODE_ENV', 'development');
@@ -106,8 +103,8 @@ async function bootstrap(): Promise<void> {
       .setTitle('Bigfoot Trailers API')
       .setDescription(
         'Production management system for Bigfoot Trailers. ' +
-        'Covers trailer lifecycle, production workflows, QC inspections, ' +
-        'payroll, delivery logistics, and real-time notifications.',
+          'Covers trailer lifecycle, production workflows, QC inspections, ' +
+          'payroll, delivery logistics, and real-time notifications.',
       )
       .setVersion('1.3')
       .addBearerAuth(

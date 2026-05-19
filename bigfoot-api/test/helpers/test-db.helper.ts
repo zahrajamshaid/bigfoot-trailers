@@ -9,23 +9,88 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 // ── Location seed data ──────────────────────────────────────────────────────
 
 const LOCATIONS = [
-  { code: 'MULBERRY', name: 'Bigfoot Trailers Mulberry', city: 'Mulberry', state: 'FL', isFactory: true, shortLabel: 'Mul' },
-  { code: 'JACKSONVILLE', name: 'Bigfoot Trailers Jacksonville', city: 'Jacksonville', state: 'FL', isFactory: false, shortLabel: 'Jax' },
-  { code: 'TAPPAHANNOCK', name: 'Bigfoot Trailers Tappahannock', city: 'Tappahannock', state: 'VA', isFactory: false, shortLabel: 'VA' },
-  { code: 'ATLANTA', name: 'Bigfoot Trailers Atlanta', city: 'Atlanta', state: 'GA', isFactory: false, shortLabel: 'GA' },
-  { code: 'TALLAHASSEE', name: 'Bigfoot Trailers Tallahassee', city: 'Tallahassee', state: 'FL', isFactory: false, shortLabel: 'TAL' },
+  {
+    code: 'MULBERRY',
+    name: 'Bigfoot Trailers Mulberry',
+    city: 'Mulberry',
+    state: 'FL',
+    isFactory: true,
+    shortLabel: 'Mul',
+  },
+  {
+    code: 'JACKSONVILLE',
+    name: 'Bigfoot Trailers Jacksonville',
+    city: 'Jacksonville',
+    state: 'FL',
+    isFactory: false,
+    shortLabel: 'Jax',
+  },
+  {
+    code: 'TAPPAHANNOCK',
+    name: 'Bigfoot Trailers Tappahannock',
+    city: 'Tappahannock',
+    state: 'VA',
+    isFactory: false,
+    shortLabel: 'VA',
+  },
+  {
+    code: 'ATLANTA',
+    name: 'Bigfoot Trailers Atlanta',
+    city: 'Atlanta',
+    state: 'GA',
+    isFactory: false,
+    shortLabel: 'GA',
+  },
+  {
+    code: 'TALLAHASSEE',
+    name: 'Bigfoot Trailers Tallahassee',
+    city: 'Tallahassee',
+    state: 'FL',
+    isFactory: false,
+    shortLabel: 'TAL',
+  },
 ];
 
 // ── Trailer model seed data ─────────────────────────────────────────────────
 
 const TRAILER_MODELS = [
   { code: 'XP_14ET', displayName: '14K ET XP', series: 'xp', weightRating: '14,000 lb' },
-  { code: 'XP_175ET', displayName: '17.5K ET XP', series: 'xp', weightRating: '17,500 lb' },
-  { code: 'YETI_15K', displayName: '15K Yeti', series: 'yeti', weightRating: '15,000 lb' },
-  { code: 'YETI_18K', displayName: '18K Yeti', series: 'yeti', weightRating: '18,000 lb' },
-  { code: 'YETI_21K', displayName: '21K Yeti', series: 'yeti', weightRating: '21,000 lb' },
-  { code: 'DO_STANDARD', displayName: 'Deck Over', series: 'deck_over', weightRating: null },
-  { code: 'GN_STANDARD', displayName: 'Gooseneck / Dump', series: 'gooseneck_dump', weightRating: null },
+  {
+    code: 'XP_175ET',
+    displayName: '17.5K ET XP',
+    series: 'xp',
+    weightRating: '17,500 lb',
+  },
+  {
+    code: 'YETI_15K',
+    displayName: '15K Yeti',
+    series: 'yeti',
+    weightRating: '15,000 lb',
+  },
+  {
+    code: 'YETI_18K',
+    displayName: '18K Yeti',
+    series: 'yeti',
+    weightRating: '18,000 lb',
+  },
+  {
+    code: 'YETI_21K',
+    displayName: '21K Yeti',
+    series: 'yeti',
+    weightRating: '21,000 lb',
+  },
+  {
+    code: 'DO_STANDARD',
+    displayName: 'Deck Over',
+    series: 'deck_over',
+    weightRating: null,
+  },
+  {
+    code: 'GN_STANDARD',
+    displayName: 'Gooseneck / Dump',
+    series: 'gooseneck_dump',
+    weightRating: null,
+  },
 ];
 
 // ── Department seed data (20 departments) ───────────────────────────────────
@@ -36,62 +101,186 @@ const DEPARTMENTS: Array<{
   isQcStep: boolean;
   completionType: 'one_tap' | 'qc_checklist';
 }> = [
-  { code: 'XP_JIG', displayName: 'XP Jig Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'XP_FIN', displayName: 'XP Finish Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'YETI_JIG', displayName: 'Yeti Jig Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'YETI_FIN', displayName: 'Yeti Finish Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'DO_JIG', displayName: 'Deck Over Jig Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'DO_FIN', displayName: 'Deck Over Finish Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'GN_WELD', displayName: 'Gooseneck Jig Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'GN_FIN', displayName: 'Gooseneck Finish Weld', isQcStep: false, completionType: 'one_tap' },
-  { code: 'PAINT_PREP', displayName: 'Paint Preparation', isQcStep: false, completionType: 'one_tap' },
-  { code: 'PAINT_A', displayName: 'Paint Booth A', isQcStep: false, completionType: 'one_tap' },
-  { code: 'PAINT_B', displayName: 'Paint Booth B', isQcStep: false, completionType: 'one_tap' },
-  { code: 'HYDRAULICS', displayName: 'Hydraulics', isQcStep: false, completionType: 'one_tap' },
-  { code: 'WIRE', displayName: 'Wire Department', isQcStep: false, completionType: 'one_tap' },
-  { code: 'WOOD', displayName: 'Wood Department', isQcStep: false, completionType: 'one_tap' },
-  { code: 'QC_1', displayName: 'Quality Control 1', isQcStep: true, completionType: 'qc_checklist' },
-  { code: 'QC_2', displayName: 'Quality Control 2', isQcStep: true, completionType: 'qc_checklist' },
-  { code: 'QC_3', displayName: 'Quality Control 3', isQcStep: true, completionType: 'qc_checklist' },
-  { code: 'QC_4', displayName: 'Quality Control 4', isQcStep: true, completionType: 'qc_checklist' },
-  { code: 'QC_5', displayName: 'Quality Control 5', isQcStep: true, completionType: 'qc_checklist' },
-  { code: 'FINAL_QC', displayName: 'Final QC', isQcStep: true, completionType: 'qc_checklist' },
+  {
+    code: 'XP_JIG',
+    displayName: 'XP Jig Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'XP_FIN',
+    displayName: 'XP Finish Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'YETI_JIG',
+    displayName: 'Yeti Jig Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'YETI_FIN',
+    displayName: 'Yeti Finish Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'DO_JIG',
+    displayName: 'Deck Over Jig Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'DO_FIN',
+    displayName: 'Deck Over Finish Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'GN_WELD',
+    displayName: 'Gooseneck Jig Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'GN_FIN',
+    displayName: 'Gooseneck Finish Weld',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'PAINT_PREP',
+    displayName: 'Paint Preparation',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'PAINT_A',
+    displayName: 'Paint Booth A',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'PAINT_B',
+    displayName: 'Paint Booth B',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'HYDRAULICS',
+    displayName: 'Hydraulics',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'WIRE',
+    displayName: 'Wire Department',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'WOOD',
+    displayName: 'Wood Department',
+    isQcStep: false,
+    completionType: 'one_tap',
+  },
+  {
+    code: 'QC_1',
+    displayName: 'Quality Control 1',
+    isQcStep: true,
+    completionType: 'qc_checklist',
+  },
+  {
+    code: 'QC_2',
+    displayName: 'Quality Control 2',
+    isQcStep: true,
+    completionType: 'qc_checklist',
+  },
+  {
+    code: 'QC_3',
+    displayName: 'Quality Control 3',
+    isQcStep: true,
+    completionType: 'qc_checklist',
+  },
+  {
+    code: 'QC_4',
+    displayName: 'Quality Control 4',
+    isQcStep: true,
+    completionType: 'qc_checklist',
+  },
+  {
+    code: 'QC_5',
+    displayName: 'Quality Control 5',
+    isQcStep: true,
+    completionType: 'qc_checklist',
+  },
+  {
+    code: 'FINAL_QC',
+    displayName: 'Final QC',
+    isQcStep: true,
+    completionType: 'qc_checklist',
+  },
 ];
 
 // ── Workflow template definitions (deptCode → stepOrder, per series) ────────
 
 const WORKFLOW_STEPS: Record<string, Array<{ deptCode: string; stepOrder: number }>> = {
   xp: [
-    { deptCode: 'XP_JIG', stepOrder: 1 }, { deptCode: 'QC_1', stepOrder: 2 },
-    { deptCode: 'XP_FIN', stepOrder: 3 }, { deptCode: 'QC_2', stepOrder: 4 },
-    { deptCode: 'PAINT_PREP', stepOrder: 5 }, { deptCode: 'QC_3', stepOrder: 6 },
-    { deptCode: 'PAINT_A', stepOrder: 7 }, { deptCode: 'QC_4', stepOrder: 8 },
-    { deptCode: 'WIRE', stepOrder: 9 }, { deptCode: 'QC_5', stepOrder: 10 },
-    { deptCode: 'WOOD', stepOrder: 11 }, { deptCode: 'FINAL_QC', stepOrder: 12 },
+    { deptCode: 'XP_JIG', stepOrder: 1 },
+    { deptCode: 'QC_1', stepOrder: 2 },
+    { deptCode: 'XP_FIN', stepOrder: 3 },
+    { deptCode: 'QC_2', stepOrder: 4 },
+    { deptCode: 'PAINT_PREP', stepOrder: 5 },
+    { deptCode: 'QC_3', stepOrder: 6 },
+    { deptCode: 'PAINT_A', stepOrder: 7 },
+    { deptCode: 'QC_4', stepOrder: 8 },
+    { deptCode: 'WIRE', stepOrder: 9 },
+    { deptCode: 'QC_5', stepOrder: 10 },
+    { deptCode: 'WOOD', stepOrder: 11 },
+    { deptCode: 'FINAL_QC', stepOrder: 12 },
   ],
   yeti: [
-    { deptCode: 'YETI_JIG', stepOrder: 1 }, { deptCode: 'QC_1', stepOrder: 2 },
-    { deptCode: 'YETI_FIN', stepOrder: 3 }, { deptCode: 'QC_2', stepOrder: 4 },
-    { deptCode: 'PAINT_PREP', stepOrder: 5 }, { deptCode: 'QC_3', stepOrder: 6 },
-    { deptCode: 'PAINT_A', stepOrder: 7 }, { deptCode: 'QC_4', stepOrder: 8 },
-    { deptCode: 'WIRE', stepOrder: 9 }, { deptCode: 'QC_5', stepOrder: 10 },
-    { deptCode: 'WOOD', stepOrder: 11 }, { deptCode: 'FINAL_QC', stepOrder: 12 },
+    { deptCode: 'YETI_JIG', stepOrder: 1 },
+    { deptCode: 'QC_1', stepOrder: 2 },
+    { deptCode: 'YETI_FIN', stepOrder: 3 },
+    { deptCode: 'QC_2', stepOrder: 4 },
+    { deptCode: 'PAINT_PREP', stepOrder: 5 },
+    { deptCode: 'QC_3', stepOrder: 6 },
+    { deptCode: 'PAINT_A', stepOrder: 7 },
+    { deptCode: 'QC_4', stepOrder: 8 },
+    { deptCode: 'WIRE', stepOrder: 9 },
+    { deptCode: 'QC_5', stepOrder: 10 },
+    { deptCode: 'WOOD', stepOrder: 11 },
+    { deptCode: 'FINAL_QC', stepOrder: 12 },
   ],
   deck_over: [
-    { deptCode: 'DO_JIG', stepOrder: 1 }, { deptCode: 'QC_1', stepOrder: 2 },
-    { deptCode: 'DO_FIN', stepOrder: 3 }, { deptCode: 'QC_2', stepOrder: 4 },
-    { deptCode: 'PAINT_PREP', stepOrder: 5 }, { deptCode: 'QC_3', stepOrder: 6 },
-    { deptCode: 'PAINT_A', stepOrder: 7 }, { deptCode: 'QC_4', stepOrder: 8 },
-    { deptCode: 'WIRE', stepOrder: 9 }, { deptCode: 'QC_5', stepOrder: 10 },
-    { deptCode: 'WOOD', stepOrder: 11 }, { deptCode: 'FINAL_QC', stepOrder: 12 },
+    { deptCode: 'DO_JIG', stepOrder: 1 },
+    { deptCode: 'QC_1', stepOrder: 2 },
+    { deptCode: 'DO_FIN', stepOrder: 3 },
+    { deptCode: 'QC_2', stepOrder: 4 },
+    { deptCode: 'PAINT_PREP', stepOrder: 5 },
+    { deptCode: 'QC_3', stepOrder: 6 },
+    { deptCode: 'PAINT_A', stepOrder: 7 },
+    { deptCode: 'QC_4', stepOrder: 8 },
+    { deptCode: 'WIRE', stepOrder: 9 },
+    { deptCode: 'QC_5', stepOrder: 10 },
+    { deptCode: 'WOOD', stepOrder: 11 },
+    { deptCode: 'FINAL_QC', stepOrder: 12 },
   ],
   gooseneck_dump: [
-    { deptCode: 'GN_WELD', stepOrder: 1 }, { deptCode: 'QC_1', stepOrder: 2 },
-    { deptCode: 'GN_FIN', stepOrder: 3 }, { deptCode: 'QC_2', stepOrder: 4 },
-    { deptCode: 'PAINT_PREP', stepOrder: 5 }, { deptCode: 'QC_3', stepOrder: 6 },
-    { deptCode: 'PAINT_B', stepOrder: 7 }, { deptCode: 'QC_4', stepOrder: 8 },
-    { deptCode: 'HYDRAULICS', stepOrder: 9 }, { deptCode: 'QC_5', stepOrder: 10 },
-    { deptCode: 'WOOD', stepOrder: 11 }, { deptCode: 'FINAL_QC', stepOrder: 12 },
+    { deptCode: 'GN_WELD', stepOrder: 1 },
+    { deptCode: 'QC_1', stepOrder: 2 },
+    { deptCode: 'GN_FIN', stepOrder: 3 },
+    { deptCode: 'QC_2', stepOrder: 4 },
+    { deptCode: 'PAINT_PREP', stepOrder: 5 },
+    { deptCode: 'QC_3', stepOrder: 6 },
+    { deptCode: 'PAINT_B', stepOrder: 7 },
+    { deptCode: 'QC_4', stepOrder: 8 },
+    { deptCode: 'HYDRAULICS', stepOrder: 9 },
+    { deptCode: 'QC_5', stepOrder: 10 },
+    { deptCode: 'WOOD', stepOrder: 11 },
+    { deptCode: 'FINAL_QC', stepOrder: 12 },
   ],
 };
 
@@ -148,7 +337,11 @@ export async function seedReferenceData(prisma: PrismaService): Promise<void> {
       if (!deptId) continue;
       await prisma.workflowTemplate.upsert({
         where: { series_stepOrder: { series: series as any, stepOrder: step.stepOrder } },
-        create: { series: series as any, departmentId: deptId, stepOrder: step.stepOrder },
+        create: {
+          series: series as any,
+          departmentId: deptId,
+          stepOrder: step.stepOrder,
+        },
         update: {},
       });
     }
@@ -230,6 +423,9 @@ export async function cleanupTransactionalData(prisma: PrismaService): Promise<v
   await prisma.deliveryBatch.deleteMany({});
   await prisma.pointValue.deleteMany({});
   await prisma.deptDollarRate.deleteMany({});
+  // Stall alerts reference production_steps with a RESTRICT FK — clear them
+  // before the steps they point at.
+  await prisma.stallAlert.deleteMany({});
   await prisma.productionStep.deleteMany({});
   await prisma.trailerAddon.deleteMany({});
   await prisma.trailer.deleteMany({});

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -23,10 +24,12 @@ import {
   QueryDeliveriesDto,
   CreateDeliveryDto,
   CompleteDeliveryDto,
+  CompleteFactoryPickupDto,
   FailDeliveryDto,
   UploadDeliveryPhotosDto,
   CreateBatchDto,
   UpdateBatchDto,
+  CompleteBatchDto,
 } from './dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -59,10 +62,7 @@ export class DeliveriesController {
   @ApiOperation({ summary: 'Create a delivery' })
   @ApiResponse({ status: 201, description: 'Delivery created' })
   @ApiResponse({ status: 400, description: 'DELIVERY_NOT_DISPATCHABLE' })
-  async create(
-    @Body() dto: CreateDeliveryDto,
-    @CurrentUser() requester: JwtPayload,
-  ) {
+  async create(@Body() dto: CreateDeliveryDto, @CurrentUser() requester: JwtPayload) {
     return this.deliveriesService.create(dto, BigInt(requester.sub));
   }
 
@@ -84,10 +84,7 @@ export class DeliveriesController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new delivery batch' })
   @ApiResponse({ status: 201, description: 'Batch created' })
-  async createBatch(
-    @Body() dto: CreateBatchDto,
-    @CurrentUser() requester: JwtPayload,
-  ) {
+  async createBatch(@Body() dto: CreateBatchDto, @CurrentUser() requester: JwtPayload) {
     return this.batchesService.create(dto, BigInt(requester.sub));
   }
 
@@ -109,6 +106,22 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
+  // DELETE /deliveries/batches/:id — transport_manager, owner
+  // ---------------------------------------------------------------------------
+  @Delete('batches/:id')
+  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Delete a batch — removes its deliveries and frees their trailers',
+  })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Batch deleted' })
+  @ApiResponse({ status: 404, description: 'Batch not found' })
+  async deleteBatch(@Param('id', ParseIntPipe) id: number) {
+    return this.batchesService.deleteBatch(BigInt(id));
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /deliveries/batches/:id/depart — transport_manager, owner
   // ---------------------------------------------------------------------------
   @Post('batches/:id/depart')
@@ -122,16 +135,49 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
+  // POST /deliveries/batches/:id/complete — driver, transport_manager, owner
+  // ---------------------------------------------------------------------------
+  @Post('batches/:id/complete')
+  @Roles(UserRole.DRIVER, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Complete a batch — marks every trailer in it delivered' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Batch completed' })
+  @ApiResponse({ status: 400, description: 'Batch not in transit / nothing to complete' })
+  async completeBatch(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CompleteBatchDto,
+  ) {
+    return this.batchesService.complete(BigInt(id), dto);
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /deliveries/factory-pickup/:id/complete — office, owner
   // ---------------------------------------------------------------------------
   @Post('factory-pickup/:id/complete')
-  @Roles(UserRole.OFFICE, UserRole.OWNER)
+  @Roles(UserRole.OFFICE, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Office staff completes factory pickup' })
+  @ApiOperation({
+    summary: 'Complete a factory pickup (records who picked up & amount collected)',
+  })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Factory pickup completed' })
-  async completeFactoryPickup(@Param('id', ParseIntPipe) id: number) {
-    return this.deliveriesService.completeFactoryPickup(BigInt(id));
+  async completeFactoryPickup(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CompleteFactoryPickupDto,
+  ) {
+    return this.deliveriesService.completeFactoryPickup(BigInt(id), dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /deliveries/stock-inventory — must be BEFORE :id routes
+  // ---------------------------------------------------------------------------
+  @Get('stock-inventory')
+  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.PRODUCTION_MANAGER, UserRole.OWNER)
+  @ApiOperation({ summary: 'Trailers currently parked at each stock-location yard' })
+  @ApiResponse({ status: 200, description: 'Stock inventory grouped by location' })
+  async getStockInventory() {
+    return this.deliveriesService.getStockInventory();
   }
 
   // ---------------------------------------------------------------------------
@@ -175,6 +221,22 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
+  // DELETE /deliveries/:id — transport_manager, owner
+  // ---------------------------------------------------------------------------
+  @Delete(':id')
+  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Delete a delivery — frees its trailer back to ready_for_delivery',
+  })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Delivery deleted' })
+  @ApiResponse({ status: 404, description: 'Delivery not found' })
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.deliveriesService.remove(BigInt(id));
+  }
+
+  // ---------------------------------------------------------------------------
   // PATCH /deliveries/:id/fail — driver, transport_manager
   // ---------------------------------------------------------------------------
   @Patch(':id/fail')
@@ -182,10 +244,7 @@ export class DeliveriesController {
   @ApiOperation({ summary: 'Mark delivery as failed' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Delivery marked failed' })
-  async markFailed(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: FailDeliveryDto,
-  ) {
+  async markFailed(@Param('id', ParseIntPipe) id: number, @Body() dto: FailDeliveryDto) {
     return this.deliveriesService.markFailed(BigInt(id), dto);
   }
 

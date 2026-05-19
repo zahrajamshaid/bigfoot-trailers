@@ -1,7 +1,16 @@
-import { IsOptional, IsInt, IsBoolean, IsEnum, Min, Max, IsString } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  IsEnum,
+  Min,
+  Max,
+  IsString,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import { TrailerStatusDto } from './update-trailer.dto';
+import { TrailerSaleStatusDto } from './sale-status.dto';
 
 export enum TrailerSeriesDto {
   XP = 'xp',
@@ -36,6 +45,11 @@ export class QueryTrailersDto {
   @IsEnum(TrailerSeriesDto)
   series?: TrailerSeriesDto;
 
+  @ApiPropertyOptional({ enum: TrailerSaleStatusDto })
+  @IsOptional()
+  @IsEnum(TrailerSaleStatusDto)
+  saleStatus?: TrailerSaleStatusDto;
+
   @ApiPropertyOptional({ description: 'Filter by customer ID' })
   @IsOptional()
   @IsInt()
@@ -54,7 +68,16 @@ export class QueryTrailersDto {
   @Transform(({ value }) => value === 'true' || value === true)
   isHot?: boolean;
 
-  @ApiPropertyOptional({ description: 'Search by SO number' })
+  @ApiPropertyOptional({
+    description:
+      'Exclude trailers that already have an open (scheduled / in-transit) delivery',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  excludeOpenDeliveries?: boolean;
+
+  @ApiPropertyOptional({ description: 'Search by SO number or customer name' })
   @IsOptional()
   @IsString()
   search?: string;

@@ -11,16 +11,13 @@ import '../../features/admin/view/workflow_viewer_screen.dart';
 import '../../features/auth/view/login_screen.dart';
 import '../../features/auth/view/splash_screen.dart';
 import '../../features/auth/viewmodel/auth_viewmodel.dart';
-import '../../features/customers/view/customer_detail_screen.dart';
-import '../../features/customers/view/customer_list_screen.dart';
 import '../../features/dashboard/view/dashboard_screen.dart';
 import '../../features/deliveries/view/batch_screen.dart';
 import '../../features/deliveries/view/create_delivery_screen.dart';
-import '../../features/deliveries/view/delivery_complete_screen.dart';
 import '../../features/deliveries/view/delivery_detail_screen.dart';
 import '../../features/deliveries/view/delivery_list_screen.dart';
 import '../../features/deliveries/view/driver_delivery_screen.dart';
-import '../../features/deliveries/view/factory_pickup_screen.dart';
+import '../../features/deliveries/view/stock_inventory_screen.dart';
 import '../../features/notifications/view/message_screen.dart';
 import '../../features/notifications/view/notification_center.dart';
 import '../../features/payroll/view/dollar_rates_screen.dart';
@@ -90,7 +87,13 @@ class AppRouter {
             GoRoute(
               path: '/trailers',
               name: RouteNames.trailerList,
-              builder: (context, state) => const TrailerListScreen(),
+              builder: (context, state) {
+                final q = state.uri.queryParameters;
+                return TrailerListScreen(
+                  initialStatus: q['status'],
+                  initialHotOnly: q['hot'] == 'true',
+                );
+              },
               routes: [
                 GoRoute(
                   path: 'create',
@@ -122,7 +125,10 @@ class AppRouter {
             GoRoute(
               path: '/production',
               name: RouteNames.productionQueue,
-              builder: (context, state) => const QueueScreen(),
+              builder: (context, state) => QueueScreen(
+                initialStalledOnly:
+                    state.uri.queryParameters['filter'] == 'stalled',
+              ),
               routes: [
                 GoRoute(
                   path: 'all',
@@ -135,7 +141,10 @@ class AppRouter {
             GoRoute(
               path: '/qc',
               name: RouteNames.qcQueue,
-              builder: (context, state) => const QcQueueScreen(),
+              builder: (context, state) => QcQueueScreen(
+                initialReworkOnly:
+                    state.uri.queryParameters['filter'] == 'rework',
+              ),
               routes: [
                 GoRoute(
                   path: 'inspect/:stepId',
@@ -175,40 +184,28 @@ class AppRouter {
               name: RouteNames.deliveryList,
               builder: (context, state) {
                 final auth = context.read<AuthViewModel>().state;
-                if (auth is Authenticated) {
-                  if (auth.user.role == 'driver') {
-                    return const DriverDeliveryScreen();
-                  }
-                  if (auth.user.role == 'office') {
-                    return const FactoryPickupScreen();
-                  }
+                if (auth is Authenticated && auth.user.role == 'driver') {
+                  return const DriverDeliveryScreen();
                 }
-                return const DeliveryListScreen();
+                return DeliveryListScreen(
+                  initialStatus: state.uri.queryParameters['status'],
+                );
               },
               routes: [
                 GoRoute(
                   path: 'create',
                   name: RouteNames.deliveryCreate,
                   parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) => const CreateDeliveryScreen(),
+                  builder: (context, state) => CreateDeliveryScreen(
+                    startInBatchMode:
+                        state.uri.queryParameters['mode'] == 'batch',
+                  ),
                 ),
                 GoRoute(
-                  path: ':id',
-                  name: RouteNames.deliveryDetail,
+                  path: 'stock-inventory',
+                  name: RouteNames.stockInventory,
                   parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) {
-                    final id = int.parse(state.pathParameters['id']!);
-                    return DeliveryDetailScreen(deliveryId: id);
-                  },
-                ),
-                GoRoute(
-                  path: ':id/complete',
-                  name: RouteNames.deliveryComplete,
-                  parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) {
-                    final id = int.parse(state.pathParameters['id']!);
-                    return DeliveryCompleteScreen(deliveryId: id);
-                  },
+                  builder: (context, state) => const StockInventoryScreen(),
                 ),
                 GoRoute(
                   path: 'batches',
@@ -217,16 +214,22 @@ class AppRouter {
                   builder: (context, state) => const BatchScreen(),
                 ),
                 GoRoute(
-                  path: 'factory-pickup',
-                  name: RouteNames.deliveryFactoryPickup,
-                  parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) => const FactoryPickupScreen(),
-                ),
-                GoRoute(
                   path: 'driver',
                   name: RouteNames.deliveryDriver,
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) => const DriverDeliveryScreen(),
+                ),
+                // The dynamic :id route must be declared LAST — otherwise it
+                // greedily matches literal child paths (batches, driver) and
+                // int.parse() throws a FormatException on "batches".
+                GoRoute(
+                  path: ':id',
+                  name: RouteNames.deliveryDetail,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) {
+                    final id = int.parse(state.pathParameters['id']!);
+                    return DeliveryDetailScreen(deliveryId: id);
+                  },
                 ),
               ],
             ),
@@ -247,6 +250,7 @@ class AppRouter {
                   path: 'point-matrix',
                   name: RouteNames.pointMatrix,
                   parentNavigatorKey: _rootNavigatorKey,
+                  redirect: _ownerOnly,
                     builder: (context, state) =>
                         const SecureScreen(child: PointMatrixScreen()),
                 ),
@@ -254,6 +258,7 @@ class AppRouter {
                   path: 'dollar-rates',
                   name: RouteNames.dollarRates,
                   parentNavigatorKey: _rootNavigatorKey,
+                  redirect: _ownerOnly,
                     builder: (context, state) =>
                         const SecureScreen(child: DollarRatesScreen()),
                 ),
@@ -293,22 +298,6 @@ class AppRouter {
                   name: RouteNames.adminReports,
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) => const ReportsScreen(),
-                ),
-              ],
-            ),
-            GoRoute(
-              path: '/customers',
-              name: RouteNames.customerList,
-              builder: (context, state) => const CustomerListScreen(),
-              routes: [
-                GoRoute(
-                  path: ':id',
-                  name: RouteNames.customerDetail,
-                  parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) {
-                    final id = int.parse(state.pathParameters['id']!);
-                    return CustomerDetailScreen(customerId: id);
-                  },
                 ),
               ],
             ),
@@ -359,5 +348,15 @@ class AppRouter {
     if (isAuthenticated && isOnLogin) return '/dashboard';
 
     return null;
+  }
+
+  /// Guards owner-only screens. Non-owner accounts are bounced back to the
+  /// payroll landing page so they never see the screen.
+  String? _ownerOnly(BuildContext context, GoRouterState state) {
+    final authState = context.read<AuthViewModel>().state;
+    if (authState is Authenticated && authState.user.role == 'owner') {
+      return null;
+    }
+    return '/payroll';
   }
 }

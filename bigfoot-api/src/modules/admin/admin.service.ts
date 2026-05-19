@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppError, ErrorCode } from '../../common/errors';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
 import { AuditLogService } from './audit-log.service';
 
 @Injectable()
@@ -125,7 +124,10 @@ export class AdminService {
   async getWeeklyProductionReport(weekStart: string) {
     const weekDate = new Date(weekStart);
     if (weekDate.getUTCDay() !== 0) {
-      throw new AppError(ErrorCode.INVALID_WEEK_START, 'The provided week_start date is not a Sunday');
+      throw new AppError(
+        ErrorCode.INVALID_WEEK_START,
+        'The provided week_start date is not a Sunday',
+      );
     }
 
     const weekEnd = new Date(weekDate);
@@ -211,14 +213,13 @@ export class AdminService {
     };
   }
 
-  async lockAndSendWeeklyReport(
-    weekStart: string,
-    userId: number,
-    ipAddress?: string,
-  ) {
+  async lockAndSendWeeklyReport(weekStart: string, userId: number, ipAddress?: string) {
     const weekDate = new Date(weekStart);
     if (weekDate.getUTCDay() !== 0) {
-      throw new AppError(ErrorCode.INVALID_WEEK_START, 'The provided week_start date is not a Sunday');
+      throw new AppError(
+        ErrorCode.INVALID_WEEK_START,
+        'The provided week_start date is not a Sunday',
+      );
     }
 
     // Check if already locked
@@ -231,7 +232,10 @@ export class AdminService {
     });
 
     if (existingLocked) {
-      throw new AppError(ErrorCode.PAYROLL_WEEK_LOCKED, 'Payroll for this week has been locked');
+      throw new AppError(
+        ErrorCode.PAYROLL_WEEK_LOCKED,
+        'Payroll for this week has been locked',
+      );
     }
 
     // Lock all payroll records for this week

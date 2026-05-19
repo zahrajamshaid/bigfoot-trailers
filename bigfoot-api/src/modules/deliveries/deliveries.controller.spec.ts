@@ -49,7 +49,14 @@ describe('DeliveriesController', () => {
 
   it('create delegates to service with BigInt userId', async () => {
     const dto = { trailerId: 1, deliveryType: 'single_pull' as any };
-    const requester = { sub: 10, email: 'tm@test.com', role: 'transport_manager', departmentId: null, iat: 0, exp: 0 };
+    const requester = {
+      sub: 10,
+      email: 'tm@test.com',
+      role: 'transport_manager',
+      departmentId: null,
+      iat: 0,
+      exp: 0,
+    };
     mockDeliveriesService.create.mockResolvedValue({ id: BigInt(100) });
 
     await controller.create(dto, requester);
@@ -90,9 +97,15 @@ describe('DeliveriesController', () => {
   });
 
   it('completeFactoryPickup delegates to service', async () => {
-    mockDeliveriesService.completeFactoryPickup.mockResolvedValue({ status: 'delivered' });
-    await controller.completeFactoryPickup(100);
-    expect(mockDeliveriesService.completeFactoryPickup).toHaveBeenCalledWith(BigInt(100));
+    mockDeliveriesService.completeFactoryPickup.mockResolvedValue({
+      status: 'delivered',
+    });
+    const dto = { pickedUpByName: 'Jane Hauler' };
+    await controller.completeFactoryPickup(100, dto);
+    expect(mockDeliveriesService.completeFactoryPickup).toHaveBeenCalledWith(
+      BigInt(100),
+      dto,
+    );
   });
 
   it('findBatches delegates to batchesService', async () => {
@@ -103,7 +116,14 @@ describe('DeliveriesController', () => {
 
   it('createBatch delegates to batchesService with BigInt userId', async () => {
     const dto = { batchNumber: 'B-001', batchType: 'dealer' as any };
-    const requester = { sub: 10, email: 'tm@test.com', role: 'transport_manager', departmentId: null, iat: 0, exp: 0 };
+    const requester = {
+      sub: 10,
+      email: 'tm@test.com',
+      role: 'transport_manager',
+      departmentId: null,
+      iat: 0,
+      exp: 0,
+    };
     mockBatchesService.create.mockResolvedValue({ id: BigInt(1) });
     await controller.createBatch(dto, requester);
     expect(mockBatchesService.create).toHaveBeenCalledWith(dto, BigInt(10));
@@ -111,7 +131,14 @@ describe('DeliveriesController', () => {
 
   it('updateBatch delegates to batchesService', async () => {
     const dto = { addTrailerIds: [5] };
-    const requester = { sub: 10, email: 'tm@test.com', role: 'transport_manager', departmentId: null, iat: 0, exp: 0 };
+    const requester = {
+      sub: 10,
+      email: 'tm@test.com',
+      role: 'transport_manager',
+      departmentId: null,
+      iat: 0,
+      exp: 0,
+    };
     mockBatchesService.update.mockResolvedValue({ id: BigInt(1) });
     await controller.updateBatch(1, dto, requester);
     expect(mockBatchesService.update).toHaveBeenCalledWith(BigInt(1), dto, BigInt(10));

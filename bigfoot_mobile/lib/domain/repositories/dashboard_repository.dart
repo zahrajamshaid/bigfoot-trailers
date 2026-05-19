@@ -24,7 +24,7 @@ class DashboardStats {
   final String? nextTrailerColor;
 
   // QC Inspector
-  final int pendingInspections;
+  final int readyForInspection;
   final int inspectionsToday;
   final double failRateToday;
   final int reworkQueue;
@@ -51,7 +51,7 @@ class DashboardStats {
     this.myPointsWeek = 0,
     this.nextTrailerSo,
     this.nextTrailerColor,
-    this.pendingInspections = 0,
+    this.readyForInspection = 0,
     this.inspectionsToday = 0,
     this.failRateToday = 0,
     this.reworkQueue = 0,

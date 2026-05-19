@@ -15,7 +15,11 @@ import 'step_completion_dialog.dart';
 /// Department production queue — primary worker interface.
 /// Workers see their department's queue. Managers get a department selector.
 class QueueScreen extends StatelessWidget {
-  const QueueScreen({super.key});
+  /// When true the queue opens with the "Stalled only" filter applied —
+  /// used by the dashboard "Stalled Steps" deep link (`?filter=stalled`).
+  final bool initialStalledOnly;
+
+  const QueueScreen({super.key, this.initialStalledOnly = false});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +34,11 @@ class QueueScreen extends StatelessWidget {
           final user = authState.user;
           final isManager = user.isManager;
           final deptId = user.departmentId;
-          cubit.load(deptId, isManager: isManager);
+          cubit.load(
+            deptId,
+            isManager: isManager,
+            stalledOnly: initialStalledOnly,
+          );
         }
         return cubit;
       },
@@ -105,6 +113,9 @@ class _LoadedQueue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleQueue = state.visibleQueue;
+    final stalledCount = state.queue.where((q) => q.stallLevel > 0).length;
+
     return Column(
       children: [
         // Manager department selector
@@ -130,6 +141,19 @@ class _LoadedQueue extends StatelessWidget {
                 ),
               ),
               const Spacer(),
+              // Stalled-only filter — shows only items past the stall
+              // threshold. Always visible so a deep-linked filter can be
+              // cleared even when it leaves the list empty.
+              FilterChip(
+                label: Text('Stalled${stalledCount > 0 ? ' ($stalledCount)' : ''}'),
+                avatar: const Icon(Icons.warning_amber, size: 16),
+                selected: state.stalledOnly,
+                selectedColor: AppColors.warning.withValues(alpha: 0.2),
+                visualDensity: VisualDensity.compact,
+                onSelected: (v) =>
+                    context.read<ProductionViewModel>().setStalledOnly(v),
+              ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -140,7 +164,7 @@ class _LoadedQueue extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${state.queue.length} trailer${state.queue.length == 1 ? '' : 's'}',
+                  '${visibleQueue.length} trailer${visibleQueue.length == 1 ? '' : 's'}',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -154,8 +178,8 @@ class _LoadedQueue extends StatelessWidget {
 
         // Queue list
         Expanded(
-          child: state.queue.isEmpty
-              ? const _EmptyQueue()
+          child: visibleQueue.isEmpty
+              ? (state.stalledOnly ? const _NoStalledItems() : const _EmptyQueue())
               : RefreshIndicator(
                   onRefresh: () =>
                       context.read<ProductionViewModel>().refresh(),
@@ -164,9 +188,9 @@ class _LoadedQueue extends StatelessWidget {
                       horizontal: 12,
                       vertical: 4,
                     ),
-                    itemCount: state.queue.length,
+                    itemCount: visibleQueue.length,
                     itemBuilder: (context, index) {
-                      final item = state.queue[index];
+                      final item = visibleQueue[index];
                       return _QueueCard(
                         item: item,
                         isFirst: index == 0,
@@ -689,6 +713,35 @@ class _EmptyQueue extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             'No trailers waiting in this department',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown when the "Stalled only" filter is active but nothing is stalled.
+class _NoStalledItems extends StatelessWidget {
+  const _NoStalledItems();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
+          SizedBox(height: 16),
+          Text(
+            'No Stalled Trailers',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Nothing in this department is past the stall threshold.\n'
+            'Turn off the "Stalled" filter to see the full queue.',
+            textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey),
           ),
         ],

@@ -152,7 +152,8 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
 
   Future<void> load() async {
     if (isClosed) return;
-    if (state is TrailerDetailInitial) {
+    final priorState = state;
+    if (priorState is TrailerDetailInitial) {
       emit(const TrailerDetailLoading());
     }
 
@@ -163,20 +164,36 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
       final trailer = await trailerFuture;
       final steps = await stepsFuture;
 
-      Map<String, dynamic> historyPayload = const <String, dynamic>{};
+      // Null means the history fetch failed (permission OR a transient error).
+      // Distinguishing it from an empty result lets us keep previously loaded
+      // history instead of blanking it on every failed WebSocket refresh.
+      Map<String, dynamic>? historyPayload;
       try {
         historyPayload = await _repository.getHistory(trailerId);
       } catch (_) {
-        // User lacks permission — keep history/photos empty.
+        historyPayload = null;
       }
 
       if (isClosed) return;
 
       final sortedSteps = List<ProductionStepSummary>.from(steps)
         ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
-      final auditLogs = _asMapList(historyPayload['auditLogs']);
-      final history = auditLogs.map(HistoryEntry.fromJson).toList();
-      final stagePhotos = await _buildStagePhotos(historyPayload);
+
+      final List<HistoryEntry> history;
+      final List<StagePhotoGroup> stagePhotos;
+      if (historyPayload != null) {
+        history = _buildHistory(historyPayload);
+        stagePhotos = await _buildStagePhotos(historyPayload);
+      } else if (priorState is TrailerDetailLoaded) {
+        // Preserve last known history/photos rather than dropping them.
+        history = priorState.history;
+        stagePhotos = priorState.stagePhotos;
+      } else {
+        history = const [];
+        stagePhotos = const [];
+      }
+
+      if (isClosed) return;
 
       emit(TrailerDetailLoaded(
         trailer: trailer,
@@ -185,11 +202,22 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
         stagePhotos: stagePhotos,
       ));
     } on ApiException catch (e) {
-      if (!isClosed) emit(TrailerDetailError(e.displayMessage));
+      if (isClosed) return;
+      // A failed background refresh must not blow away an already-loaded
+      // screen — only surface the error on the initial load.
+      if (priorState is! TrailerDetailLoaded) {
+        emit(TrailerDetailError(e.displayMessage));
+      }
     } on NetworkException catch (e) {
-      if (!isClosed) emit(TrailerDetailError(e.message));
+      if (isClosed) return;
+      if (priorState is! TrailerDetailLoaded) {
+        emit(TrailerDetailError(e.message));
+      }
     } catch (e) {
-      if (!isClosed) emit(TrailerDetailError('Failed to load trailer details: $e'));
+      if (isClosed) return;
+      if (priorState is! TrailerDetailLoaded) {
+        emit(TrailerDetailError('Failed to load trailer details: $e'));
+      }
     }
   }
 
@@ -202,6 +230,18 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
     } on ApiException catch (e) {
       if (!isClosed) emit(TrailerDetailError(e.displayMessage));
     }
+  }
+
+  /// Change the sale status (`available` / `sale_pending` / `sold`).
+  /// Throws on failure so the caller can surface the API error to the user;
+  /// refreshes the detail state on success.
+  Future<void> updateSaleStatus(String saleStatus, {String? soldToName}) async {
+    await _repository.updateSaleStatus(
+      trailerId,
+      saleStatus,
+      soldToName: soldToName,
+    );
+    if (!isClosed) await load();
   }
 
   Future<void> setPriority(int priority) async {
@@ -250,6 +290,110 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
   Future<void> close() {
     _wsSub?.cancel();
     return super.close();
+  }
+
+  /// Builds the History tab feed by merging three event sources into one
+  /// time-ordered list:
+  ///   • production step completions — the record of *which account*
+  ///     completed each stage of the queue,
+  ///   • step roll-backs (reversals), and
+  ///   • generic audit-log events.
+  List<HistoryEntry> _buildHistory(Map<String, dynamic> historyPayload) {
+    final entries = <HistoryEntry>[];
+
+    // Generic audit-log events (priority changes, jump-to-step, etc.).
+    final auditLogs = _asMapList(historyPayload['auditLogs']);
+    entries.addAll(auditLogs.map(HistoryEntry.fromJson));
+
+    // Production steps — completions and roll-backs.
+    final steps = _asMapList(historyPayload['steps']);
+    for (final step in steps) {
+      final department = step['department'] as Map<String, dynamic>?;
+      final deptName = department?['displayName'] as String? ??
+          department?['code'] as String? ??
+          'Stage';
+      final stepOrder = _toInt(step['stepOrder']);
+      final isRework = step['isRework'] == true;
+      final stageLabel =
+          stepOrder != null ? 'Stage $stepOrder of the queue' : null;
+
+      // A completed step records the account that finished the stage.
+      final completedAt = _parseDate(step['completedAt']);
+      if (step['status'] == 'complete' && completedAt != null) {
+        final completedBy = step['completedByUser'] as Map<String, dynamic>?;
+        entries.add(HistoryEntry(
+          action:
+              isRework ? '$deptName completed (rework)' : '$deptName completed',
+          userName: completedBy?['fullName'] as String?,
+          timestamp: completedAt,
+          details: stageLabel,
+          eventType: 'step_completed',
+        ));
+      }
+
+      // Roll-backs recorded against this step.
+      for (final rev in _asMapList(step['stepReversals'])) {
+        final reversedBy = rev['reversedByUser'] as Map<String, dynamic>?;
+        entries.add(HistoryEntry(
+          action: '$deptName rolled back',
+          userName: reversedBy?['fullName'] as String?,
+          timestamp: _parseDate(rev['reversedAt']),
+          details: rev['reason'] as String?,
+          eventType: 'step_reversed',
+        ));
+      }
+    }
+
+    // QC inspections — pass/fail outcome and the inspector account.
+    final qcInspections = _asMapList(historyPayload['qcInspections']);
+    for (final inspection in qcInspections) {
+      final productionStep =
+          inspection['productionStep'] as Map<String, dynamic>?;
+      final stepDept = productionStep?['department'] as Map<String, dynamic>?;
+      final isFinalQc = inspection['isFinalQc'] == true;
+      final qcLabel = isFinalQc
+          ? 'Final QC'
+          : ((stepDept?['code'] as String?)?.replaceAll('_', ' ').toUpperCase() ??
+              'QC');
+
+      final passed = inspection['result'] == 'pass';
+      final inspector = inspection['inspectorUser'] as Map<String, dynamic>?;
+      final attempt = _toInt(inspection['attemptNumber']);
+      final reworkDept =
+          inspection['reworkTargetDept'] as Map<String, dynamic>?;
+      final reworkName = reworkDept?['displayName'] as String? ??
+          reworkDept?['code'] as String?;
+      final failNotes = (inspection['failNotes'] as String?)?.trim();
+
+      final detailParts = <String>[
+        if (attempt != null && attempt > 1) 'Attempt $attempt',
+        if (!passed && reworkName != null && reworkName.isNotEmpty)
+          'Sent back to $reworkName',
+        if (!passed && failNotes != null && failNotes.isNotEmpty) failNotes,
+      ];
+
+      entries.add(HistoryEntry(
+        action: passed
+            ? '$qcLabel inspection — passed'
+            : '$qcLabel inspection — failed',
+        userName: inspector?['fullName'] as String?,
+        timestamp: _parseDate(inspection['inspectedAt']),
+        details: detailParts.isEmpty ? null : detailParts.join(' • '),
+        eventType: passed ? 'qc_pass' : 'qc_fail',
+      ));
+    }
+
+    // Newest first; entries without a timestamp sink to the bottom.
+    entries.sort((a, b) {
+      final at = a.timestamp;
+      final bt = b.timestamp;
+      if (at == null && bt == null) return 0;
+      if (at == null) return 1;
+      if (bt == null) return -1;
+      return bt.compareTo(at);
+    });
+
+    return entries;
   }
 
   Future<List<StagePhotoGroup>> _buildStagePhotos(

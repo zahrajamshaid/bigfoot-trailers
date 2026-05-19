@@ -2,6 +2,7 @@ import '../../core/constants/api_endpoints.dart';
 import '../../core/network/dio_client.dart';
 import '../../domain/repositories/admin_repository.dart';
 import '../models/department.dart';
+import '../models/trailer.dart';
 import '../models/user.dart';
 
 class AdminRepositoryImpl implements AdminRepository {
@@ -198,6 +199,18 @@ class AdminRepositoryImpl implements AdminRepository {
     return (response.data ?? [])
         .whereType<Map<String, dynamic>>()
         .map(AdminWorkflowTemplate.fromJson)
+        .toList();
+  }
+
+  @override
+  Future<List<TrailerModelInfo>> getTrailerModels() async {
+    final response = await _api.get<List<dynamic>>(
+      ApiEndpoints.adminTrailerModels,
+      fromJson: (d) => d as List<dynamic>,
+    );
+    return (response.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(TrailerModelInfo.fromJson)
         .toList();
   }
 

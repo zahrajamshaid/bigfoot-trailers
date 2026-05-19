@@ -1,4 +1,5 @@
 import '../../data/models/department.dart';
+import '../../data/models/trailer.dart';
 import '../../data/models/user.dart';
 
 class AdminDashboardStats {
@@ -203,6 +204,9 @@ abstract class AdminRepository {
   });
 
   Future<List<AdminWorkflowTemplate>> getWorkflowTemplates();
+
+  /// All trailer models — used to build the point-value matrix.
+  Future<List<TrailerModelInfo>> getTrailerModels();
 
   Future<AdminAuditResult> getAuditLogs({
     String? entityType,

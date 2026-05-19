@@ -50,12 +50,25 @@ export class CreateTrailerDto {
   @Type(() => Number)
   customerId?: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Free-text customer / buyer name. A trailer with a name is treated ' +
+      'as sold. Preferred over customerId — customer records move to the ' +
+      'GoHighLevel integration.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  soldToName?: string;
+
   @ApiPropertyOptional({ description: 'True if building for inventory', default: false })
   @IsOptional()
   @IsBoolean()
   isStockBuild?: boolean;
 
-  @ApiPropertyOptional({ description: 'Destination stock location ID when isStockBuild=true' })
+  @ApiPropertyOptional({
+    description: 'Destination stock location ID when isStockBuild=true',
+  })
   @IsOptional()
   @IsInt()
   @Type(() => Number)

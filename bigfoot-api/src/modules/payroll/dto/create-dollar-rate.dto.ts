@@ -14,7 +14,10 @@ export class CreateDollarRateDto {
   @Type(() => Number)
   dollarPerPoint!: number;
 
-  @ApiProperty({ description: 'Date this rate becomes effective (YYYY-MM-DD)', example: '2026-01-01' })
+  @ApiProperty({
+    description: 'Date this rate becomes effective (YYYY-MM-DD)',
+    example: '2026-01-01',
+  })
   @IsDateString()
   effectiveFrom!: string;
 }

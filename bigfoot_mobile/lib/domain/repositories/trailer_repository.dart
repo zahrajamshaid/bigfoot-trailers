@@ -9,6 +9,7 @@ abstract class TrailerRepository {
     String? status,
     String? series,
     int? locationId,
+    String? saleStatus,
     bool hotOnly = false,
   });
 
@@ -21,6 +22,15 @@ abstract class TrailerRepository {
   Future<void> updatePriority(int id, int priority);
 
   Future<void> toggleHot(int id, bool isHot);
+
+  /// Set the sale status (`available` / `sale_pending` / `sold`).
+  /// Marking `sold` requires a buyer — pass [soldToName] unless the trailer
+  /// already has a customer. Owner / sales / production_manager only.
+  Future<Trailer> updateSaleStatus(
+    int id,
+    String saleStatus, {
+    String? soldToName,
+  });
 
   Future<void> addAddon(int trailerId, Map<String, dynamic> data);
 

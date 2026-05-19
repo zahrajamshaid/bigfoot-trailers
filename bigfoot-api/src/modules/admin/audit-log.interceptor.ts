@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { Request } from 'express';
+import { Prisma } from '@prisma/client';
 import { AuditLogService } from './audit-log.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 
@@ -27,9 +28,15 @@ const METHOD_ACTION_MAP: Record<string, string> = {
  *   /qc/inspections/45  → { entityType: 'qc_inspection', entityId: 45 }
  *   /deliveries/10/mark-complete → { entityType: 'delivery', entityId: 10 }
  */
-function parseEntityFromPath(path: string): { entityType: string; entityId: bigint | null } {
+function parseEntityFromPath(path: string): {
+  entityType: string;
+  entityId: bigint | null;
+} {
   // Remove query string and leading /api or /
-  const clean = path.split('?')[0].replace(/^\/api\//, '/').replace(/^\//, '');
+  const clean = path
+    .split('?')[0]
+    .replace(/^\/api\//, '/')
+    .replace(/^\//, '');
   const segments = clean.split('/').filter(Boolean);
 
   let entityType = segments[0] ?? 'unknown';
@@ -64,7 +71,7 @@ function parseEntityFromPath(path: string): { entityType: string; entityId: bigi
 export class AuditLogInterceptor implements NestInterceptor {
   constructor(private readonly auditLogService: AuditLogService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
     const method = request.method;
 
@@ -83,14 +90,17 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: (responseBody) => {
+        next: (responseBody: unknown) => {
           // Fire-and-forget — don't block the response
-          const newValues = responseBody ?? null;
+          const newValues =
+            responseBody && typeof responseBody === 'object'
+              ? (responseBody as Record<string, unknown>)
+              : null;
 
           // For CREATE, the entity ID comes from the response
           let resolvedEntityId = entityId;
-          if (action === 'CREATE' && !resolvedEntityId && newValues?.id) {
-            resolvedEntityId = BigInt(newValues.id);
+          if (action === 'CREATE' && !resolvedEntityId && newValues?.id != null) {
+            resolvedEntityId = BigInt(newValues.id as string | number | bigint);
           }
 
           if (!resolvedEntityId) return; // Can't log without an entity ID
@@ -102,7 +112,7 @@ export class AuditLogInterceptor implements NestInterceptor {
               entityId: resolvedEntityId,
               action,
               oldValues: null, // Interceptor doesn't have pre-update state
-              newValues: typeof newValues === 'object' ? newValues : null,
+              newValues: newValues as Prisma.InputJsonValue | null,
               ipAddress,
             })
             .catch(() => {

@@ -27,6 +27,7 @@ import {
   SetPriorityDto,
   ToggleHotDto,
   UploadQbPdfDto,
+  UpdateSaleStatusDto,
 } from './dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -53,14 +54,13 @@ export class TrailersController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a new trailer SO and auto-generate 12 workflow steps' })
+  @ApiOperation({
+    summary: 'Create a new trailer SO and auto-generate 12 workflow steps',
+  })
   @ApiResponse({ status: 201, description: 'Trailer created with workflow steps' })
   @ApiResponse({ status: 409, description: 'SO number already exists' })
   @ApiResponse({ status: 403, description: 'Forbidden — insufficient role' })
-  async create(
-    @Body() dto: CreateTrailerDto,
-    @CurrentUser() requester: JwtPayload,
-  ) {
+  async create(@Body() dto: CreateTrailerDto, @CurrentUser() requester: JwtPayload) {
     return this.trailersService.create(dto, BigInt(requester.sub));
   }
 
@@ -85,10 +85,7 @@ export class TrailersController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer updated' })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateTrailerDto,
-  ) {
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTrailerDto) {
     return this.trailersService.update(BigInt(id), dto);
   }
 
@@ -101,10 +98,7 @@ export class TrailersController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Priority updated' })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
-  async setPriority(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: SetPriorityDto,
-  ) {
+  async setPriority(@Param('id', ParseIntPipe) id: number, @Body() dto: SetPriorityDto) {
     return this.trailersService.setPriority(BigInt(id), dto);
   }
 
@@ -117,11 +111,35 @@ export class TrailersController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Hot flag updated' })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
-  async toggleHot(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: ToggleHotDto,
-  ) {
+  async toggleHot(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleHotDto) {
     return this.trailersService.toggleHot(BigInt(id), dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/sale-status — owner + sales + production_manager
+  // ---------------------------------------------------------------------------
+  @Patch(':id/sale-status')
+  @Roles(UserRole.OWNER, UserRole.SALES, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({
+    summary: 'Set the sale status (available / sale_pending / sold)',
+    description:
+      'Marking a trailer sold requires a buyer name (soldToName) unless the ' +
+      'trailer already has a customer. Restricted to owner, sales and ' +
+      'production_manager roles.',
+  })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Sale status updated' })
+  @ApiResponse({
+    status: 400,
+    description: 'A buyer name is required to mark a trailer sold',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden — insufficient role' })
+  @ApiResponse({ status: 404, description: 'Trailer not found' })
+  async updateSaleStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateSaleStatusDto,
+  ) {
+    return this.trailersService.updateSaleStatus(BigInt(id), dto);
   }
 
   // ---------------------------------------------------------------------------
@@ -134,10 +152,7 @@ export class TrailersController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 201, description: 'Addon added' })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
-  async addAddon(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CreateAddonDto,
-  ) {
+  async addAddon(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateAddonDto) {
     return this.trailersService.addAddon(BigInt(id), dto);
   }
 
@@ -168,10 +183,7 @@ export class TrailersController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'QB PDF attached' })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
-  async uploadQbPdf(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UploadQbPdfDto,
-  ) {
+  async uploadQbPdf(@Param('id', ParseIntPipe) id: number, @Body() dto: UploadQbPdfDto) {
     return this.trailersService.uploadQbPdf(BigInt(id), dto);
   }
 
@@ -190,7 +202,10 @@ export class TrailersController {
   })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer and all related records deleted' })
-  @ApiResponse({ status: 403, description: 'Forbidden — owner or production_manager role required' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden — owner or production_manager role required',
+  })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
   async delete(@Param('id', ParseIntPipe) id: number) {
     return this.trailersService.deleteTrailer(BigInt(id));

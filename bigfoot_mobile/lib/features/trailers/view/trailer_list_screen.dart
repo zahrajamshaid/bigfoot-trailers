@@ -10,7 +10,19 @@ import '../viewmodel/trailers_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
 
 class TrailerListScreen extends StatefulWidget {
-  const TrailerListScreen({super.key});
+  /// Optional status filter applied on first load — set by dashboard deep
+  /// links such as `?status=ready_for_delivery`.
+  final String? initialStatus;
+
+  /// When true the list opens with the "Hot Only" filter applied
+  /// (`?hot=true` deep link).
+  final bool initialHotOnly;
+
+  const TrailerListScreen({
+    super.key,
+    this.initialStatus,
+    this.initialHotOnly = false,
+  });
 
   @override
   State<TrailerListScreen> createState() => _TrailerListScreenState();
@@ -27,7 +39,10 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<TrailersViewModel>().load();
+    context.read<TrailersViewModel>().load(
+          status: widget.initialStatus,
+          hotOnly: widget.initialHotOnly,
+        );
     _scrollController.addListener(_onScroll);
     _loadLocations();
   }
@@ -76,7 +91,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
               controller: _searchController,
               onChanged: (q) => context.read<TrailersViewModel>().searchDebounced(q),
               decoration: InputDecoration(
-                hintText: 'Search by SO number...',
+                hintText: 'Search by SO# or customer...',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -104,6 +119,8 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                   state is TrailersLoaded ? state.seriesFilter : null;
               final locationFilter =
                   state is TrailersLoaded ? state.locationFilter : null;
+              final saleStatusFilter =
+                  state is TrailersLoaded ? state.saleStatusFilter : null;
               final hotOnly =
                   state is TrailersLoaded ? state.hotOnly : false;
 
@@ -141,6 +158,18 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                                 seriesFilter == f.value ? null : f.value),
                           ),
                         )),
+                    const SizedBox(width: 4),
+                    ..._saleFilters.map((f) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _FilterChip(
+                            label: f.label,
+                            icon: f.icon,
+                            selected: saleStatusFilter == f.value,
+                            color: f.color,
+                            onTap: () => cubit.setSaleStatusFilter(
+                                saleStatusFilter == f.value ? null : f.value),
+                          ),
+                        )),
                     if (_locations.isNotEmpty) ...[
                       const SizedBox(width: 4),
                       ..._locations.map((l) => Padding(
@@ -173,21 +202,23 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                     const Center(
                         child:
                             CircularProgressIndicator(color: AppColors.amber)),
-                  TrailersError(message: final msg) => Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 48, color: AppColors.error),
-                          const SizedBox(height: 12),
-                          Text(msg),
-                          const SizedBox(height: 12),
-                          OutlinedButton(
-                            onPressed: () =>
-                                context.read<TrailersViewModel>().load(),
-                            child: const Text('Retry'),
-                          ),
-                        ],
+                  TrailersError(message: final msg) => SingleChildScrollView(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                size: 48, color: AppColors.error),
+                            const SizedBox(height: 12),
+                            Text(msg),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              onPressed: () =>
+                                  context.read<TrailersViewModel>().load(),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   TrailersLoaded(
@@ -314,7 +345,14 @@ class _TrailerCard extends StatelessWidget {
     final t = trailer;
     final series = t.trailerModel?.series ?? '';
     final modelName = t.trailerModel?.displayName ?? '';
-    final customerName = t.customer?.name ?? (t.isStockBuild ? 'Stock Build' : '');
+    final customerName = t.customer?.name ??
+        (t.soldToName as String?) ??
+        (t.isStockBuild ? 'Stock Build' : '');
+
+    // A customer trailer is sold by definition; otherwise use the stored flag.
+    final saleStatus = t.customer != null
+        ? 'sold'
+        : ((t.saleStatus as String?) ?? 'available');
 
     // Active production step (now populated by the list endpoint).
     String stepIndicator = '';
@@ -396,7 +434,7 @@ class _TrailerCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
 
-              // Row 2: Model + status badge
+              // Row 2: Model + sale-status badge + production status badge
               Row(
                 children: [
                   if (modelName.isNotEmpty) ...[
@@ -407,6 +445,10 @@ class _TrailerCard extends StatelessWidget {
                     ),
                   ] else
                     const Spacer(),
+                  if (saleStatus != 'available') ...[
+                    SaleStatusBadge(saleStatus: saleStatus),
+                    const SizedBox(width: 6),
+                  ],
                   StatusBadge(status: t.status),
                 ],
               ),
@@ -641,4 +683,20 @@ const _seriesFilters = [
   (label: 'Yeti', value: 'yeti', color: AppColors.seriesYeti),
   (label: 'Deck Over', value: 'deck_over', color: AppColors.seriesDeckOver),
   (label: 'Gooseneck', value: 'gooseneck_dump', color: AppColors.seriesGooseneck),
+];
+
+const _saleFilters = [
+  (
+    label: 'Available',
+    value: 'available',
+    color: AppColors.disabled,
+    icon: Icons.inventory_2_outlined,
+  ),
+  (
+    label: 'Sale Pending',
+    value: 'sale_pending',
+    color: AppColors.warning,
+    icon: Icons.pending_actions,
+  ),
+  (label: 'Sold', value: 'sold', color: AppColors.success, icon: Icons.sell),
 ];

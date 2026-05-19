@@ -506,44 +506,53 @@ class _ChecklistStep extends StatelessWidget {
       final hasError = loadError != null;
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text(
-              'Step 2: Checklist',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 24),
-            Icon(
-              hasError ? Icons.error_outline : Icons.info_outline,
-              size: 48,
-              color: hasError ? AppColors.error : Colors.grey,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              hasError
-                  ? 'Could not load checklist'
-                  : 'No checklist items configured for this department',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            if (hasError) ...[
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  loadError!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    const Text(
+                      'Step 2: Checklist',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 24),
+                    Icon(
+                      hasError ? Icons.error_outline : Icons.info_outline,
+                      size: 48,
+                      color: hasError ? AppColors.error : Colors.grey,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      hasError
+                          ? 'Could not load checklist'
+                          : 'No checklist items configured for this department',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (hasError) ...[
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          loadError!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    _NavButtons(
+                      onBack: onBack,
+                      onNext: onNext,
+                      nextLabel: 'Next: Result',
+                    ),
+                  ],
                 ),
               ),
-            ],
-            const Spacer(),
-            _NavButtons(
-              onBack: onBack,
-              onNext: onNext,
-              nextLabel: 'Next: Result',
             ),
-          ],
+          ),
         ),
       );
     }
@@ -1003,77 +1012,86 @@ class _ResultStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Step 3: Inspection Result',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Select the final inspection result',
-            style: TextStyle(color: Colors.grey),
-          ),
-          if (isFinalQc)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.amber.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.amber),
-              ),
-              child: const Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.verified, color: AppColors.amber, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'FINAL QC — Passing will mark trailer as Ready for Delivery',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                  const Text(
+                    'Step 3: Inspection Result',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Select the final inspection result',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  if (isFinalQc)
+                    Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.amber.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.amber),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.verified, color: AppColors.amber, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'FINAL QC — Passing will mark trailer as Ready for Delivery',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                  const SizedBox(height: 32),
+                  // Pass / Fail toggle
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ResultCard(
+                          label: 'PASS',
+                          icon: Icons.check_circle,
+                          color: AppColors.success,
+                          isSelected: result == 'pass',
+                          onTap: () => onChanged('pass'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _ResultCard(
+                          label: 'FAIL',
+                          icon: Icons.cancel,
+                          color: AppColors.error,
+                          isSelected: result == 'fail',
+                          onTap: () => onChanged('fail'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  _NavButtons(
+                    onBack: onBack,
+                    onNext: onNext,
+                    nextLabel: result == 'pass'
+                        ? 'Submit Inspection'
+                        : 'Next: Fail Details',
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 32),
-          // Pass / Fail toggle
-          Row(
-            children: [
-              Expanded(
-                child: _ResultCard(
-                  label: 'PASS',
-                  icon: Icons.check_circle,
-                  color: AppColors.success,
-                  isSelected: result == 'pass',
-                  onTap: () => onChanged('pass'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _ResultCard(
-                  label: 'FAIL',
-                  icon: Icons.cancel,
-                  color: AppColors.error,
-                  isSelected: result == 'fail',
-                  onTap: () => onChanged('fail'),
-                ),
-              ),
-            ],
           ),
-          const Spacer(),
-          _NavButtons(
-            onBack: onBack,
-            onNext: onNext,
-            nextLabel: result == 'pass'
-                ? 'Submit Inspection'
-                : 'Next: Fail Details',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1160,108 +1178,117 @@ class _FailDetailsStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Step 4: Fail Details',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Describe the defect and select rework department',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          // Fail notes (required)
-          TextField(
-            controller: failNotesController,
-            decoration: InputDecoration(
-              labelText: 'Fail Notes *',
-              hintText: 'Describe what failed and needs to be fixed...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-              errorText: failNotesController.text.isEmpty ? null : null,
-            ),
-            maxLines: 4,
-            onChanged: (_) => (context as Element).markNeedsBuild(),
-          ),
-          const SizedBox(height: 16),
-          // Rework target department
-          const Text(
-            'Rework Target Department *',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          if (isLoading)
-            const Center(child: CircularProgressIndicator())
-          else
-            DropdownButtonFormField<int>(
-              value: selectedDeptId,
-              decoration: InputDecoration(
-                hintText: 'Select department...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-              items: reworkTargets.map((d) {
-                return DropdownMenuItem(
-                  value: d.id,
-                  child: Text(
-                    '${d.displayName} (${d.code})',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                );
-              }).toList(),
-              onChanged: (id) {
-                if (id != null) onDeptSelected(id);
-              },
-            ),
-          // Warning banner
-          if (selectedDeptId != null)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.warning),
-              ),
-              child: Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.warning_amber,
-                    color: AppColors.warning,
-                    size: 20,
+                  const Text(
+                    'Step 4: Fail Details',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This trailer will be inserted at #1 priority in ${reworkTargets.where((d) => d.id == selectedDeptId).map((d) => d.displayName).firstOrNull ?? "the selected department"}\'s queue',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.warning,
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Describe the defect and select rework department',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  // Fail notes (required)
+                  TextField(
+                    controller: failNotesController,
+                    decoration: InputDecoration(
+                      labelText: 'Fail Notes *',
+                      hintText: 'Describe what failed and needs to be fixed...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.all(16),
+                      errorText: failNotesController.text.isEmpty ? null : null,
+                    ),
+                    maxLines: 4,
+                    onChanged: (_) => (context as Element).markNeedsBuild(),
+                  ),
+                  const SizedBox(height: 16),
+                  // Rework target department
+                  const Text(
+                    'Rework Target Department *',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  if (isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    DropdownButtonFormField<int>(
+                      value: selectedDeptId,
+                      decoration: InputDecoration(
+                        hintText: 'Select department...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      items: reworkTargets.map((d) {
+                        return DropdownMenuItem(
+                          value: d.id,
+                          child: Text(
+                            '${d.displayName} (${d.code})',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (id) {
+                        if (id != null) onDeptSelected(id);
+                      },
+                    ),
+                  // Warning banner
+                  if (selectedDeptId != null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.warning),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.warning_amber,
+                            color: AppColors.warning,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This trailer will be inserted at #1 priority in ${reworkTargets.where((d) => d.id == selectedDeptId).map((d) => d.displayName).firstOrNull ?? "the selected department"}\'s queue',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.warning,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                  const Spacer(),
+                  _NavButtons(
+                    onBack: onBack,
+                    onNext: onSubmit,
+                    nextLabel: 'Submit Inspection',
+                    nextColor: AppColors.error,
                   ),
                 ],
               ),
             ),
-          const Spacer(),
-          _NavButtons(
-            onBack: onBack,
-            onNext: onSubmit,
-            nextLabel: 'Submit Inspection',
-            nextColor: AppColors.error,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1380,130 +1407,139 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
     return Dialog.fullscreen(
       backgroundColor: bgColor,
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isPassed ? Icons.check_circle : Icons.cancel,
-                size: 96,
-                color: AppColors.white,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                isPassed ? 'QC PASSED' : 'QC FAILED',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (isPassed && result.isFinalQc) ...[
-                const Text(
-                  'Trailer Ready for Delivery!',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.white,
-                  ),
-                ),
-                if (result.smsReady) ...[
-                  const SizedBox(height: 20),
-                  OutlinedButton.icon(
-                    onPressed: _smsSent || _smsSending ? null : _sendSms,
-                    icon: _smsSending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.white,
-                              ),
-                            ),
-                          )
-                        : Icon(
-                            _smsSent ? Icons.check : Icons.sms,
-                            color: AppColors.white,
-                          ),
-                    label: Text(
-                      _smsSent ? 'SMS Sent' : 'Send Customer SMS',
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.white),
-                      minimumSize: const Size(200, 48),
-                    ),
-                  ),
-                ],
-              ] else if (isPassed) ...[
-                if (result.nextDepartment != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Next: ${result.nextDepartment}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-              ] else ...[
-                // Fail info
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (result.reworkTargetDepartment != null)
-                        Text(
-                          'Rework sent to ${result.reworkTargetDepartment} at Priority #${result.reworkQueuePosition ?? 1}',
-                          style: const TextStyle(
-                            fontSize: 16,
+                      Icon(
+                        isPassed ? Icons.check_circle : Icons.cancel,
+                        size: 96,
+                        color: AppColors.white,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        isPassed ? 'QC PASSED' : 'QC FAILED',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (isPassed && result.isFinalQc) ...[
+                        const Text(
+                          'Trailer Ready for Delivery!',
+                          style: TextStyle(
+                            fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: AppColors.white,
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Production managers have been notified',
-                        style: TextStyle(fontSize: 13, color: AppColors.white),
+                        if (result.smsReady) ...[
+                          const SizedBox(height: 20),
+                          OutlinedButton.icon(
+                            onPressed: _smsSent || _smsSending ? null : _sendSms,
+                            icon: _smsSending
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    _smsSent ? Icons.check : Icons.sms,
+                                    color: AppColors.white,
+                                  ),
+                            label: Text(
+                              _smsSent ? 'SMS Sent' : 'Send Customer SMS',
+                              style: const TextStyle(
+                                color: AppColors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.white),
+                              minimumSize: const Size(200, 48),
+                            ),
+                          ),
+                        ],
+                      ] else if (isPassed) ...[
+                        if (result.nextDepartment != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Next: ${result.nextDepartment}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.white,
+                              ),
+                            ),
+                          ),
+                      ] else ...[
+                        // Fail info
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              if (result.reworkTargetDepartment != null)
+                                Text(
+                                  'Rework sent to ${result.reworkTargetDepartment} at Priority #${result.reworkQueuePosition ?? 1}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Production managers have been notified',
+                                style: TextStyle(fontSize: 13, color: AppColors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 40),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.white,
+                          foregroundColor: bgColor,
+                          minimumSize: const Size(160, 48),
+                        ),
+                        child: const Text(
+                          'Done',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-              const SizedBox(height: 40),
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.white,
-                  foregroundColor: bgColor,
-                  minimumSize: const Size(160, 48),
-                ),
-                child: const Text(
-                  'Done',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
               ),
-            ],
+            ),
           ),
         ),
       ),

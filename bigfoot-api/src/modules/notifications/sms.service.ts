@@ -4,9 +4,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SmsStatus, SmsType } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
-// Twilio client — lazy-loaded for graceful degradation
+// Twilio client — lazy-loaded for graceful degradation.
+// Minimal structural type covering only the surface this service uses.
 // ---------------------------------------------------------------------------
-let twilioClient: any = null;
+interface TwilioClient {
+  messages: {
+    create(opts: { to: string; from?: string; body: string }): Promise<{ sid: string }>;
+  };
+}
+
+let twilioClient: TwilioClient | null = null;
 
 export interface SmsPayload {
   trailerId?: bigint;
@@ -34,9 +41,10 @@ export class SmsService implements OnModuleInit {
       if (accountSid && authToken) {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const twilio = require('twilio');
-        twilioClient = typeof twilio === 'function'
-          ? twilio(accountSid, authToken)
-          : twilio.default(accountSid, authToken);
+        twilioClient =
+          typeof twilio === 'function'
+            ? twilio(accountSid, authToken)
+            : twilio.default(accountSid, authToken);
         this.twilioInitialised = true;
         this.logger.log('Twilio client initialised');
       } else {
@@ -104,8 +112,8 @@ export class SmsService implements OnModuleInit {
           sentAt: new Date(),
         },
       });
-    } catch (err: any) {
-      this.logger.error(`SMS ${smsLogId} failed: ${err?.message}`);
+    } catch (err) {
+      this.logger.error(`SMS ${smsLogId} failed: ${(err as Error)?.message}`);
       await this.prisma.smsLog.update({
         where: { id: smsLogId },
         data: { status: SmsStatus.failed },

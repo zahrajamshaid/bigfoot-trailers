@@ -20,6 +20,8 @@ Trailer _$TrailerFromJson(Map<String, dynamic> json) => Trailer(
   specialNote: json['specialNote'] as String?,
   qbSoPdfStorageKey: json['qbSoPdfStorageKey'] as String?,
   status: json['status'] as String,
+  saleStatus: json['saleStatus'] as String? ?? 'available',
+  soldToName: json['soldToName'] as String?,
   globalPriority: (json['globalPriority'] as num?)?.toInt() ?? 9999,
   isStockBuild: json['isStockBuild'] as bool? ?? false,
   isHot: json['isHot'] as bool? ?? false,
@@ -61,6 +63,8 @@ Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
   'specialNote': instance.specialNote,
   'qbSoPdfStorageKey': instance.qbSoPdfStorageKey,
   'status': instance.status,
+  'saleStatus': instance.saleStatus,
+  'soldToName': instance.soldToName,
   'globalPriority': instance.globalPriority,
   'isStockBuild': instance.isStockBuild,
   'isHot': instance.isHot,
@@ -76,8 +80,8 @@ Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
 
 LocationInfo _$LocationInfoFromJson(Map<String, dynamic> json) => LocationInfo(
   id: (json['id'] as num).toInt(),
-  code: (json['code'] as String?) ?? '',
-  name: (json['name'] as String?) ?? '',
+  code: json['code'] as String,
+  name: json['name'] as String,
   city: json['city'] as String?,
   state: json['state'] as String?,
   shortLabel: json['shortLabel'] as String?,
@@ -96,9 +100,9 @@ Map<String, dynamic> _$LocationInfoToJson(LocationInfo instance) =>
 TrailerModelInfo _$TrailerModelInfoFromJson(Map<String, dynamic> json) =>
     TrailerModelInfo(
       id: (json['id'] as num).toInt(),
-      code: (json['code'] as String?) ?? '',
-      displayName: (json['displayName'] as String?) ?? '',
-      series: (json['series'] as String?) ?? '',
+      code: json['code'] as String,
+      displayName: json['displayName'] as String,
+      series: json['series'] as String,
       weightRating: json['weightRating'] as String?,
     );
 
@@ -113,13 +117,11 @@ Map<String, dynamic> _$TrailerModelInfoToJson(TrailerModelInfo instance) =>
 
 CustomerInfo _$CustomerInfoFromJson(Map<String, dynamic> json) => CustomerInfo(
   id: (json['id'] as num).toInt(),
-  name: json['name'] as String? ?? '',
+  name: json['name'] as String,
   company: json['company'] as String?,
   smsPhone: json['smsPhone'] as String?,
   email: json['email'] as String?,
-  // Trailer list endpoint may not include customerType — default to end_user
-  // so the parser never throws on a thin response shape.
-  customerType: (json['customerType'] as String?) ?? 'end_user',
+  customerType: json['customerType'] as String,
 );
 
 Map<String, dynamic> _$CustomerInfoToJson(CustomerInfo instance) =>

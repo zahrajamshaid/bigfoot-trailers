@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
+import '../../../core/router/route_names.dart';
 import '../../../data/models/user.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/dashboard_viewmodel.dart';
+import '../../deliveries/view/driver_delivery_screen.dart';
 import '../../../shared/widgets/stat_card.dart';
-import '../../../shared/widgets/activity_feed.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -16,6 +18,12 @@ class DashboardScreen extends StatelessWidget {
     final authState = context.watch<AuthViewModel>().state;
     final user = authState is Authenticated ? authState.user : null;
     final role = user?.role ?? 'worker';
+
+    // Drivers don't get a stat dashboard — their home is the live list of
+    // deliveries assigned to them, with all actions inline.
+    if (role == UserRole.driver) {
+      return const DriverDeliveryList();
+    }
 
     return BlocBuilder<DashboardViewModel, DashboardState>(
       builder: (context, state) {
@@ -42,14 +50,14 @@ class DashboardScreen extends StatelessWidget {
                         _ManagerDashboard(data: data),
                       UserRole.worker => _WorkerDashboard(data: data),
                       UserRole.qcInspector => _QcDashboard(data: data),
-                      UserRole.driver => _DriverDashboard(data: data),
                       UserRole.transportManager =>
                         _TransportDashboard(data: data),
                       _ => _ManagerDashboard(data: data),
                     },
                     if (role == UserRole.owner ||
+                        role == UserRole.transportManager ||
                         role == UserRole.productionManager)
-                      ActivityFeed(items: data.recentActivity),
+                      const _StockInventoryCard(),
                   ],
                 ),
               ),
@@ -125,18 +133,30 @@ class _ManagerDashboard extends StatelessWidget {
                 value: '${data.activeTrailers}',
                 icon: Icons.precision_manufacturing,
                 color: AppColors.statusInProduction,
+                onTap: () => context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {'status': 'in_production'},
+                ),
               ),
               StatCard(
                 title: 'Ready for Delivery',
                 value: '${data.readyForDelivery}',
                 icon: Icons.local_shipping,
                 color: AppColors.success,
+                onTap: () => context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {'status': 'ready_for_delivery'},
+                ),
               ),
               StatCard(
                 title: 'Hot Trailers',
                 value: '${data.hotTrailers}',
                 icon: Icons.local_fire_department,
                 color: AppColors.error,
+                onTap: () => context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {'hot': 'true'},
+                ),
                 badge: data.hotTrailers > 0
                     ? Container(
                         padding: const EdgeInsets.symmetric(
@@ -158,6 +178,10 @@ class _ManagerDashboard extends StatelessWidget {
                 value: '${data.stalledSteps}',
                 icon: Icons.warning_amber,
                 color: AppColors.warning,
+                onTap: () => context.goNamed(
+                  RouteNames.productionQueue,
+                  queryParameters: {'filter': 'stalled'},
+                ),
                 badge: data.stalledSteps > 0
                     ? Container(
                         width: 8,
@@ -174,12 +198,17 @@ class _ManagerDashboard extends StatelessWidget {
                 value: '${data.weeklyCompleted}',
                 icon: Icons.check_circle_outline,
                 color: AppColors.statusDelivered,
+                onTap: () => context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {'status': 'delivered'},
+                ),
               ),
               StatCard(
                 title: 'QC Fail Rate',
                 value: '${data.qcFailRate.toStringAsFixed(1)}%',
                 icon: Icons.analytics_outlined,
                 color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
+                onTap: () => context.goNamed(RouteNames.qcQueue),
               ),
             ],
           ),
@@ -215,18 +244,21 @@ class _WorkerDashboard extends StatelessWidget {
                 value: '${data.myQueueCount}',
                 icon: Icons.queue,
                 color: AppColors.navy,
+                onTap: () => context.goNamed(RouteNames.productionQueue),
               ),
               StatCard(
                 title: 'Points Today',
                 value: data.myPointsToday.toStringAsFixed(1),
                 icon: Icons.star,
                 color: AppColors.amber,
+                onTap: () => context.goNamed(RouteNames.workerPoints),
               ),
               StatCard(
                 title: 'Points This Week',
                 value: data.myPointsWeek.toStringAsFixed(1),
                 icon: Icons.emoji_events,
                 color: AppColors.success,
+                onTap: () => context.goNamed(RouteNames.workerPoints),
               ),
             ],
           ),
@@ -238,6 +270,7 @@ class _WorkerDashboard extends StatelessWidget {
             subtitle: data.nextTrailerColor,
             icon: Icons.arrow_forward,
             color: AppColors.navy,
+            onTap: () => context.goNamed(RouteNames.productionQueue),
           ),
       ],
     );
@@ -264,80 +297,38 @@ class _QcDashboard extends StatelessWidget {
         crossAxisSpacing: 8,
         children: [
           StatCard(
-            title: 'Pending Inspections',
-            value: '${data.pendingInspections}',
-            icon: Icons.pending_actions,
+            title: 'Ready for Inspection',
+            value: '${data.readyForInspection}',
+            icon: Icons.fact_check,
             color: AppColors.navy,
+            onTap: () => context.goNamed(RouteNames.qcQueue),
           ),
           StatCard(
             title: 'Inspections Today',
             value: '${data.inspectionsToday}',
             icon: Icons.checklist,
             color: AppColors.success,
+            onTap: () => context.goNamed(RouteNames.qcQueue),
           ),
           StatCard(
             title: 'Fail Rate Today',
             value: '${data.failRateToday.toStringAsFixed(1)}%',
             icon: Icons.trending_down,
             color: data.failRateToday > 20 ? AppColors.error : AppColors.navy,
+            onTap: () => context.goNamed(RouteNames.qcQueue),
           ),
           StatCard(
             title: 'Rework Queue',
             value: '${data.reworkQueue}',
             icon: Icons.replay,
             color: AppColors.warning,
+            onTap: () => context.goNamed(
+              RouteNames.qcQueue,
+              queryParameters: {'filter': 'rework'},
+            ),
           ),
         ],
       ),
-    );
-  }
-}
-
-// ── Driver ────────────────────────────────────────────────────────────────────
-
-class _DriverDashboard extends StatelessWidget {
-  final DashboardData data;
-  const _DriverDashboard({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final r = context.responsive;
-    return Column(
-      children: [
-        WideStatCard(
-          title: 'Active Delivery',
-          value: data.activeDeliveries > 0 ? 'In Transit' : 'None',
-          subtitle: '${data.activeDeliveries} active',
-          icon: Icons.local_shipping,
-          color:
-              data.activeDeliveries > 0 ? AppColors.amber : AppColors.disabled,
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
-          child: GridView.count(
-            crossAxisCount: r.gridColumns(compact: 2, medium: 2, expanded: 4, large: 4),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: r.statCardAspectRatio,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            children: [
-              StatCard(
-                title: 'Upcoming',
-                value: '${data.upcomingDeliveries}',
-                icon: Icons.schedule,
-                color: AppColors.navy,
-              ),
-              StatCard(
-                title: 'Completed This Week',
-                value: '${data.completedThisWeek}',
-                icon: Icons.check_circle_outline,
-                color: AppColors.success,
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -366,18 +357,20 @@ class _TransportDashboard extends StatelessWidget {
             value: '${data.scheduledDeliveries}',
             icon: Icons.event_note,
             color: AppColors.navy,
-          ),
-          StatCard(
-            title: 'In Transit',
-            value: '${data.inTransitCount}',
-            icon: Icons.local_shipping,
-            color: AppColors.amber,
+            onTap: () => context.goNamed(
+              RouteNames.deliveryList,
+              queryParameters: {'status': 'scheduled'},
+            ),
           ),
           StatCard(
             title: 'Ready for Pickup',
             value: '${data.readyForPickup}',
             icon: Icons.inventory,
             color: AppColors.success,
+            onTap: () => context.goNamed(
+              RouteNames.trailerList,
+              queryParameters: {'status': 'ready_for_delivery'},
+            ),
           ),
         ],
       ),
@@ -414,6 +407,99 @@ class _ErrorView extends StatelessWidget {
               label: const Text('Retry'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Stock Inventory card ─────────────────────────────────────────────────────
+
+/// A feature card on the dashboard that links to the full stock inventory.
+class _StockInventoryCard extends StatelessWidget {
+  const _StockInventoryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 24, 12, 6),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF24506A), AppColors.navy, Color(0xFF112430)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.navy.withValues(alpha: 0.40),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            // push (not go) so the back button returns to the dashboard
+            // rather than popping into the delivery list underneath.
+            onTap: () => context.pushNamed(RouteNames.stockInventory),
+            child: Stack(
+              children: [
+                // Faint watermark for depth.
+                Positioned(
+                  right: -20,
+                  bottom: -28,
+                  child: Icon(
+                    Icons.warehouse_rounded,
+                    size: 140,
+                    color: Colors.white.withValues(alpha: 0.07),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: AppColors.amber.withValues(alpha: 0.20),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: const Icon(Icons.warehouse_rounded,
+                            color: AppColors.amber, size: 28),
+                      ),
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            'Stock Inventory',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.arrow_forward_rounded,
+                            color: Colors.white, size: 19),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

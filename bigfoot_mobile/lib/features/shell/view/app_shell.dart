@@ -181,26 +181,42 @@ class _AppShellState extends State<AppShell> {
                 body: useRail
                     ? Row(
                         children: [
-                          NavigationRail(
-                            selectedIndex: currentIndex.clamp(
-                              0,
-                              tabs.length - 1,
-                            ),
-                            onDestinationSelected: (index) =>
-                                context.go(tabs[index].path),
-                            labelType: r.isExpanded || r.isLarge
-                                ? NavigationRailLabelType.all
-                                : NavigationRailLabelType.selected,
-                            extended: r.isLarge,
-                            destinations: tabs
-                                .map(
-                                  (tab) => NavigationRailDestination(
-                                    icon: Icon(tab.icon),
-                                    selectedIcon: Icon(tab.selectedIcon),
-                                    label: Text(tab.label),
+                          // The rail can have more destinations than fit a
+                          // short (landscape) viewport — let it scroll while
+                          // still filling the height when there is room.
+                          LayoutBuilder(
+                            builder: (context, constraints) =>
+                                SingleChildScrollView(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight,
+                                ),
+                                child: IntrinsicHeight(
+                                  child: NavigationRail(
+                                    selectedIndex: currentIndex.clamp(
+                                      0,
+                                      tabs.length - 1,
+                                    ),
+                                    onDestinationSelected: (index) =>
+                                        context.go(tabs[index].path),
+                                    labelType: r.isExpanded || r.isLarge
+                                        ? NavigationRailLabelType.all
+                                        : NavigationRailLabelType.selected,
+                                    extended: r.isLarge,
+                                    destinations: tabs
+                                        .map(
+                                          (tab) => NavigationRailDestination(
+                                            icon: Icon(tab.icon),
+                                            selectedIcon:
+                                                Icon(tab.selectedIcon),
+                                            label: Text(tab.label),
+                                          ),
+                                        )
+                                        .toList(),
                                   ),
-                                )
-                                .toList(),
+                                ),
+                              ),
+                            ),
                           ),
                           const VerticalDivider(width: 1),
                           Expanded(child: body),
@@ -217,7 +233,6 @@ class _AppShellState extends State<AppShell> {
                             context.go(bottomTabs[index].path),
                         labelBehavior:
                             NavigationDestinationLabelBehavior.onlyShowSelected,
-                        height: 64,
                         destinations: bottomTabs
                             .map(
                               (tab) => NavigationDestination(
@@ -382,12 +397,6 @@ class _AppShellState extends State<AppShell> {
             Icons.admin_panel_settings_outlined,
             Icons.admin_panel_settings,
           ),
-          _NavTab(
-            '/customers',
-            'Customers',
-            Icons.people_outline,
-            Icons.people,
-          ),
         ];
       case UserRole.productionManager:
         return const [
@@ -464,12 +473,6 @@ class _AppShellState extends State<AppShell> {
             Icons.delivery_dining_outlined,
             Icons.delivery_dining,
           ),
-          _NavTab(
-            '/customers',
-            'Customers',
-            Icons.people_outline,
-            Icons.people,
-          ),
         ];
       case UserRole.sales:
         return const [
@@ -478,12 +481,6 @@ class _AppShellState extends State<AppShell> {
             'Trailers',
             Icons.local_shipping_outlined,
             Icons.local_shipping,
-          ),
-          _NavTab(
-            '/customers',
-            'Customers',
-            Icons.people_outline,
-            Icons.people,
           ),
         ];
       default:

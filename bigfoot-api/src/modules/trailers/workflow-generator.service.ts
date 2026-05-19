@@ -1,6 +1,7 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TrailerSeries, ProductionStepStatus, Prisma } from '@prisma/client';
+import { AppError, ErrorCode } from '../../common/errors';
 
 export interface GeneratedStepsSummary {
   trailerId: bigint;
@@ -33,17 +34,17 @@ export class WorkflowGeneratorService {
     });
 
     if (templates.length === 0) {
-      throw new BadRequestException({
-        code: 'BAD_REQUEST',
-        message: `No workflow templates found for series "${series}"`,
-      });
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `No workflow templates found for series "${series}"`,
+      );
     }
 
     if (templates.length !== 12) {
-      throw new BadRequestException({
-        code: 'BAD_REQUEST',
-        message: `Expected 12 workflow templates for series "${series}", found ${templates.length}`,
-      });
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Expected 12 workflow templates for series "${series}", found ${templates.length}`,
+      );
     }
 
     const now = new Date();

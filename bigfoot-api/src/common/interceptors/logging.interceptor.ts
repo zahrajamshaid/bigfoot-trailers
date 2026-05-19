@@ -24,14 +24,14 @@ export class LoggingInterceptor implements NestInterceptor {
       tap(() => {
         const duration = Date.now() - start;
         const status = response.statusCode;
-        const userId = (request as any).user?.sub ?? 'anon';
-        this.logger.log(
-          `${method} ${url} ${status} ${duration}ms user=${userId}`,
-        );
+        const userId =
+          (request as Request & { user?: { sub?: string | number } }).user?.sub ?? 'anon';
+        this.logger.log(`${method} ${url} ${status} ${duration}ms user=${userId}`);
       }),
       catchError((err) => {
         const duration = Date.now() - start;
-        const userId = (request as any).user?.sub ?? 'anon';
+        const userId =
+          (request as Request & { user?: { sub?: string | number } }).user?.sub ?? 'anon';
         this.logger.error(
           `${method} ${url} ERR ${duration}ms user=${userId} — ${(err as Error)?.message}`,
         );

@@ -11,14 +11,12 @@ describe('AuditLogService', () => {
       findMany: jest.fn(),
       count: jest.fn(),
     },
+    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuditLogService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [AuditLogService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<AuditLogService>(AuditLogService);
@@ -178,10 +176,12 @@ describe('AuditLogService', () => {
         { id: 1n, entityType: 'trailer', entityId: 100n, action: 'UPDATE' },
       ];
       mockPrisma.auditLog.findMany.mockResolvedValue(mockEntries);
+      mockPrisma.$transaction.mockResolvedValue([mockEntries, mockEntries.length]);
 
       const result = await service.findByEntity('trailer', 100);
 
-      expect(result).toEqual(mockEntries);
+      expect(result.items).toEqual(mockEntries);
+      expect(result.total).toBe(mockEntries.length);
       expect(mockPrisma.auditLog.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { entityType: 'trailer', entityId: 100n },

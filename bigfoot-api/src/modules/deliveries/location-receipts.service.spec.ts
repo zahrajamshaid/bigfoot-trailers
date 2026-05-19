@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { LocationReceiptsService } from './location-receipts.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -73,7 +70,7 @@ describe('LocationReceiptsService', () => {
 
     await expect(
       service.create({ deliveryId: 100, trailerId: 1 }, BigInt(10)),
-    ).rejects.toThrow('does not match');
+    ).rejects.toMatchObject({ errorCode: ErrorCode.LOCATION_RECEIPT_WRONG_LOCATION });
   });
 
   it('should throw LOCATION_RECEIPT_WRONG_LOCATION if user has no location', async () => {
@@ -82,7 +79,7 @@ describe('LocationReceiptsService', () => {
 
     await expect(
       service.create({ deliveryId: 100, trailerId: 1 }, BigInt(10)),
-    ).rejects.toThrow('does not match');
+    ).rejects.toMatchObject({ errorCode: ErrorCode.LOCATION_RECEIPT_WRONG_LOCATION });
   });
 
   it('should throw NotFoundException if delivery not found', async () => {
@@ -91,7 +88,7 @@ describe('LocationReceiptsService', () => {
 
     await expect(
       service.create({ deliveryId: 999, trailerId: 1 }, BigInt(10)),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
   });
 
   it('should throw if trailer does not match delivery', async () => {
@@ -100,7 +97,7 @@ describe('LocationReceiptsService', () => {
 
     await expect(
       service.create({ deliveryId: 100, trailerId: 999 }, BigInt(10)), // wrong trailer
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
   });
 
   it('should throw if delivery has no destination location', async () => {
@@ -113,6 +110,6 @@ describe('LocationReceiptsService', () => {
 
     await expect(
       service.create({ deliveryId: 100, trailerId: 1 }, BigInt(10)),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
   });
 });

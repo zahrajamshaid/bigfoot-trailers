@@ -70,10 +70,7 @@ describe('Happy Path — Full Workflow (e2e)', () => {
 
   // ── Helper: create trailer and fetch its steps ────────────────────────────
 
-  async function createTrailerAndGetSteps(
-    soNumber: string,
-    trailerModelId: number,
-  ) {
+  async function createTrailerAndGetSteps(soNumber: string, trailerModelId: number) {
     const createRes = await request(httpServer)
       .post('/v1/trailers')
       .set('Authorization', `Bearer ${owner.token}`)
@@ -104,8 +101,18 @@ describe('Happy Path — Full Workflow (e2e)', () => {
 
       // Correct department order
       const expectedDepts = [
-        'XP_JIG', 'QC_1', 'XP_FIN', 'QC_2', 'PAINT_PREP', 'QC_3',
-        'PAINT_A', 'QC_4', 'WIRE', 'QC_5', 'WOOD', 'FINAL_QC',
+        'XP_JIG',
+        'QC_1',
+        'XP_FIN',
+        'QC_2',
+        'PAINT_PREP',
+        'QC_3',
+        'PAINT_A',
+        'QC_4',
+        'WIRE',
+        'QC_5',
+        'WOOD',
+        'FINAL_QC',
       ];
       for (let i = 0; i < expectedDepts.length; i++) {
         expect(steps[i].department.code).toBe(expectedDepts[i]);
@@ -118,8 +125,12 @@ describe('Happy Path — Full Workflow (e2e)', () => {
 
       // Complete full workflow
       const finalStatus = await completeFullWorkflow(
-        prisma, httpServer, trailerId, worker.id,
-        qcInspector.token, checklistItemMap,
+        prisma,
+        httpServer,
+        trailerId,
+        worker.id,
+        qcInspector.token,
+        checklistItemMap,
       );
 
       expect(finalStatus).toBe('ready_for_delivery');
@@ -148,8 +159,12 @@ describe('Happy Path — Full Workflow (e2e)', () => {
       expect(steps[2].department.code).toBe('YETI_FIN');
 
       const finalStatus = await completeFullWorkflow(
-        prisma, httpServer, trailerId, worker.id,
-        qcInspector.token, checklistItemMap,
+        prisma,
+        httpServer,
+        trailerId,
+        worker.id,
+        qcInspector.token,
+        checklistItemMap,
       );
 
       expect(finalStatus).toBe('ready_for_delivery');
@@ -170,8 +185,12 @@ describe('Happy Path — Full Workflow (e2e)', () => {
       expect(steps[2].department.code).toBe('DO_FIN');
 
       const finalStatus = await completeFullWorkflow(
-        prisma, httpServer, trailerId, worker.id,
-        qcInspector.token, checklistItemMap,
+        prisma,
+        httpServer,
+        trailerId,
+        worker.id,
+        qcInspector.token,
+        checklistItemMap,
       );
 
       expect(finalStatus).toBe('ready_for_delivery');
@@ -191,21 +210,35 @@ describe('Happy Path — Full Workflow (e2e)', () => {
 
       // Verify Gooseneck-specific department order
       const expectedDepts = [
-        'GN_WELD', 'QC_1', 'GN_FIN', 'QC_2', 'PAINT_PREP', 'QC_3',
-        'PAINT_B', 'QC_4', 'HYDRAULICS', 'QC_5', 'WOOD', 'FINAL_QC',
+        'GN_WELD',
+        'QC_1',
+        'GN_FIN',
+        'QC_2',
+        'PAINT_PREP',
+        'QC_3',
+        'PAINT_B',
+        'QC_4',
+        'HYDRAULICS',
+        'QC_5',
+        'WOOD',
+        'FINAL_QC',
       ];
       for (let i = 0; i < expectedDepts.length; i++) {
         expect(steps[i].department.code).toBe(expectedDepts[i]);
       }
 
       // Assert the three GN-specific departments
-      expect(steps[2].department.code).toBe('GN_FIN');      // GN Finish Weld (new v1.3)
-      expect(steps[6].department.code).toBe('PAINT_B');     // Paint Booth B (not A)
-      expect(steps[8].department.code).toBe('HYDRAULICS');  // Hydraulics (not Wire)
+      expect(steps[2].department.code).toBe('GN_FIN'); // GN Finish Weld (new v1.3)
+      expect(steps[6].department.code).toBe('PAINT_B'); // Paint Booth B (not A)
+      expect(steps[8].department.code).toBe('HYDRAULICS'); // Hydraulics (not Wire)
 
       const finalStatus = await completeFullWorkflow(
-        prisma, httpServer, trailerId, worker.id,
-        qcInspector.token, checklistItemMap,
+        prisma,
+        httpServer,
+        trailerId,
+        worker.id,
+        qcInspector.token,
+        checklistItemMap,
       );
 
       expect(finalStatus).toBe('ready_for_delivery');

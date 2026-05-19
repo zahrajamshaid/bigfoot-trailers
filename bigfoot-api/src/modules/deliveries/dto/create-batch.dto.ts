@@ -1,4 +1,11 @@
-import { IsOptional, IsInt, IsString, IsEnum, IsNotEmpty } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  IsString,
+  IsEnum,
+  IsNotEmpty,
+  IsArray,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -29,8 +36,21 @@ export class CreateBatchDto {
   @Type(() => Number)
   destinationLocationId?: number;
 
-  @ApiPropertyOptional({ description: 'Destination name (for dealers not in locations table)' })
+  @ApiPropertyOptional({
+    description: 'Destination name (for dealers not in locations table)',
+  })
   @IsOptional()
   @IsString()
   destinationName?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Trailer IDs to add to the batch on creation — each must be ready_for_delivery',
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  trailerIds?: number[];
 }

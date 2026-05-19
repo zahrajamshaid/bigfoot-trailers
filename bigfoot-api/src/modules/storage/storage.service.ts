@@ -87,7 +87,9 @@ export class StorageService implements OnModuleInit {
     } else {
       // Create a stub client so the service can be injected in tests/dev
       this.s3 = new S3Client({ region: 'us-east-1' });
-      this.logger.warn('DO Spaces credentials not configured — storage operations will fail');
+      this.logger.warn(
+        'DO Spaces credentials not configured — storage operations will fail',
+      );
     }
   }
 
@@ -107,22 +109,34 @@ export class StorageService implements OnModuleInit {
   }> {
     // 1. Validate file_type
     if (!VALID_FILE_TYPES.includes(params.fileType as FileType)) {
-      throw new AppError(ErrorCode.PRESIGN_INVALID_FILE_TYPE, `Invalid file_type "${params.fileType}". Allowed: ${VALID_FILE_TYPES.join(', ')}`);
+      throw new AppError(
+        ErrorCode.PRESIGN_INVALID_FILE_TYPE,
+        `Invalid file_type "${params.fileType}". Allowed: ${VALID_FILE_TYPES.join(', ')}`,
+      );
     }
     const fileType = params.fileType as FileType;
 
     // 2. Validate extension
     const ext = this.extractExtension(params.fileName);
     if (!ext || !ALL_EXTENSIONS.includes(ext)) {
-      throw new AppError(ErrorCode.PRESIGN_INVALID_FILE_TYPE, `Invalid file extension ".${ext ?? '(none)'}". Allowed: ${ALL_EXTENSIONS.join(', ')}`);
+      throw new AppError(
+        ErrorCode.PRESIGN_INVALID_FILE_TYPE,
+        `Invalid file extension ".${ext ?? '(none)'}". Allowed: ${ALL_EXTENSIONS.join(', ')}`,
+      );
     }
 
     // 3. Validate extension matches file type
     if (fileType === 'so_pdf' && !PDF_EXTENSIONS.includes(ext)) {
-      throw new AppError(ErrorCode.PRESIGN_INVALID_FILE_TYPE, `File type "so_pdf" requires a PDF extension. Got ".${ext}"`);
+      throw new AppError(
+        ErrorCode.PRESIGN_INVALID_FILE_TYPE,
+        `File type "so_pdf" requires a PDF extension. Got ".${ext}"`,
+      );
     }
     if (fileType !== 'so_pdf' && !PHOTO_EXTENSIONS.includes(ext)) {
-      throw new AppError(ErrorCode.PRESIGN_INVALID_FILE_TYPE, `File type "${fileType}" requires a photo extension (${PHOTO_EXTENSIONS.join(', ')}). Got ".${ext}"`);
+      throw new AppError(
+        ErrorCode.PRESIGN_INVALID_FILE_TYPE,
+        `File type "${fileType}" requires a photo extension (${PHOTO_EXTENSIONS.join(', ')}). Got ".${ext}"`,
+      );
     }
 
     // 4. Build storage key
@@ -166,7 +180,10 @@ export class StorageService implements OnModuleInit {
     const validPrefixes = Object.values(FILE_TYPE_PREFIXES);
     const keyPrefix = storageKey.split('/')[0];
     if (!validPrefixes.includes(keyPrefix!)) {
-      throw new AppError(ErrorCode.PRESIGN_INVALID_FILE_TYPE, `Invalid storage key prefix "${keyPrefix}"`);
+      throw new AppError(
+        ErrorCode.PRESIGN_INVALID_FILE_TYPE,
+        `Invalid storage key prefix "${keyPrefix}"`,
+      );
     }
 
     const command = new GetObjectCommand({

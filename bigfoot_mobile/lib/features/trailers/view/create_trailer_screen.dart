@@ -6,12 +6,10 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/constants/api_endpoints.dart';
-import '../../../data/models/customer.dart';
 import '../../../domain/repositories/storage_repository.dart';
 import '../../../domain/repositories/trailer_repository.dart';
 import '../../../shared/widgets/stock_location_chips.dart';
 import '../viewmodel/trailers_viewmodel.dart';
-import '../widgets/customer_picker_field.dart';
 
 class CreateTrailerScreen extends StatefulWidget {
   const CreateTrailerScreen({super.key});
@@ -27,10 +25,10 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
   final _sizeController = TextEditingController();
   final _notesController = TextEditingController();
   final _specialNoteController = TextEditingController();
+  final _customerController = TextEditingController();
   int? _selectedModelId;
   bool _isStockBuild = false;
   int? _selectedStockLocationId;
-  Customer? _selectedCustomer;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -161,8 +159,8 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
             'optionsNotes': _notesController.text.trim(),
           if (_specialNoteController.text.trim().isNotEmpty)
             'specialNote': _specialNoteController.text.trim(),
-          if (!_isStockBuild && _selectedCustomer != null)
-            'customerId': _selectedCustomer!.id,
+          if (!_isStockBuild && _customerController.text.trim().isNotEmpty)
+            'soldToName': _customerController.text.trim(),
           'isStockBuild': _isStockBuild,
           if (_isStockBuild) 'stockLocationId': _selectedStockLocationId,
         },
@@ -249,24 +247,6 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
     }
   }
 
-  /// Picker callback. If the picked (or freshly-created) customer is a
-  /// stock_location, switch the form into Stock Build mode for that yard
-  /// instead of assigning it as a regular customer.
-  void _onCustomerPicked(Customer? c) {
-    setState(() {
-      if (c != null &&
-          c.customerType == CustomerType.stockLocation &&
-          c.stockLocationId != null) {
-        _isStockBuild = true;
-        _selectedStockLocationId = c.stockLocationId;
-        _selectedCustomer = null;
-        _stockLocationError = null;
-      } else {
-        _selectedCustomer = c;
-      }
-    });
-  }
-
   @override
   void dispose() {
     _soController.dispose();
@@ -274,6 +254,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
     _sizeController.dispose();
     _notesController.dispose();
     _specialNoteController.dispose();
+    _customerController.dispose();
     super.dispose();
   }
 
@@ -284,26 +265,28 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
       body: _loadingModels
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : _modelOptions.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 48, color: AppColors.error),
-                        const SizedBox(height: 12),
-                        Text(
-                          _loadModelsError ?? 'No trailer models available.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: _loadModels,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
+              ? SingleChildScrollView(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 48, color: AppColors.error),
+                          const SizedBox(height: 12),
+                          Text(
+                            _loadModelsError ?? 'No trailer models available.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: _loadModels,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 )
@@ -431,7 +414,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                       onChanged: (v) => setState(() {
                         _isStockBuild = v;
                         if (v) {
-                          _selectedCustomer = null;
+                          _customerController.clear();
                         } else {
                           _selectedStockLocationId = null;
                         }
@@ -439,18 +422,20 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                       contentPadding: EdgeInsets.zero,
                     ),
 
-                    // Customer picker — only when not a stock build
+                    // Customer name — only when not a stock build. Plain text:
+                    // customer records are owned by the GoHighLevel integration.
                     if (!_isStockBuild) ...[
                       const SizedBox(height: 12),
-                      CustomerPickerField(
-                        selectedCustomerId: _selectedCustomer?.id,
-                        selectedCustomerLabel: _selectedCustomer == null
-                            ? null
-                            : (_selectedCustomer!.company?.isNotEmpty == true
-                                ? '${_selectedCustomer!.name} (${_selectedCustomer!.company})'
-                                : _selectedCustomer!.name),
-                        onChanged: _onCustomerPicked,
-                        helperText: 'Optional — leave blank for unassigned builds',
+                      TextFormField(
+                        controller: _customerController,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Customer',
+                          hintText: 'Buyer name — leave blank for stock',
+                          helperText:
+                              'Optional. A trailer with a customer is marked sold.',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
                       ),
                     ],
                     if (_isStockBuild) ...[

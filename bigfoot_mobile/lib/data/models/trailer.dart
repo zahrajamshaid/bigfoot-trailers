@@ -22,6 +22,16 @@ class Trailer {
   final String? specialNote;
   final String? qbSoPdfStorageKey;
   final String status;
+
+  /// Sale state, independent of the production [status]:
+  /// `available` · `sale_pending` · `sold`. A trailer linked to a customer
+  /// is always `sold`.
+  @JsonKey(defaultValue: 'available')
+  final String saleStatus;
+
+  /// Free-text buyer name captured when a stock / no-customer trailer is
+  /// marked sold. Null for trailers that carry a [customer] record instead.
+  final String? soldToName;
   final int globalPriority;
   final bool isStockBuild;
   final bool isHot;
@@ -50,6 +60,8 @@ class Trailer {
     this.specialNote,
     this.qbSoPdfStorageKey,
     required this.status,
+    this.saleStatus = 'available',
+    this.soldToName,
     this.globalPriority = 9999,
     this.isStockBuild = false,
     this.isHot = false,

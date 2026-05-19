@@ -51,7 +51,10 @@ class _StockLocationChipsState extends State<StockLocationChips> {
     });
     try {
       final repo = context.read<LocationRepository>();
-      final items = await repo.getStockLocations();
+      // getAllLocations (not getStockLocations) so the Mulberry factory yard
+      // is offered as a stock destination too — a stock build can be held at
+      // the factory, not just the satellite yards.
+      final items = await repo.getAllLocations();
       if (!mounted) return;
       setState(() {
         _locations = items;

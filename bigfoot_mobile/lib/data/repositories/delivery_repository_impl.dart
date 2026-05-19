@@ -4,6 +4,7 @@ import '../../domain/repositories/delivery_repository.dart';
 import '../../domain/repositories/location_repository.dart';
 import '../models/delivery.dart';
 import '../models/delivery_batch.dart';
+import '../models/stock_inventory.dart';
 import '../models/user.dart';
 
 class DeliveryRepositoryImpl implements DeliveryRepository {
@@ -56,19 +57,21 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   Future<DeliveryFormData> getCreateFormData() async {
     final trailersFuture = _api.get<Map<String, dynamic>>(
       ApiEndpoints.trailers,
-      queryParameters: {'status': 'ready_for_delivery', 'limit': 100, 'page': 1},
-      fromJson: (d) => d as Map<String, dynamic>,
-    );
-    final driversFuture = _api.get<Map<String, dynamic>>(
-      ApiEndpoints.users,
       queryParameters: {
-        'page': 1,
-        // Users query DTO enforces limit <= 100.
+        'status': 'ready_for_delivery',
+        // Drop trailers already committed to an open delivery so they can't
+        // be added to another delivery or batch.
+        'excludeOpenDeliveries': true,
         'limit': 100,
-        'role': UserRole.driver,
-        'isActive': true,
+        'page': 1,
       },
       fromJson: (d) => d as Map<String, dynamic>,
+    );
+    // Dedicated drivers endpoint — readable by transport_manager + owner, so
+    // the assignment dropdown populates regardless of who opens the form.
+    final driversFuture = _api.get<List<dynamic>>(
+      ApiEndpoints.usersDrivers,
+      fromJson: (d) => d as List<dynamic>,
     );
     final batchesFuture = _api.get<List<dynamic>>(
       ApiEndpoints.deliveryBatches,
@@ -78,15 +81,14 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     final trailersResp = await trailersFuture;
     final batchesResp = await batchesFuture;
 
-    Map<String, dynamic> driversEnvelope = const <String, dynamic>{};
+    List<dynamic> driversRaw = const [];
     try {
       final driversResp = await driversFuture;
-      driversEnvelope = driversResp.data ?? const <String, dynamic>{};
+      driversRaw = driversResp.data ?? const [];
     } catch (_) {
-      // Some roles (for example transport_manager) may not have /users read access.
-      // Driver assignment is optional when creating a delivery, so proceed without
-      // blocking the form.
-      driversEnvelope = const <String, dynamic>{};
+      // Driver assignment is optional when creating a delivery, so proceed
+      // without blocking the form if the list can't be loaded.
+      driversRaw = const [];
     }
 
     final trailersEnvelope = trailersResp.data ?? {};
@@ -94,7 +96,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
         .whereType<Map<String, dynamic>>()
         .toList();
 
-    final drivers = ((driversEnvelope['users'] as List<dynamic>?) ?? [])
+    final drivers = driversRaw
       .whereType<Map<String, dynamic>>()
       .map((u) => User(
           id: (u['id'] as num).toInt(),
@@ -143,8 +145,11 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     int? driverUserId,
     int? destinationLocationId,
     String? customerDeliveryAddress,
+    String? contactPhone,
     double? balanceDue,
     int? deliveryBatchId,
+    String? pickedUpByName,
+    double? paymentCollected,
   }) async {
     await _api.post(
       ApiEndpoints.deliveries,
@@ -155,15 +160,15 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
         if (destinationLocationId != null) 'destinationLocationId': destinationLocationId,
         if (customerDeliveryAddress != null && customerDeliveryAddress.isNotEmpty)
           'customerDeliveryAddress': customerDeliveryAddress,
+        if (contactPhone != null && contactPhone.isNotEmpty)
+          'contactPhone': contactPhone,
         if (balanceDue != null) 'balanceDue': balanceDue,
         if (deliveryBatchId != null) 'deliveryBatchId': deliveryBatchId,
+        if (pickedUpByName != null && pickedUpByName.isNotEmpty)
+          'pickedUpByName': pickedUpByName,
+        if (paymentCollected != null) 'paymentCollected': paymentCollected,
       },
     );
-  }
-
-  @override
-  Future<void> markDeparted(int deliveryId) async {
-    await _api.patch(ApiEndpoints.deliveryDepart(deliveryId));
   }
 
   @override
@@ -175,28 +180,33 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
-  Future<void> completeDelivery({
-    required int deliveryId,
-    required double paymentCollected,
-    required String paymentMethod,
-    required bool tcAccepted,
-    String? signatureUrl,
-    double? gpsLat,
-    double? gpsLng,
-    List<String> photoStorageKeys = const [],
-  }) async {
+  Future<void> deleteDelivery(int deliveryId) async {
+    await _api.delete(ApiEndpoints.delivery(deliveryId));
+  }
+
+  @override
+  Future<void> completeDelivery(int deliveryId, {double? paymentCollected}) async {
+    // One-tap completion. The backend marks the delivery delivered, updates
+    // the trailer, and notifies the transport managers. The optional
+    // paymentCollected lets the driver record a balance taken on delivery.
     await _api.post(
       ApiEndpoints.deliveryComplete(deliveryId),
       data: {
-        'paymentCollected': paymentCollected,
-        'paymentMethod': paymentMethod,
-        'tcAccepted': tcAccepted,
-        if (signatureUrl != null && signatureUrl.isNotEmpty) 'signatureUrl': signatureUrl,
-        if (gpsLat != null) 'gpsLat': gpsLat,
-        if (gpsLng != null) 'gpsLng': gpsLng,
-        if (photoStorageKeys.isNotEmpty) 'photoStorageKeys': photoStorageKeys,
+        if (paymentCollected != null) 'paymentCollected': paymentCollected,
       },
     );
+  }
+
+  @override
+  Future<List<StockLocationGroup>> getStockInventory() async {
+    final response = await _api.get<List<dynamic>>(
+      ApiEndpoints.deliveryStockInventory,
+      fromJson: (d) => d as List<dynamic>,
+    );
+    return (response.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(StockLocationGroup.fromJson)
+        .toList();
   }
 
   @override
@@ -224,14 +234,15 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
-  Future<void> createBatch({
+  Future<DeliveryBatch> createBatch({
     required String batchNumber,
     required String batchType,
     int? driverUserId,
     int? destinationLocationId,
     String? destinationName,
+    List<int>? trailerIds,
   }) async {
-    await _api.post(
+    final response = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.deliveryBatches,
       data: {
         'batchNumber': batchNumber,
@@ -239,8 +250,11 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
         if (driverUserId != null) 'driverUserId': driverUserId,
         if (destinationLocationId != null) 'destinationLocationId': destinationLocationId,
         if (destinationName != null && destinationName.isNotEmpty) 'destinationName': destinationName,
+        if (trailerIds != null && trailerIds.isNotEmpty) 'trailerIds': trailerIds,
       },
+      fromJson: (d) => d as Map<String, dynamic>,
     );
+    return DeliveryBatch.fromJson(response.data!);
   }
 
   @override
@@ -270,7 +284,34 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
-  Future<void> completeFactoryPickup(int id) async {
-    await _api.post(ApiEndpoints.factoryPickupComplete(id));
+  Future<void> completeBatch(int batchId, {List<String>? photoStorageKeys}) async {
+    await _api.post(
+      ApiEndpoints.deliveryBatchComplete(batchId),
+      data: {
+        if (photoStorageKeys != null && photoStorageKeys.isNotEmpty)
+          'photoStorageKeys': photoStorageKeys,
+      },
+    );
+  }
+
+  @override
+  Future<void> deleteBatch(int batchId) async {
+    await _api.delete(ApiEndpoints.deliveryBatch(batchId));
+  }
+
+  @override
+  Future<void> completeFactoryPickup(
+    int id, {
+    String? pickedUpByName,
+    double? paymentCollected,
+  }) async {
+    await _api.post(
+      ApiEndpoints.factoryPickupComplete(id),
+      data: {
+        if (pickedUpByName != null && pickedUpByName.isNotEmpty)
+          'pickedUpByName': pickedUpByName,
+        if (paymentCollected != null) 'paymentCollected': paymentCollected,
+      },
+    );
   }
 }

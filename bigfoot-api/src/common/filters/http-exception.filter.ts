@@ -3,7 +3,6 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
-  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -42,7 +41,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else if (status >= 400) {
-      this.logger.warn(`${request.method} ${request.url} → ${status} ${code}: ${message}`);
+      this.logger.warn(
+        `${request.method} ${request.url} → ${status} ${code}: ${message}`,
+      );
     }
 
     const body: ErrorResponseBody = {
@@ -92,10 +93,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // ── Generic Error ─────────────────────────────────────────────────────
     if (exception instanceof Error) {
-      this.logger.error(
-        `Unhandled exception: ${exception.message}`,
-        exception.stack,
-      );
+      this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);
       return {
         status: 500,
         code: ErrorCode.INTERNAL_ERROR,

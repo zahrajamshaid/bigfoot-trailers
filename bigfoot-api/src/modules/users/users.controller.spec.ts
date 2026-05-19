@@ -47,7 +47,9 @@ const workerPayload: JwtPayload = {
 // ---------------------------------------------------------------------------
 
 const mockUsersService = {
-  findAll: jest.fn().mockResolvedValue({ users: [mockUser], total: 1, page: 1, limit: 25 }),
+  findAll: jest
+    .fn()
+    .mockResolvedValue({ users: [mockUser], total: 1, page: 1, limit: 25 }),
   findOne: jest.fn().mockResolvedValue(mockUser),
   create: jest.fn().mockResolvedValue(mockUser),
   update: jest.fn().mockResolvedValue(mockUser),

@@ -29,10 +29,9 @@ abstract final class RouteNames {
   static const String deliveryList = 'deliveryList';
   static const String deliveryCreate = 'deliveryCreate';
   static const String deliveryDetail = 'deliveryDetail';
-  static const String deliveryComplete = 'deliveryComplete';
   static const String deliveryBatches = 'deliveryBatches';
+  static const String stockInventory = 'stockInventory';
   static const String deliveryDriver = 'deliveryDriver';
-  static const String deliveryFactoryPickup = 'deliveryFactoryPickup';
 
   // ── Payroll ──────────────────────────────────────────────────────────────
   static const String workerPoints = 'workerPoints';

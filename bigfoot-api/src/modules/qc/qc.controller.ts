@@ -38,7 +38,7 @@ export class QcController {
   // ---------------------------------------------------------------------------
   @Get('stats')
   @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
-  @ApiOperation({ summary: 'QC dashboard summary (pending, today, rework)' })
+  @ApiOperation({ summary: 'QC dashboard summary (ready, today, rework)' })
   @ApiResponse({ status: 200, description: 'QC stats' })
   async getQcStats() {
     return this.qcService.getQcStats();
@@ -104,7 +104,9 @@ export class QcController {
   // GET /qc/inspections/:id
   // ---------------------------------------------------------------------------
   @Get('inspections/:id')
-  @ApiOperation({ summary: 'Get a single QC inspection with checklist results and photos' })
+  @ApiOperation({
+    summary: 'Get a single QC inspection with checklist results and photos',
+  })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Inspection detail' })
   @ApiResponse({ status: 404, description: 'Inspection not found' })

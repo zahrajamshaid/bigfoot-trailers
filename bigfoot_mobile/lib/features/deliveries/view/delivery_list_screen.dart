@@ -10,7 +10,11 @@ import '../viewmodel/deliveries_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
 
 class DeliveryListScreen extends StatefulWidget {
-  const DeliveryListScreen({super.key});
+  /// Optional status that preselects the matching tab on open — set by
+  /// dashboard deep links such as `?status=in_transit`.
+  final String? initialStatus;
+
+  const DeliveryListScreen({super.key, this.initialStatus});
 
   @override
   State<DeliveryListScreen> createState() => _DeliveryListScreenState();
@@ -18,7 +22,7 @@ class DeliveryListScreen extends StatefulWidget {
 
 class _DeliveryListScreenState extends State<DeliveryListScreen>
     with SingleTickerProviderStateMixin {
-  static const _tabs = ['scheduled', 'in_transit', 'delivered', 'failed'];
+  static const _tabs = ['scheduled', 'delivered', 'failed'];
 
   late final TabController _tabController;
   late final VoidCallback _tabListener;
@@ -34,8 +38,12 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
       if (!mounted) return;
       _reload();
     };
-    _tabController = TabController(length: _tabs.length, vsync: this)
-      ..addListener(_tabListener);
+    final initialIndex = _tabs.indexOf(widget.initialStatus ?? '');
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: initialIndex < 0 ? 0 : initialIndex,
+    )..addListener(_tabListener);
     WidgetsBinding.instance.addPostFrameCallback((_) => _reload());
   }
 
@@ -63,6 +71,36 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
     );
   }
 
+  /// Collapses deliveries sharing a batch into one `List<Delivery>` row;
+  /// standalone deliveries stay as a plain `Delivery`. Order is preserved —
+  /// a batch appears where its first delivery would.
+  List<Object> _groupByBatch(List<Delivery> deliveries) {
+    final groups = <int, List<Delivery>>{};
+    for (final d in deliveries) {
+      final bid = d.deliveryBatchId;
+      if (bid != null) groups.putIfAbsent(bid, () => []).add(d);
+    }
+    final rows = <Object>[];
+    final seen = <int>{};
+    for (final d in deliveries) {
+      final bid = d.deliveryBatchId;
+      if (bid != null) {
+        if (seen.add(bid)) rows.add(groups[bid]!);
+      } else {
+        rows.add(d);
+      }
+    }
+    return rows;
+  }
+
+  Future<void> _openDetail(Delivery d) async {
+    await context.pushNamed(
+      RouteNames.deliveryDetail,
+      pathParameters: {'id': d.id.toString()},
+    );
+    if (mounted) _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthViewModel, AuthState>(
@@ -75,13 +113,31 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
 
         return Scaffold(
           floatingActionButton: canCreate
-              ? FloatingActionButton.extended(
-                  onPressed: () async {
-                    await context.pushNamed(RouteNames.deliveryCreate);
-                    if (mounted) _reload();
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create Delivery'),
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FloatingActionButton.extended(
+                      heroTag: 'batchesFab',
+                      backgroundColor: AppColors.navy,
+                      onPressed: () async {
+                        await context.pushNamed(RouteNames.deliveryBatches);
+                        if (mounted) _reload();
+                      },
+                      icon: const Icon(Icons.inventory_2_outlined),
+                      label: const Text('Batches'),
+                    ),
+                    const SizedBox(height: 12),
+                    FloatingActionButton.extended(
+                      heroTag: 'createDeliveryFab',
+                      onPressed: () async {
+                        await context.pushNamed(RouteNames.deliveryCreate);
+                        if (mounted) _reload();
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create Delivery'),
+                    ),
+                  ],
                 )
               : null,
           body: Column(
@@ -92,10 +148,10 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                   controller: _tabController,
                   indicatorColor: AppColors.amber,
                   labelColor: AppColors.white,
-                  unselectedLabelColor: AppColors.white.withValues(alpha: 0.7),
+                  unselectedLabelColor:
+                      AppColors.white.withValues(alpha: 0.7),
                   tabs: const [
                     Tab(text: 'Scheduled'),
-                    Tab(text: 'In Transit'),
                     Tab(text: 'Completed'),
                     Tab(text: 'Failed'),
                   ],
@@ -145,7 +201,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                     }
                     if (state is DeliveriesError) {
                       return Center(
-                        child: Padding(
+                        child: SingleChildScrollView(
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -171,26 +227,29 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                       if (state.deliveries.isEmpty) {
                         return const Center(child: Text('No deliveries found'));
                       }
+                      // Deliveries that share a batch are shown as one card so
+                      // it's clear which trailers travel together.
+                      final rows = _groupByBatch(state.deliveries);
                       return RefreshIndicator(
                         onRefresh: () async => _reload(),
                         child: ListView.separated(
                           padding: const EdgeInsets.all(12),
                           itemBuilder: (context, index) {
-                            final d = state.deliveries[index];
+                            final row = rows[index];
+                            if (row is List<Delivery>) {
+                              return _BatchGroupCard(
+                                deliveries: row,
+                                onTapDelivery: _openDetail,
+                              );
+                            }
                             return _DeliveryCard(
-                              delivery: d,
-                              onTap: () async {
-                                await context.pushNamed(
-                                  RouteNames.deliveryDetail,
-                                  pathParameters: {'id': d.id.toString()},
-                                );
-                                if (mounted) _reload();
-                              },
+                              delivery: row as Delivery,
+                              onTap: () => _openDetail(row),
                             );
                           },
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 10),
-                          itemCount: state.deliveries.length,
+                          itemCount: rows.length,
                         ),
                       );
                     }
@@ -287,6 +346,87 @@ class _FilterBar extends StatelessWidget {
               onPressed: onClearDates,
               child: const Text('Clear Dates'),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One card for a whole batch — lists every trailer in it. Tapping a trailer
+/// opens that delivery's detail.
+class _BatchGroupCard extends StatelessWidget {
+  final List<Delivery> deliveries;
+  final void Function(Delivery) onTapDelivery;
+
+  const _BatchGroupCard({
+    required this.deliveries,
+    required this.onTapDelivery,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.amber),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+            child: Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined,
+                    size: 18, color: AppColors.navy),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Batch delivery — ${deliveries.length} trailers',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ...deliveries.map(
+            (d) => InkWell(
+              onTap: () => onTapDelivery(d),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            d.soNumber,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            d.modelName,
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.disabled),
+                          ),
+                        ],
+                      ),
+                    ),
+                    StatusBadge(status: d.status),
+                    const Icon(Icons.chevron_right, color: AppColors.disabled),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
         ],
       ),
     );

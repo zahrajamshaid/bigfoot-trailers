@@ -18,7 +18,8 @@ export class RequestLoggerMiddleware implements NestMiddleware {
     res.on('finish', () => {
       const duration = Date.now() - start;
       const status = res.statusCode;
-      const userId = (req as any).user?.sub ?? 'anon';
+      const userId =
+        (req as Request & { user?: { sub?: string | number } }).user?.sub ?? 'anon';
 
       const logLine = `${method} ${originalUrl} ${status} ${duration}ms user=${userId}`;
 

@@ -2,11 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CustomerType, Prisma, TrailerStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppError, ErrorCode } from '../../common/errors';
-import {
-  CreateCustomerDto,
-  UpdateCustomerDto,
-  QueryCustomersDto,
-} from './dto';
+import { CreateCustomerDto, UpdateCustomerDto, QueryCustomersDto } from './dto';
 
 const CUSTOMER_SELECT = {
   id: true,
@@ -24,7 +20,14 @@ const CUSTOMER_SELECT = {
   createdAt: true,
   updatedAt: true,
   stockLocation: {
-    select: { id: true, code: true, name: true, city: true, state: true, shortLabel: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      city: true,
+      state: true,
+      shortLabel: true,
+    },
   },
 } satisfies Prisma.CustomerSelect;
 
@@ -252,9 +255,10 @@ export class CustomersService {
         select: { customerType: true, stockLocationId: true },
       });
       const nextType = dto.customerType ?? current?.customerType;
-      const nextLoc = dto.stockLocationId !== undefined
-        ? dto.stockLocationId
-        : current?.stockLocationId ?? null;
+      const nextLoc =
+        dto.stockLocationId !== undefined
+          ? dto.stockLocationId
+          : (current?.stockLocationId ?? null);
       await this.validateStockLocation(nextType, nextLoc ?? undefined);
     }
     return this.prisma.customer.update({

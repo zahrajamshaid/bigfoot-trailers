@@ -58,7 +58,8 @@ describe('OrphanCleanupProcessor', () => {
 
     it('should delete orphaned delivery photos', async () => {
       mockStorageService.listObjects.mockImplementation((prefix: string) => {
-        if (prefix === 'delivery/') return ['delivery/1/proof.jpg', 'delivery/1/orphan.png'];
+        if (prefix === 'delivery/')
+          return ['delivery/1/proof.jpg', 'delivery/1/orphan.png'];
         return [];
       });
 
@@ -72,7 +73,9 @@ describe('OrphanCleanupProcessor', () => {
       const count = await processor.cleanup();
 
       expect(count).toBe(1);
-      expect(mockStorageService.deleteObject).toHaveBeenCalledWith('delivery/1/orphan.png');
+      expect(mockStorageService.deleteObject).toHaveBeenCalledWith(
+        'delivery/1/orphan.png',
+      );
     });
 
     it('should delete orphaned SO PDFs', async () => {
@@ -91,7 +94,9 @@ describe('OrphanCleanupProcessor', () => {
       const count = await processor.cleanup();
 
       expect(count).toBe(1);
-      expect(mockStorageService.deleteObject).toHaveBeenCalledWith('so-pdf/200/orphan.pdf');
+      expect(mockStorageService.deleteObject).toHaveBeenCalledWith(
+        'so-pdf/200/orphan.pdf',
+      );
     });
 
     it('should not delete anything if all files are referenced', async () => {
@@ -100,9 +105,7 @@ describe('OrphanCleanupProcessor', () => {
         return [];
       });
 
-      mockPrisma.qcPhoto.findMany.mockResolvedValue([
-        { storageKey: 'qc/1/a.jpg' },
-      ]);
+      mockPrisma.qcPhoto.findMany.mockResolvedValue([{ storageKey: 'qc/1/a.jpg' }]);
       mockPrisma.deliveryPhoto.findMany.mockResolvedValue([]);
       mockPrisma.trailer.findMany.mockResolvedValue([]);
 

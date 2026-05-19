@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { ErrorCode } from '../../common/errors';
 import { WorkflowGeneratorService } from './workflow-generator.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -7,26 +7,26 @@ import { PrismaService } from '../../prisma/prisma.service';
 // Department fixture — maps code to a stable test id
 // ---------------------------------------------------------------------------
 const DEPT: Record<string, { id: number; isQcStep: boolean }> = {
-  XP_JIG:     { id: 1,  isQcStep: false },
-  XP_FIN:     { id: 2,  isQcStep: false },
-  YETI_JIG:   { id: 3,  isQcStep: false },
-  YETI_FIN:   { id: 4,  isQcStep: false },
-  DO_JIG:     { id: 5,  isQcStep: false },
-  DO_FIN:     { id: 6,  isQcStep: false },
-  GN_WELD:    { id: 7,  isQcStep: false },
-  GN_FIN:     { id: 8,  isQcStep: false },
-  PAINT_PREP: { id: 9,  isQcStep: false },
-  PAINT_A:    { id: 10, isQcStep: false },
-  PAINT_B:    { id: 11, isQcStep: false },
+  XP_JIG: { id: 1, isQcStep: false },
+  XP_FIN: { id: 2, isQcStep: false },
+  YETI_JIG: { id: 3, isQcStep: false },
+  YETI_FIN: { id: 4, isQcStep: false },
+  DO_JIG: { id: 5, isQcStep: false },
+  DO_FIN: { id: 6, isQcStep: false },
+  GN_WELD: { id: 7, isQcStep: false },
+  GN_FIN: { id: 8, isQcStep: false },
+  PAINT_PREP: { id: 9, isQcStep: false },
+  PAINT_A: { id: 10, isQcStep: false },
+  PAINT_B: { id: 11, isQcStep: false },
   HYDRAULICS: { id: 12, isQcStep: false },
-  WIRE:       { id: 13, isQcStep: false },
-  WOOD:       { id: 14, isQcStep: false },
-  QC_1:       { id: 15, isQcStep: true },
-  QC_2:       { id: 16, isQcStep: true },
-  QC_3:       { id: 17, isQcStep: true },
-  QC_4:       { id: 18, isQcStep: true },
-  QC_5:       { id: 19, isQcStep: true },
-  FINAL_QC:   { id: 20, isQcStep: true },
+  WIRE: { id: 13, isQcStep: false },
+  WOOD: { id: 14, isQcStep: false },
+  QC_1: { id: 15, isQcStep: true },
+  QC_2: { id: 16, isQcStep: true },
+  QC_3: { id: 17, isQcStep: true },
+  QC_4: { id: 18, isQcStep: true },
+  QC_5: { id: 19, isQcStep: true },
+  FINAL_QC: { id: 20, isQcStep: true },
 };
 
 // ---------------------------------------------------------------------------
@@ -242,7 +242,11 @@ describe('WorkflowGeneratorService', () => {
     it('should generate 12 steps starting with DO_JIG', async () => {
       mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('deck_over'));
 
-      const result = await service.generateSteps(BigInt(3), 'deck_over' as any, mockTx as any);
+      const result = await service.generateSteps(
+        BigInt(3),
+        'deck_over' as any,
+        mockTx as any,
+      );
 
       expect(result.totalSteps).toBe(12);
 
@@ -266,9 +270,15 @@ describe('WorkflowGeneratorService', () => {
   // =========================================================================
   describe('Gooseneck/Dump series', () => {
     it('should generate 12 steps with GN_WELD, GN_FIN, PAINT_B, HYDRAULICS', async () => {
-      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('gooseneck_dump'));
+      mockTx.workflowTemplate.findMany.mockResolvedValue(
+        buildTemplateRows('gooseneck_dump'),
+      );
 
-      const result = await service.generateSteps(BigInt(4), 'gooseneck_dump' as any, mockTx as any);
+      const result = await service.generateSteps(
+        BigInt(4),
+        'gooseneck_dump' as any,
+        mockTx as any,
+      );
 
       expect(result.totalSteps).toBe(12);
 
@@ -278,7 +288,9 @@ describe('WorkflowGeneratorService', () => {
     });
 
     it('should use PAINT_B and HYDRAULICS (not PAINT_A or WIRE)', async () => {
-      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('gooseneck_dump'));
+      mockTx.workflowTemplate.findMany.mockResolvedValue(
+        buildTemplateRows('gooseneck_dump'),
+      );
 
       await service.generateSteps(BigInt(4), 'gooseneck_dump' as any, mockTx as any);
 
@@ -290,7 +302,9 @@ describe('WorkflowGeneratorService', () => {
     });
 
     it('should set first step (GN_WELD) to active', async () => {
-      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('gooseneck_dump'));
+      mockTx.workflowTemplate.findMany.mockResolvedValue(
+        buildTemplateRows('gooseneck_dump'),
+      );
 
       await service.generateSteps(BigInt(4), 'gooseneck_dump' as any, mockTx as any);
 
@@ -322,8 +336,12 @@ describe('WorkflowGeneratorService', () => {
         await service.generateSteps(BigInt(1), series as any, mockTx as any);
 
         // QC steps are at even positions (2,4,6,8,10,12)
-        const qcSteps = createdSteps.filter((s) => [15, 16, 17, 18, 19, 20].includes(s.departmentId));
-        const prodSteps = createdSteps.filter((s) => ![15, 16, 17, 18, 19, 20].includes(s.departmentId));
+        const qcSteps = createdSteps.filter((s) =>
+          [15, 16, 17, 18, 19, 20].includes(s.departmentId),
+        );
+        const prodSteps = createdSteps.filter(
+          (s) => ![15, 16, 17, 18, 19, 20].includes(s.departmentId),
+        );
         expect(qcSteps).toHaveLength(6);
         expect(prodSteps).toHaveLength(6);
       }
@@ -361,22 +379,22 @@ describe('WorkflowGeneratorService', () => {
       }
     });
 
-    it('should throw BadRequestException if no templates found', async () => {
+    it('should throw BAD_REQUEST if no templates found', async () => {
       mockTx.workflowTemplate.findMany.mockResolvedValue([]);
 
       await expect(
         service.generateSteps(BigInt(1), 'xp' as any, mockTx as any),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
     });
 
-    it('should throw BadRequestException if template count is not 12', async () => {
+    it('should throw BAD_REQUEST if template count is not 12', async () => {
       mockTx.workflowTemplate.findMany.mockResolvedValue(
         buildTemplateRows('xp').slice(0, 6), // only 6 templates
       );
 
       await expect(
         service.generateSteps(BigInt(1), 'xp' as any, mockTx as any),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
     });
   });
 });

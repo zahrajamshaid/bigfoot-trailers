@@ -1,4 +1,12 @@
-import { IsString, IsInt, IsOptional, IsEnum, MaxLength, IsNotEmpty, Min } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  MaxLength,
+  IsNotEmpty,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -16,7 +24,10 @@ export class CreateChecklistItemDto {
   @Type(() => Number)
   departmentId!: number;
 
-  @ApiPropertyOptional({ description: 'Series scope for this checklist item', default: 'all' })
+  @ApiPropertyOptional({
+    description: 'Series scope for this checklist item',
+    default: 'all',
+  })
   @IsOptional()
   @IsEnum(QcSeriesScopeDto)
   appliesToSeries?: QcSeriesScopeDto;
@@ -27,7 +38,10 @@ export class CreateChecklistItemDto {
   @MaxLength(300)
   itemLabel!: string;
 
-  @ApiPropertyOptional({ description: 'Sort order within the department checklist', default: 0 })
+  @ApiPropertyOptional({
+    description: 'Sort order within the department checklist',
+    default: 0,
+  })
   @IsOptional()
   @IsInt()
   @Min(0)

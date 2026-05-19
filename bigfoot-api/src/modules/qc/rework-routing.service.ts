@@ -45,12 +45,17 @@ export class ReworkRoutingService {
         departmentId: targetDepartmentId,
       },
       include: {
-        department: { select: { id: true, code: true, displayName: true, isQcStep: true } },
+        department: {
+          select: { id: true, code: true, displayName: true, isQcStep: true },
+        },
       },
     });
 
     if (!validTemplate) {
-      throw new AppError(ErrorCode.QC_INVALID_REWORK_TARGET, `Department ${targetDepartmentId} is not a valid production department in this trailer's workflow series (${trailer.trailerModel.series})`);
+      throw new AppError(
+        ErrorCode.QC_INVALID_REWORK_TARGET,
+        `Department ${targetDepartmentId} is not a valid production department in this trailer's workflow series (${trailer.trailerModel.series})`,
+      );
     }
 
     // 3. Find the production_step for (trailerId, targetDepartmentId)
@@ -63,7 +68,10 @@ export class ReworkRoutingService {
     });
 
     if (!reworkStep) {
-      throw new AppError(ErrorCode.QC_INVALID_REWORK_TARGET, `No production step found for trailer ${trailerId} in department ${targetDepartmentId}`);
+      throw new AppError(
+        ErrorCode.QC_INVALID_REWORK_TARGET,
+        `No production step found for trailer ${trailerId} in department ${targetDepartmentId}`,
+      );
     }
 
     // 4. Bump existing active steps in this department down by 1 position

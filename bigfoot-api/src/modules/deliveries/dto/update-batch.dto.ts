@@ -27,7 +27,10 @@ export class UpdateBatchDto {
   @Type(() => Number)
   addTrailerIds?: number[];
 
-  @ApiPropertyOptional({ description: 'Delivery IDs to remove from the batch', type: [Number] })
+  @ApiPropertyOptional({
+    description: 'Delivery IDs to remove from the batch',
+    type: [Number],
+  })
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })

@@ -3,6 +3,7 @@ import { NotificationsService } from './notifications.service';
 import { PushService } from './push.service';
 import { SmsService } from './sms.service';
 import { NotificationsGateway, WsEvent } from './notifications.gateway';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -26,6 +27,14 @@ describe('NotificationsService', () => {
     queueSms: jest.fn(),
   };
 
+  const mockPrisma = {
+    pushNotification: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -33,6 +42,7 @@ describe('NotificationsService', () => {
         { provide: NotificationsGateway, useValue: mockGateway },
         { provide: PushService, useValue: mockPushService },
         { provide: SmsService, useValue: mockSmsService },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 

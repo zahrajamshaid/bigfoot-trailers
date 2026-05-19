@@ -60,10 +60,15 @@ export class QcService {
         select: { addons: { select: { addonName: true } } },
       });
       if (!trailer) {
-        throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${query.trailerId} not found`);
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          `Trailer with id ${query.trailerId} not found`,
+        );
       }
       const addonKeys = trailer.addons.map((a) => a.addonName);
-      const addonClauses: Prisma.QcChecklistItemWhereInput[] = [{ requiresAddonKey: null }];
+      const addonClauses: Prisma.QcChecklistItemWhereInput[] = [
+        { requiresAddonKey: null },
+      ];
       if (addonKeys.length > 0) {
         addonClauses.push({ requiresAddonKey: '*' });
         addonClauses.push({ requiresAddonKey: { in: addonKeys } });
@@ -101,11 +106,17 @@ export class QcService {
     });
 
     if (!dept) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Department with id ${dto.departmentId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Department with id ${dto.departmentId} not found`,
+      );
     }
 
     if (!dept.isQcStep) {
-      throw new AppError(ErrorCode.BAD_REQUEST, `Department "${dept.displayName}" is not a QC department`);
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Department "${dept.displayName}" is not a QC department`,
+      );
     }
 
     return this.prisma.qcChecklistItem.create({
@@ -178,20 +189,31 @@ export class QcService {
         departmentId: true,
         stepOrder: true,
         status: true,
-        department: { select: { id: true, code: true, displayName: true, isQcStep: true } },
+        department: {
+          select: { id: true, code: true, displayName: true, isQcStep: true },
+        },
       },
     });
 
     if (!step) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Production step with id ${dto.productionStepId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Production step with id ${dto.productionStepId} not found`,
+      );
     }
 
     if (!step.department.isQcStep) {
-      throw new AppError(ErrorCode.BAD_REQUEST, `Step ${dto.productionStepId} is not a QC step — use production step completion instead`);
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Step ${dto.productionStepId} is not a QC step — use production step completion instead`,
+      );
     }
 
     if (step.status !== ProductionStepStatus.active) {
-      throw new AppError(ErrorCode.STEP_NOT_ACTIVE, `QC step ${dto.productionStepId} is not currently active (status: ${step.status})`);
+      throw new AppError(
+        ErrorCode.STEP_NOT_ACTIVE,
+        `QC step ${dto.productionStepId} is not currently active (status: ${step.status})`,
+      );
     }
 
     // 2. Validate checklist completeness — all active items for this dept/series must be answered
@@ -208,7 +230,10 @@ export class QcService {
     });
 
     if (!trailer) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Trailer not found for step ${dto.productionStepId}`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Trailer not found for step ${dto.productionStepId}`,
+      );
     }
 
     const addonKeys = trailer.addons.map((a) => a.addonName);
@@ -236,20 +261,31 @@ export class QcService {
 
     // Validate all active checklist items are answered
     const answeredItemIds = new Set(dto.checklistResults.map((r) => r.checklistItemId));
-    const missingItems = activeChecklistItems.filter((item) => !answeredItemIds.has(item.id));
+    const missingItems = activeChecklistItems.filter(
+      (item) => !answeredItemIds.has(item.id),
+    );
 
     if (missingItems.length > 0) {
-      throw new AppError(ErrorCode.QC_CHECKLIST_INCOMPLETE, `Missing checklist results for items: ${missingItems.map((i) => i.id).join(', ')}`);
+      throw new AppError(
+        ErrorCode.QC_CHECKLIST_INCOMPLETE,
+        `Missing checklist results for items: ${missingItems.map((i) => i.id).join(', ')}`,
+      );
     }
 
     // 3. Validate fail-specific requirements
     const isFail = dto.result === 'fail';
     if (isFail) {
       if (!dto.reworkTargetDepartmentId) {
-        throw new AppError(ErrorCode.QC_REWORK_TARGET_REQUIRED, 'rework_target_department_id is required when result = "fail"');
+        throw new AppError(
+          ErrorCode.QC_REWORK_TARGET_REQUIRED,
+          'A rework target department must be selected when the QC result is a fail',
+        );
       }
       if (!dto.failNotes) {
-        throw new AppError(ErrorCode.BAD_REQUEST, 'fail_notes is required when result = "fail"');
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          'Failure notes must be provided when the QC result is a fail',
+        );
       }
     }
 
@@ -435,9 +471,10 @@ export class QcService {
             isFinalQc: false,
             nextStepId: nextStep?.id ?? null,
             nextDepartment: nextStep?.department.displayName ?? null,
-            trailerStatus: trailer.status === TrailerStatus.pending_production
-              ? 'in_production'
-              : trailer.status,
+            trailerStatus:
+              trailer.status === TrailerStatus.pending_production
+                ? 'in_production'
+                : trailer.status,
           };
         }
       }
@@ -464,13 +501,17 @@ export class QcService {
         qcStep: step.department.code,
         qcDepartmentId: step.departmentId,
         nextStepId: 'nextStepId' in result ? result.nextStepId : null,
-        nextDepartmentId: 'nextStepId' in result && result.nextStepId
-          ? (await this.prisma.productionStep.findUnique({
-              where: { id: result.nextStepId as bigint },
-              select: { departmentId: true },
-            }))?.departmentId ?? null
-          : null,
-        nextDepartmentName: 'nextDepartment' in result ? result.nextDepartment as string : null,
+        nextDepartmentId:
+          'nextStepId' in result && result.nextStepId
+            ? ((
+                await this.prisma.productionStep.findUnique({
+                  where: { id: result.nextStepId as bigint },
+                  select: { departmentId: true },
+                })
+              )?.departmentId ?? null)
+            : null,
+        nextDepartmentName:
+          'nextDepartment' in result ? (result.nextDepartment as string) : null,
         isFinalQc: result.isFinalQc ?? false,
         trailerStatus: result.trailerStatus ?? trailer.status,
       });
@@ -486,11 +527,14 @@ export class QcService {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const [pendingInspections, reworkQueue, inspectionsToday, failsToday] =
+    const [readyForInspection, reworkQueue, inspectionsToday, failsToday] =
       await this.prisma.$transaction([
+        // "Ready for inspection" = QC steps the trailer has actually reached
+        // and are waiting on the inspector (status `active`). `waiting` QC
+        // steps belong to trailers still at an earlier production stage.
         this.prisma.productionStep.count({
           where: {
-            status: { in: [ProductionStepStatus.waiting, ProductionStepStatus.active] },
+            status: ProductionStepStatus.active,
             department: { isQcStep: true },
           },
         }),
@@ -508,11 +552,10 @@ export class QcService {
         }),
       ]);
 
-    const failRateToday =
-      inspectionsToday > 0 ? failsToday / inspectionsToday : 0;
+    const failRateToday = inspectionsToday > 0 ? failsToday / inspectionsToday : 0;
 
     return {
-      pendingInspections,
+      readyForInspection,
       inspectionsToday,
       failRateToday,
       reworkQueue,
@@ -563,8 +606,8 @@ export class QcService {
 
     if (!queued) {
       throw new AppError(
-        ErrorCode.NOT_FOUND,
-        'No queued trailer_complete SMS found — customer may be opted out or missing a phone',
+        ErrorCode.BAD_REQUEST,
+        'No customer SMS is queued for this trailer — the customer may have opted out of texts or has no phone number on file',
       );
     }
 
@@ -682,7 +725,10 @@ export class QcService {
     });
 
     if (!step) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Production step with id ${stepId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Production step with id ${stepId} not found`,
+      );
     }
 
     return this.prisma.qcInspection.findMany({
