@@ -2,6 +2,15 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'delivery.g.dart';
 
+/// Prisma serialises `Decimal` columns as JSON strings ("1500.00"), not JSON
+/// numbers. Parse tolerantly so a string, a number, or null all work — a
+/// plain `as num` cast throws "String is not a subtype of num" otherwise.
+double? _decimalToDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}
+
 @JsonSerializable()
 class Delivery {
   final int id;
@@ -12,7 +21,9 @@ class Delivery {
   final String? contactPhone;
   final String deliveryType; // factory_pickup, stack_to_dealer, stack_to_location, single_pull
   final String status; // scheduled, in_transit, delivered, failed
+  @JsonKey(fromJson: _decimalToDouble)
   final double? balanceDue;
+  @JsonKey(fromJson: _decimalToDouble)
   final double? paymentCollected;
   final String? paymentMethod; // cashiers_check, debit, cash
   final String? failReason;
@@ -23,7 +34,9 @@ class Delivery {
   final DateTime? createdAt;
   final int? deliveryBatchId;
   final String? signatureUrl;
+  @JsonKey(fromJson: _decimalToDouble)
   final double? gpsLat;
+  @JsonKey(fromJson: _decimalToDouble)
   final double? gpsLng;
   final DateTime? tcAcceptedAt;
 

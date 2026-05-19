@@ -318,7 +318,19 @@ class _QcQueueCard extends StatelessWidget {
                       ),
                     );
                   }
-                : () => context.go('/qc/inspect/${item.stepId}', extra: item),
+                : () async {
+                    // Push (not go) so we can await the inspection form and
+                    // refresh the queue on return — the trailer just QC'd is
+                    // then dropped from the list without a manual pull-to-
+                    // refresh.
+                    await context.push(
+                      '/qc/inspect/${item.stepId}',
+                      extra: item,
+                    );
+                    if (context.mounted) {
+                      context.read<QcViewModel>().refresh();
+                    }
+                  },
             child: IntrinsicHeight(
               child: Row(
                 children: [

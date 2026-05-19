@@ -15,8 +15,8 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
   contactPhone: json['contactPhone'] as String?,
   deliveryType: json['deliveryType'] as String,
   status: json['status'] as String,
-  balanceDue: (json['balanceDue'] as num?)?.toDouble(),
-  paymentCollected: (json['paymentCollected'] as num?)?.toDouble(),
+  balanceDue: _decimalToDouble(json['balanceDue']),
+  paymentCollected: _decimalToDouble(json['paymentCollected']),
   paymentMethod: json['paymentMethod'] as String?,
   failReason: json['failReason'] as String?,
   pickedUpByName: json['pickedUpByName'] as String?,
@@ -32,8 +32,8 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
       : DateTime.parse(json['createdAt'] as String),
   deliveryBatchId: (json['deliveryBatchId'] as num?)?.toInt(),
   signatureUrl: json['signatureUrl'] as String?,
-  gpsLat: (json['gpsLat'] as num?)?.toDouble(),
-  gpsLng: (json['gpsLng'] as num?)?.toDouble(),
+  gpsLat: _decimalToDouble(json['gpsLat']),
+  gpsLng: _decimalToDouble(json['gpsLng']),
   tcAcceptedAt: json['tcAcceptedAt'] == null
       ? null
       : DateTime.parse(json['tcAcceptedAt'] as String),
