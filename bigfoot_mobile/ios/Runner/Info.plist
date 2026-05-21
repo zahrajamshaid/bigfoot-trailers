@@ -88,5 +88,14 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+
+	<!--
+	  Encryption export-compliance declaration. The app uses only standard
+	  HTTPS / TLS, which is exempt from US export rules — declaring this
+	  here skips the "Does your app use encryption?" question on every
+	  TestFlight / App Store upload.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
