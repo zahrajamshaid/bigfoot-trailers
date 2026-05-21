@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Push notifications. "development" is correct for debug + TestFlight
+	  internal testing. Xcode automatically swaps this to "production" when
+	  archiving with a distribution profile for App Store / Ad Hoc.
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

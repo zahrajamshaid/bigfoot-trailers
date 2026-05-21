@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Bigfoot Mobile</string>
+	<string>Bigfoot Trailers</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,48 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- User-facing permission prompts (required by image_picker, geolocator, etc.) -->
+	<key>NSCameraUsageDescription</key>
+	<string>Bigfoot Trailers uses the camera to capture QC inspection photos and proof-of-delivery shots.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Bigfoot Trailers needs access to your photo library to attach inspection and delivery photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Bigfoot Trailers saves captured photos to your library.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Bigfoot Trailers records the delivery location when a driver marks a delivery complete.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Bigfoot Trailers records the delivery location when a driver marks a delivery complete.</string>
+
+	<!-- External URL schemes opened by url_launcher (tel:, sms:, mailto:, Google Maps) -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>sms</string>
+		<string>mailto</string>
+		<string>https</string>
+		<string>http</string>
+		<string>comgooglemaps</string>
+		<string>googlechromes</string>
+	</array>
+
+	<!-- Background modes — needed by Firebase Cloud Messaging -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+
+	<!--
+	  App Transport Security. Production uses a valid HTTPS origin, so no
+	  global arbitrary-loads exception is required. NSAllowsLocalNetworking
+	  permits HTTP traffic to LAN IPs (e.g. 192.168.x.x) for local dev
+	  without opening up the rest of the internet to cleartext.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
