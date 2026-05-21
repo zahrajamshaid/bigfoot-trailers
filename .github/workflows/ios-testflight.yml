@@ -1,0 +1,169 @@
+name: iOS — Build & TestFlight
+
+# Manual trigger only — every run consumes ~25 min of macOS runner minutes
+# and pushes a new build to TestFlight, so do it on purpose.
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Release notes (visible in App Store Connect)'
+        required: false
+        default: 'Build from GitHub Actions'
+
+env:
+  FLUTTER_VERSION: 3.32.8
+  API_HOST: bigfoot.206-189-190-150.sslip.io
+  BUNDLE_ID: com.bigfoottrailers.bigfootMobile
+
+jobs:
+  build_and_upload:
+    name: Build IPA + upload to TestFlight
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        working-directory: bigfoot_mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Set up Xcode (latest stable)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Bump build number from CI run number
+        # Each TestFlight upload needs a strictly higher CFBundleVersion than
+        # the previous one. Using github.run_number guarantees that without
+        # anyone having to hand-edit pubspec.yaml.
+        run: |
+          BASE_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1 | tr -d '\r\n ')
+          BUILD_NUMBER=${{ github.run_number }}
+          sed -i.bak "s/^version:.*/version: ${BASE_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          rm pubspec.yaml.bak
+          echo "Building ${BASE_VERSION}+${BUILD_NUMBER}"
+
+      - name: Install signing certificate into a temp keychain
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.IOS_BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+
+          security create-keychain  -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Install provisioning profile
+        env:
+          PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+          echo -n "$PROVISION_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Restore GoogleService-Info.plist
+        env:
+          PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          echo -n "$PLIST_BASE64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+          test -s ios/Runner/GoogleService-Info.plist || { echo "GoogleService-Info.plist is empty"; exit 1; }
+
+      - name: Restore App Store Connect API key
+        env:
+          API_KEY_BASE64: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
+          API_KEY_ID:    ${{ secrets.APPSTORE_API_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo -n "$API_KEY_BASE64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: pod install
+        working-directory: bigfoot_mobile/ios
+        run: pod install
+
+      - name: Write ExportOptions.plist
+        env:
+          APPLE_TEAM_ID:             ${{ secrets.APPLE_TEAM_ID }}
+          PROVISIONING_PROFILE_NAME: ${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}
+        run: |
+          cat > ios/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${{ env.BUNDLE_ID }}</key>
+              <string>${PROVISIONING_PROFILE_NAME}</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build IPA
+        run: |
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --dart-define=FLAVOR=production \
+            --dart-define=API_BASE_URL=https://${{ env.API_HOST }}/v1 \
+            --dart-define=WS_URL=wss://${{ env.API_HOST }}/ws
+
+      - name: Upload to TestFlight via altool
+        env:
+          API_KEY_ID:    ${{ secrets.APPSTORE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n 1)
+          echo "Uploading $IPA_PATH"
+          xcrun altool --upload-app \
+            -f "$IPA_PATH" \
+            -t ios \
+            --apiKey "$API_KEY_ID" \
+            --apiIssuer "$API_ISSUER_ID"
+
+      - name: Upload IPA as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ github.run_number }}
+          path: bigfoot_mobile/build/ios/ipa/*.ipa
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Clean up keychain on failure too
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" 2>/dev/null || true
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision

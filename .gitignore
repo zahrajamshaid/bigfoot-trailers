@@ -13,6 +13,7 @@
 # Step 2 — explicitly allow what we want.
 !/.gitignore
 !/.gitattributes
+!/.github
 !/bigfoot-api
 !/bigfoot_mobile
 
