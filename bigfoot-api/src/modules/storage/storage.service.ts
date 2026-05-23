@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import { PrismaService } from '../../prisma/prisma.service';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -66,7 +67,10 @@ export class StorageService implements OnModuleInit {
   private bucket!: string;
   private cdnBaseUrl!: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   onModuleInit() {
     const endpoint = this.configService.get<string>('DO_SPACES_ENDPOINT');
@@ -139,10 +143,27 @@ export class StorageService implements OnModuleInit {
       );
     }
 
-    // 4. Build storage key
+    // 4. Look up the trailer's SO number — storage path is organised by SO
+    //    so a sales order's files cluster together regardless of internal
+    //    trailer id (which is opaque to operators).
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id: BigInt(params.trailerId) },
+      select: { soNumber: true },
+    });
+    if (!trailer) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Trailer with id ${params.trailerId} not found`,
+      );
+    }
+    // Defensive sanitisation — schema enforces SO format but a stray space
+    // or slash would break S3 path semantics.
+    const soSlug = trailer.soNumber.replace(/[^A-Za-z0-9._-]/g, '_');
+
+    // 5. Build storage key
     const prefix = FILE_TYPE_PREFIXES[fileType];
     const uuid = randomUUID();
-    const storageKey = `${prefix}/${params.trailerId}/${uuid}.${ext}`;
+    const storageKey = `${prefix}/${soSlug}/${uuid}.${ext}`;
 
     // 5. Content type + size limit
     const contentType = EXTENSION_CONTENT_TYPES[ext]!;

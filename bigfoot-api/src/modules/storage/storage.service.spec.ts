@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { StorageService, VALID_FILE_TYPES } from './storage.service';
+import { ErrorCode } from '../../common/errors';
+import { PrismaService } from '../../prisma/prisma.service';
 
 // Mock the S3 SDK modules
 jest.mock('@aws-sdk/client-s3', () => {
@@ -38,17 +40,34 @@ describe('StorageService', () => {
     }),
   };
 
+  // Prisma stub — every generateUploadUrl call looks up the trailer's SO
+  // number to build the storage path. Default mock returns a deterministic
+  // SO derived from the trailer id so per-test regex assertions stay specific.
+  const mockPrisma: { trailer: { findUnique: jest.Mock } } = {
+    trailer: {
+      findUnique: jest.fn(({ where }: { where: { id: bigint } }) =>
+        Promise.resolve({ soNumber: `SO-${where.id.toString()}` }),
+      ),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageService,
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
     service = module.get<StorageService>(StorageService);
     service.onModuleInit();
     jest.clearAllMocks();
+    // Re-install the default findUnique impl after clearAllMocks
+    mockPrisma.trailer.findUnique.mockImplementation(
+      ({ where }: { where: { id: bigint } }) =>
+        Promise.resolve({ soNumber: `SO-${where.id.toString()}` }),
+    );
   });
 
   it('should be defined', () => {
@@ -67,7 +86,7 @@ describe('StorageService', () => {
       });
 
       expect(result.uploadUrl).toBe('https://spaces.example.com/signed-url');
-      expect(result.storageKey).toMatch(/^qc\/100\/[a-f0-9-]+\.jpg$/);
+      expect(result.storageKey).toMatch(/^qc\/SO-100\/[a-f0-9-]+\.jpg$/);
       expect(result.expiresIn).toBe(900);
       expect(result.maxSizeBytes).toBe(10 * 1024 * 1024);
       expect(result.contentType).toBe('image/jpeg');
@@ -80,7 +99,7 @@ describe('StorageService', () => {
         fileName: 'SO-1001.pdf',
       });
 
-      expect(result.storageKey).toMatch(/^so-pdf\/200\/[a-f0-9-]+\.pdf$/);
+      expect(result.storageKey).toMatch(/^so-pdf\/SO-200\/[a-f0-9-]+\.pdf$/);
       expect(result.maxSizeBytes).toBe(25 * 1024 * 1024);
       expect(result.contentType).toBe('application/pdf');
     });
@@ -92,7 +111,7 @@ describe('StorageService', () => {
         fileName: 'proof.png',
       });
 
-      expect(result.storageKey).toMatch(/^delivery\/300\/[a-f0-9-]+\.png$/);
+      expect(result.storageKey).toMatch(/^delivery\/SO-300\/[a-f0-9-]+\.png$/);
       expect(result.contentType).toBe('image/png');
     });
 
@@ -103,7 +122,7 @@ describe('StorageService', () => {
         fileName: 'damage.webp',
       });
 
-      expect(result.storageKey).toMatch(/^damage\/400\/[a-f0-9-]+\.webp$/);
+      expect(result.storageKey).toMatch(/^damage\/SO-400\/[a-f0-9-]+\.webp$/);
       expect(result.contentType).toBe('image/webp');
     });
 
@@ -165,6 +184,33 @@ describe('StorageService', () => {
       });
 
       expect(result.storageKey).toMatch(/\.jpg$/);
+    });
+
+    it('should sanitise unsafe characters in the SO number for the S3 path', async () => {
+      mockPrisma.trailer.findUnique.mockResolvedValueOnce({
+        soNumber: 'SO 99/A&B',
+      });
+
+      const result = await service.generateUploadUrl({
+        fileType: 'qc_photo',
+        trailerId: 500,
+        fileName: 'photo.jpg',
+      });
+
+      // Spaces, slashes, and `&` are replaced with `_` so the path stays flat.
+      expect(result.storageKey).toMatch(/^qc\/SO_99_A_B\/[a-f0-9-]+\.jpg$/);
+    });
+
+    it('should throw NOT_FOUND when the trailer does not exist', async () => {
+      mockPrisma.trailer.findUnique.mockImplementationOnce(() => Promise.resolve(null));
+
+      await expect(
+        service.generateUploadUrl({
+          fileType: 'qc_photo',
+          trailerId: 999,
+          fileName: 'inspection.jpg',
+        }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 
