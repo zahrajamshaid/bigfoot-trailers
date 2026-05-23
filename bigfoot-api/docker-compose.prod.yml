@@ -40,36 +40,24 @@ services:
   # ---- API: NestJS image pulled from GHCR by CI ------------------------------
   # Image is built and pushed by .github/workflows/api-deploy.yml.
   # IMAGE_TAG is overridden by CI to a specific commit SHA for traceability.
+  #
+  # NOTE: env vars are loaded via `env_file:` (not `environment:` with ${VAR}
+  # substitution) because Compose's interpolation mangles values that contain
+  # `&` (treated as YAML anchor) or `WORD-WORD` patterns (treated as
+  # ${VAR-default} shell default-value syntax) — e.g. our DB connection
+  # string would lose `private-` and `&sslaccept=...`.
   api:
     image: ghcr.io/zahrajamshaid/bigfoot-trailers/bigfoot-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     expose:
       - '3000' # internal only — Caddy proxies in; nothing on the host
+    env_file:
+      - /opt/bigfoot/.env.production
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      API_PREFIX: ${API_PREFIX:-v1}
-      DATABASE_URL: ${DATABASE_URL}
+      # Hard-set so a stale .env from a previous deploy can't point the API
+      # at a non-existent Postgres container.
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
-      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
-      CORS_ORIGINS: ${CORS_ORIGINS}
-      DO_SPACES_ENDPOINT: ${DO_SPACES_ENDPOINT}
-      DO_SPACES_REGION: ${DO_SPACES_REGION}
-      DO_SPACES_BUCKET: ${DO_SPACES_BUCKET}
-      DO_SPACES_ACCESS_KEY: ${DO_SPACES_ACCESS_KEY}
-      DO_SPACES_SECRET_KEY: ${DO_SPACES_SECRET_KEY}
-      DO_SPACES_CDN_URL: ${DO_SPACES_CDN_URL:-}
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
-      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
-      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
-      THROTTLE_TTL: ${THROTTLE_TTL:-60000}
-      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
     depends_on:
       redis:
         condition: service_healthy
