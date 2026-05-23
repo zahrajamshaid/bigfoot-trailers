@@ -1,49 +1,111 @@
 ###############################################################################
-# BIGFOOT TRAILERS — Production overrides
-# Usage:
-#   docker compose --env-file .env.production \
-#     -f docker-compose.yml -f docker-compose.prod.yml up -d
+# BIGFOOT TRAILERS — Production stack
+#
+# Architecture:
+#   Internet → Caddy (80/443, auto-TLS) → API (3000, internal) → Managed PG
+#                                       ↘ Redis (internal, BullMQ)
+#
+# Database is DigitalOcean Managed PostgreSQL — NOT a container here. Set
+# DATABASE_URL in .env.production to the PRIVATE VPC connection string with
+# ?sslmode=require.
+#
+# Deploy on droplet:
+#   cd /opt/bigfoot/bigfoot-api
+#   docker compose --env-file /opt/bigfoot/.env.production \
+#     -f docker-compose.prod.yml pull
+#   docker compose --env-file /opt/bigfoot/.env.production \
+#     -f docker-compose.prod.yml up -d
 ###############################################################################
 
 services:
-  postgres:
-    ports: !reset []         # do NOT expose Postgres to the public internet
+  # ---- Caddy: TLS termination + reverse proxy --------------------------------
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp' # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      DOMAIN: ${DOMAIN}
+    depends_on:
+      - api
+    networks:
+      - bigfoot
 
-  redis:
-    ports: !reset []         # do NOT expose Redis to the public internet
-    # No password — the app's Redis client doesn't pass one, and the port
-    # is not bound to the host. Internal Docker network only.
-
+  # ---- API: NestJS image pulled from GHCR by CI ------------------------------
+  # Image is built and pushed by .github/workflows/api-deploy.yml.
+  # IMAGE_TAG is overridden by CI to a specific commit SHA for traceability.
   api:
-    ports: !override
-      - '127.0.0.1:3000:3000'   # bind only to localhost; Caddy proxies in
+    image: ghcr.io/zahrajamshaid/bigfoot-trailers/bigfoot-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - '3000' # internal only — Caddy proxies in; nothing on the host
     environment:
       NODE_ENV: production
       PORT: 3000
-      API_PREFIX: v1
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      API_PREFIX: ${API_PREFIX:-v1}
+      DATABASE_URL: ${DATABASE_URL}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY}
-      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
       CORS_ORIGINS: ${CORS_ORIGINS}
       DO_SPACES_ENDPOINT: ${DO_SPACES_ENDPOINT}
       DO_SPACES_REGION: ${DO_SPACES_REGION}
       DO_SPACES_BUCKET: ${DO_SPACES_BUCKET}
       DO_SPACES_ACCESS_KEY: ${DO_SPACES_ACCESS_KEY}
       DO_SPACES_SECRET_KEY: ${DO_SPACES_SECRET_KEY}
-      DO_SPACES_CDN_URL: ${DO_SPACES_CDN_URL}
+      DO_SPACES_CDN_URL: ${DO_SPACES_CDN_URL:-}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
-      THROTTLE_TTL: ${THROTTLE_TTL}
-      THROTTLE_LIMIT: ${THROTTLE_LIMIT}
+      THROTTLE_TTL: ${THROTTLE_TTL:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - bigfoot
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---- Redis: BullMQ queue + cache (internal only) ---------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--save', '60', '1', '--loglevel', 'warning']
+    volumes:
+      - redis_data:/data
+    networks:
+      - bigfoot
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  bigfoot:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:

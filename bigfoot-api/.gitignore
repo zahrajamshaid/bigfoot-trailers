@@ -18,6 +18,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env*.example
 
 # Service account / credential files (defence in depth)
 *serviceAccount*.json

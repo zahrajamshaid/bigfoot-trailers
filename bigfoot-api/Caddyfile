@@ -1,0 +1,45 @@
+# =============================================================================
+# BIGFOOT TRAILERS — Caddy reverse proxy
+# Auto-fetches and renews a Let's Encrypt TLS cert for $DOMAIN.
+# =============================================================================
+
+{$DOMAIN} {
+	# ---- Reverse proxy to the API container on the internal Docker network ----
+	reverse_proxy api:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# ---- Security headers ----
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		# Don't leak server software
+		-Server
+	}
+
+	# ---- Block common probes for secrets / VCS metadata ----
+	@blocked {
+		path /.env* /.git/* /.svn/* /.hg/* /wp-admin* /wp-login*
+	}
+	respond @blocked 404
+
+	# ---- Compression ----
+	encode zstd gzip
+
+	# ---- Body size cap (matches express.json('10mb') in main.ts) ----
+	request_body {
+		max_size 10MB
+	}
+
+	# ---- Access log to stdout (captured by docker logs) ----
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}
