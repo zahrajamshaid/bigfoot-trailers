@@ -96,6 +96,11 @@ chown -R deploy:deploy /opt/bigfoot
   to your office/home IP only; ports 80 + 443 open to all. Attach to droplet.
 - **Managed Database → Settings → Trusted sources**: add the droplet so the
   database refuses every other IP.
+- **Managed Database → Connection details → Download CA certificate**:
+  download it and `scp` it to `/opt/bigfoot/do-pg-ca.crt` on the droplet
+  (chmod 644, owner `deploy`). The compose file mounts it read-only into the
+  api container at `/etc/ssl/do-pg-ca.crt`; Prisma reads it for strict
+  chain + hostname validation. No "accept invalid certs" shortcuts.
 - **DNS**: A record `api.bigfoottrailers.com` → droplet's public IP. Wait for
   it to propagate (`dig api.bigfoottrailers.com +short`).
 
