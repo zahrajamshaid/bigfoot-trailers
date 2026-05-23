@@ -103,6 +103,8 @@ jobs:
       name: production
       url: https://${{ vars.DEPLOY_DOMAIN }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Sync compose + Caddyfile to droplet
         uses: appleboy/scp-action@v0.1.7
         with:
