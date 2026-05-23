@@ -7,12 +7,10 @@
 
 import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
-import { PrismaClient, TrailerSeries, DeptCompletionType, CustomerType, UserRole, QcSeriesScope } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { TrailerSeries, DeptCompletionType, CustomerType, UserRole, QcSeriesScope } from '@prisma/client';
+import { createPrismaClient } from './db-client';
 
-const connectionString = process.env['DATABASE_URL']!;
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+const prisma = createPrismaClient();
 
 async function main() {
   console.log('🌱 Seeding Bigfoot Trailers database...\n');

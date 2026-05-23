@@ -11,12 +11,10 @@
 // =============================================================================
 
 import 'dotenv/config';
-import { PrismaClient, TrailerStatus } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { TrailerStatus } from '@prisma/client';
+import { createPrismaClient } from './db-client';
 
-const connectionString = process.env['DATABASE_URL']!;
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+const prisma = createPrismaClient();
 
 async function main() {
   console.log('🚚 Seeding test trailers for batch-delivery testing...\n');

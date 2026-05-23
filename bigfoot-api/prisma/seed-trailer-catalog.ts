@@ -11,12 +11,10 @@
 // =============================================================================
 
 import 'dotenv/config';
-import { PrismaClient, TrailerSeries, TrailerStatus } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { TrailerSeries, TrailerStatus } from '@prisma/client';
+import { createPrismaClient } from './db-client';
 
-const connectionString = process.env['DATABASE_URL']!;
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+const prisma = createPrismaClient();
 
 // ─── New trailer models to add to the create-trailer list ────────────────────
 const trailerModelData: {
