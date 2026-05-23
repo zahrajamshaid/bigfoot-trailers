@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -6,15 +7,17 @@ import { PrismaPg } from '@prisma/adapter-pg';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
     const connectionString = process.env.DATABASE_URL;
-    // DO Managed PG presents a self-signed CA cert. node-pg validates strictly
-    // by default; when this flag is on, skip chain validation while keeping
-    // the connection encrypted. Safe because Managed DB lives on the private
-    // VPC and traffic never leaves DO's network.
-    const acceptInvalidCerts =
-      process.env.DATABASE_SSL_ACCEPT_INVALID_CERTS === 'true';
+    // DO Managed PG signs its cert with a private CA. We validate it
+    // strictly against that CA — no rejectUnauthorized=false shortcuts.
+    // Path to the CA cert file is read from DATABASE_SSL_CA_PATH and the
+    // file is mounted into the container (see docker-compose.prod.yml).
+    const caPath = process.env.DATABASE_SSL_CA_PATH;
+    const ssl = caPath
+      ? { ca: readFileSync(caPath, 'utf8'), rejectUnauthorized: true }
+      : undefined;
     const adapter = new PrismaPg({
       connectionString,
-      ...(acceptInvalidCerts && { ssl: { rejectUnauthorized: false } }),
+      ...(ssl && { ssl }),
     });
     super({ adapter, log: ['query', 'info', 'warn', 'error'] });
   }

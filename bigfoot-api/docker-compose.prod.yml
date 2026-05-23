@@ -58,6 +58,10 @@ services:
       # at a non-existent Postgres container.
       REDIS_HOST: redis
       REDIS_PORT: 6379
+    volumes:
+      # DO Managed PG CA cert — Prisma reads it for verify-full validation.
+      # File is downloaded from DO panel → Databases → Connection details.
+      - /opt/bigfoot/do-pg-ca.crt:/etc/ssl/do-pg-ca.crt:ro
     depends_on:
       redis:
         condition: service_healthy
