@@ -17,7 +17,9 @@ on:
 
 env:
   FLUTTER_VERSION: 3.32.8
-  API_HOST: bigfoot.206-189-190-150.sslip.io
+  # Production API host — single source of truth is the repo variable
+  # DEPLOY_DOMAIN (also used by .github/workflows/api-deploy.yml).
+  API_HOST: ${{ vars.DEPLOY_DOMAIN }}
   FIREBASE_APP_ID: 1:563599327933:android:3c1e17a4ee640492d0add4
   TESTER_GROUPS: employees
 
