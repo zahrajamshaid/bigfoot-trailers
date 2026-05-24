@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ErrorCode } from '../../common/errors';
 import { TrailersService } from './trailers.service';
 import { WorkflowGeneratorService } from './workflow-generator.service';
+import { StorageService } from '../storage/storage.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 // ---------------------------------------------------------------------------
@@ -114,6 +115,7 @@ describe('TrailersService', () => {
         TrailersService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: WorkflowGeneratorService, useValue: mockWorkflowGenerator },
+        { provide: StorageService, useValue: { deleteObjects: jest.fn() } },
       ],
     }).compile();
 

@@ -22,6 +22,7 @@ import {
   UploadDeliveryPhotosDto,
 } from './dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 
 // Shared select for delivery queries
 const deliverySelect = {
@@ -71,6 +72,7 @@ export class DeliveriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -607,6 +609,15 @@ export class DeliveriesService {
       throw new AppError(ErrorCode.NOT_FOUND, `Delivery with id ${id} not found`);
     }
 
+    // Snapshot delivery photo keys before the tx wipes the rows so we can
+    // delete from Spaces immediately after the DB commit (best-effort —
+    // orphan-cleanup catches anything that fails).
+    const photos = await this.prisma.deliveryPhoto.findMany({
+      where: { deliveryId: id },
+      select: { storageKey: true },
+    });
+    const storageKeys = photos.map((p) => p.storageKey);
+
     await this.prisma.$transaction(async (tx) => {
       // Drop dependent rows first — photos cascade anyway, location receipts
       // do not, and SMS logs are history so they're kept but unlinked.
@@ -641,6 +652,9 @@ export class DeliveriesService {
         },
       });
     });
+
+    // Best-effort Spaces cleanup after the DB commit.
+    await this.storage.deleteObjects(storageKeys);
 
     return { deleted: true };
   }

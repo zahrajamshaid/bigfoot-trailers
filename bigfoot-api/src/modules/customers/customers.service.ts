@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CustomerType, Prisma, TrailerStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { AppError, ErrorCode } from '../../common/errors';
 import { CreateCustomerDto, UpdateCustomerDto, QueryCustomersDto } from './dto';
 
@@ -33,7 +34,10 @@ const CUSTOMER_SELECT = {
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   private stockCityFromCustomerName(name: string): string | null {
     const match = name.trim().match(/^(.*)\s+stock$/i);
@@ -320,6 +324,36 @@ export class CustomersService {
 
     const trailerIds = trailers.map((t) => t.id);
 
+    // Collect every Spaces key tied to these trailers BEFORE the tx wipes
+    // the rows. We delete from S3 only after the DB commit so a transient
+    // Spaces failure can't roll back the customer delete; orphan-cleanup
+    // catches anything that slips through.
+    let storageKeys: string[] = [];
+    if (trailerIds.length > 0) {
+      const trailerWhere = { trailerId: { in: trailerIds } };
+      const [pdfTrailers, qcPhotos, deliveryPhotos] = await Promise.all([
+        this.prisma.trailer.findMany({
+          where: { id: { in: trailerIds }, qbSoPdfStorageKey: { not: null } },
+          select: { qbSoPdfStorageKey: true },
+        }),
+        this.prisma.qcPhoto.findMany({
+          where: trailerWhere,
+          select: { storageKey: true },
+        }),
+        this.prisma.deliveryPhoto.findMany({
+          where: { delivery: { trailerId: { in: trailerIds } } },
+          select: { storageKey: true },
+        }),
+      ]);
+      storageKeys = [
+        ...pdfTrailers
+          .map((t) => t.qbSoPdfStorageKey)
+          .filter((k): k is string => k != null),
+        ...qcPhotos.map((p) => p.storageKey),
+        ...deliveryPhotos.map((p) => p.storageKey),
+      ];
+    }
+
     await this.prisma.$transaction(async (tx) => {
       if (trailerIds.length > 0) {
         // Mirrors TrailersService.deleteTrailer cascade. Kept inline to
@@ -338,6 +372,9 @@ export class CustomersService {
       }
       await tx.customer.delete({ where: { id } });
     });
+
+    // Best-effort Spaces cleanup after the DB commit.
+    await this.storage.deleteObjects(storageKeys);
 
     return { success: true, deletedTrailerCount: trailerIds.length };
   }

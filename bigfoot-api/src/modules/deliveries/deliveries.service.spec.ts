@@ -3,6 +3,7 @@ import { ErrorCode } from '../../common/errors';
 import { DeliveriesService } from './deliveries.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import { Prisma } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,7 @@ describe('DeliveriesService', () => {
         DeliveriesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: NotificationsService, useValue: mockNotificationsService },
+        { provide: StorageService, useValue: { deleteObjects: jest.fn() } },
       ],
     }).compile();
 

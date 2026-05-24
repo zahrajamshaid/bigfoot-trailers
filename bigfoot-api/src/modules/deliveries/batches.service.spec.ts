@@ -3,6 +3,7 @@ import { ErrorCode } from '../../common/errors';
 import { BatchesService } from './batches.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 
 // ---------------------------------------------------------------------------
 // Mock Prisma — $transaction runs the callback with the same mock as `tx`.
@@ -46,6 +47,7 @@ describe('BatchesService', () => {
         BatchesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: NotificationsService, useValue: mockNotificationsService },
+        { provide: StorageService, useValue: { deleteObjects: jest.fn() } },
       ],
     }).compile();
 

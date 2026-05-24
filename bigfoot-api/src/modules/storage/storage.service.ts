@@ -236,6 +236,31 @@ export class StorageService implements OnModuleInit {
   }
 
   // -------------------------------------------------------------------------
+  // Best-effort batch deletion — called inline after a DB delete to clean up
+  // Spaces immediately instead of waiting up to 24h for orphan-cleanup.
+  // Individual failures are logged but not thrown; orphan-cleanup catches
+  // anything that slips through, so a transient S3 outage doesn't roll back
+  // the user's delete.
+  // -------------------------------------------------------------------------
+  async deleteObjects(storageKeys: string[]): Promise<void> {
+    if (storageKeys.length === 0) return;
+    const results = await Promise.allSettled(
+      storageKeys.map((key) =>
+        this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key })),
+      ),
+    );
+    results.forEach((result, idx) => {
+      if (result.status === 'rejected') {
+        this.logger.warn(
+          `Failed to delete ${storageKeys[idx]} from Spaces (orphan-cleanup will retry): ${
+            (result.reason as Error)?.message
+          }`,
+        );
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // List objects with a prefix — used by orphan cleanup
   // -------------------------------------------------------------------------
   async listObjects(prefix: string, maxKeys = 1000): Promise<string[]> {

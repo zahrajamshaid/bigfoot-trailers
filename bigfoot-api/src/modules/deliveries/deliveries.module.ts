@@ -5,9 +5,10 @@ import { DeliveriesService } from './deliveries.service';
 import { BatchesService } from './batches.service';
 import { LocationReceiptsService } from './location-receipts.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, StorageModule],
   controllers: [DeliveriesController, LocationReceiptsController],
   providers: [DeliveriesService, BatchesService, LocationReceiptsService],
   exports: [DeliveriesService],

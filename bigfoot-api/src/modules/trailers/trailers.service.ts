@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { WorkflowGeneratorService } from './workflow-generator.service';
 import { AppError, ErrorCode } from '../../common/errors';
 import { CreateTrailerDto } from './dto/create-trailer.dto';
@@ -112,6 +113,7 @@ export class TrailersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly workflowGenerator: WorkflowGeneratorService,
+    private readonly storage: StorageService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -600,11 +602,30 @@ export class TrailersService {
   async deleteTrailer(trailerId: bigint) {
     const trailer = await this.prisma.trailer.findUnique({
       where: { id: trailerId },
-      select: { id: true, soNumber: true },
+      select: { id: true, soNumber: true, qbSoPdfStorageKey: true },
     });
     if (!trailer) {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
     }
+
+    // Collect every Spaces key tied to this trailer BEFORE the transaction
+    // wipes the rows. We delete from S3 only after the DB commit so a
+    // transient Spaces failure can't roll back the user's delete.
+    const [qcPhotos, deliveryPhotos] = await Promise.all([
+      this.prisma.qcPhoto.findMany({
+        where: { trailerId },
+        select: { storageKey: true },
+      }),
+      this.prisma.deliveryPhoto.findMany({
+        where: { delivery: { trailerId } },
+        select: { storageKey: true },
+      }),
+    ]);
+    const storageKeys = [
+      ...(trailer.qbSoPdfStorageKey ? [trailer.qbSoPdfStorageKey] : []),
+      ...qcPhotos.map((p) => p.storageKey),
+      ...deliveryPhotos.map((p) => p.storageKey),
+    ];
 
     await this.prisma.$transaction(async (tx) => {
       // Delete in dependency order — children first.
@@ -624,6 +645,9 @@ export class TrailersService {
       // Addons cascade automatically (FK onDelete: Cascade)
       await tx.trailer.delete({ where: { id: trailerId } });
     });
+
+    // Best-effort Spaces cleanup; orphan-cleanup catches anything that fails.
+    await this.storage.deleteObjects(storageKeys);
 
     return { deleted: true, soNumber: trailer.soNumber };
   }

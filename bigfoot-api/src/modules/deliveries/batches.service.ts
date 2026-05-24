@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { CreateBatchDto, UpdateBatchDto, CompleteBatchDto } from './dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import { AppError, ErrorCode } from '../../common/errors';
 
 const batchSelect = {
@@ -49,6 +50,7 @@ export class BatchesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -476,6 +478,17 @@ export class BatchesService {
       .filter((d) => d.status !== DeliveryStatus.delivered)
       .map((d) => d.trailerId);
 
+    // Snapshot photo storage keys before the tx so we can clean Spaces
+    // immediately after the DB commit (best-effort; orphan-cleanup fallback).
+    const photos =
+      deliveryIds.length > 0
+        ? await this.prisma.deliveryPhoto.findMany({
+            where: { deliveryId: { in: deliveryIds } },
+            select: { storageKey: true },
+          })
+        : [];
+    const storageKeys = photos.map((p) => p.storageKey);
+
     await this.prisma.$transaction(async (tx) => {
       if (deliveryIds.length > 0) {
         // Photos cascade with the delivery, but location receipts do not and
@@ -502,6 +515,9 @@ export class BatchesService {
 
       await tx.deliveryBatch.delete({ where: { id } });
     });
+
+    // Best-effort Spaces cleanup after the DB commit.
+    await this.storage.deleteObjects(storageKeys);
 
     return { deleted: true };
   }
