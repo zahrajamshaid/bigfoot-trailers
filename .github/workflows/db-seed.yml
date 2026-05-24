@@ -1,0 +1,58 @@
+name: DB · Seed (manual)
+
+# Manual-only — runs the base seed script (locations, models, departments,
+# workflow templates, dev/staff user accounts) against the production
+# Managed Postgres on the droplet. Idempotent: every upsert is keyed on
+# stable columns (email, code, etc.) so re-running never duplicates rows.
+#
+# Trigger via GitHub UI (Actions → "DB · Seed (manual)" → Run workflow)
+# or via CLI:
+#   gh workflow run "DB · Seed (manual)" --repo <owner>/<repo> --ref main \
+#     --field script=seed
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'Which seed to run'
+        required: true
+        type: choice
+        default: seed
+        options:
+          - seed                  # base: locations, models, depts, users
+          - seed-trailer-catalog  # extra trailer models + ready-for-delivery trailers
+          - seed-test-trailers    # 6 test trailers for batch-delivery testing
+
+concurrency:
+  group: db-seed-prod
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    name: Run ${{ inputs.script }}.ts on droplet
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: SSH in and run seed inside the api container
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            SCRIPT="${{ inputs.script }}"
+            echo "→ Running prisma/${SCRIPT}.ts inside bigfoot-api-api-1..."
+
+            # tsx is fetched on-the-fly via npx (it's a devDep, not in the
+            # prod image). The container already has DATABASE_URL +
+            # DATABASE_SSL_CA_PATH from the env_file, and bcrypt + prisma
+            # client are runtime deps so they're present.
+            docker exec \
+              -e NPM_CONFIG_UPDATE_NOTIFIER=false \
+              bigfoot-api-api-1 \
+              sh -c "cd /app && npx -y -p tsx@4 tsx prisma/${SCRIPT}.ts"
+
+            echo "✓ Seed ${SCRIPT}.ts completed"
