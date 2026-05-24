@@ -87,13 +87,16 @@ async function main() {
     displayName: string;
     series: TrailerSeries;
     weightRating: string | null;
+    // Soft-removed from the create-trailer dropdown but kept in the table so
+    // existing trailers that already reference these models keep their FK.
+    isActive?: boolean;
   }[] = [
     // XP series
     { code: 'XP_10K', displayName: '10K XP', series: TrailerSeries.xp, weightRating: '10,000 lb' },
     { code: 'XP_14K', displayName: '14K XP', series: TrailerSeries.xp, weightRating: '14,000 lb' },
     { code: 'XP_17K', displayName: '17K XP', series: TrailerSeries.xp, weightRating: '17,000 lb' },
-    { code: 'XP_14ET', displayName: '14K ET XP', series: TrailerSeries.xp, weightRating: '14,000 lb' },
-    { code: 'XP_175ET', displayName: '17.5K ET XP', series: TrailerSeries.xp, weightRating: '17,500 lb' },
+    { code: 'XP_14ET', displayName: '14K ET XP', series: TrailerSeries.xp, weightRating: '14,000 lb', isActive: false },
+    { code: 'XP_175ET', displayName: '17.5K ET XP', series: TrailerSeries.xp, weightRating: '17,500 lb', isActive: false },
     // Yeti series
     { code: 'YETI_15K', displayName: '15K Yeti', series: TrailerSeries.yeti, weightRating: '15,000 lb' },
     { code: 'YETI_18K', displayName: '18K Yeti', series: TrailerSeries.yeti, weightRating: '18,000 lb' },
@@ -122,8 +125,9 @@ async function main() {
     trailerModelData.map((m) =>
       prisma.trailerModel.upsert({
         where: { code: m.code },
-        update: {},
-        create: m,
+        // Re-seeds reconcile the active-flag so soft-removals stick.
+        update: { isActive: m.isActive ?? true },
+        create: { ...m, isActive: m.isActive ?? true },
       }),
     ),
   );

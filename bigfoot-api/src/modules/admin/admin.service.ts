@@ -46,7 +46,11 @@ export class AdminService {
   // Trailer Models
   // ===========================================================================
   async getTrailerModels() {
+    // Only return models marked active — soft-removed models (isActive=false)
+    // stay in the table for existing trailer FK references but should never
+    // appear in the create-trailer dropdown.
     return this.prisma.trailerModel.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         code: true,
