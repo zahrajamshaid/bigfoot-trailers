@@ -81,13 +81,14 @@ flutter:
 
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
   image_path: assets/branding/bigfoot_logo_launcher.png
   adaptive_icon_foreground: assets/branding/bigfoot_logo_launcher.png
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground_inset: 0
   min_sdk_android: 21
   remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
 
 flutter_native_splash:
   color: "#1B3A4B"
