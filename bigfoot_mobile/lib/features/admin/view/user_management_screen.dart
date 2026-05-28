@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/validation/validators.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -44,7 +45,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       setState(() => _users = const []);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to load users: $e'),
+          content: Text(AppLocalizations.of(context).userMgmtLoadFail('$e')),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -55,6 +56,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final filtered = _users.where((u) {
       if (_search.isEmpty) return true;
       final q = _search.toLowerCase();
@@ -63,7 +65,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Management'),
+        title: Text(l.userMgmtTitle),
         actions: [
           IconButton(onPressed: _openCreate, icon: const Icon(Icons.person_add_alt_1)),
         ],
@@ -78,9 +80,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     children: [
                       Expanded(
                         child: TextField(
-                          decoration: const InputDecoration(
-                            labelText: 'Search name or email',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: l.userMgmtSearchHint,
+                            border: const OutlineInputBorder(),
                             isDense: true,
                           ),
                           onChanged: (v) => setState(() => _search = v.trim()),
@@ -89,17 +91,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       const SizedBox(width: 8),
                       DropdownButton<String?>(
                         value: _role,
-                        hint: const Text('Role'),
-                        items: const [
-                          DropdownMenuItem(value: null, child: Text('All')),
-                          DropdownMenuItem(value: 'owner', child: Text('Owner')),
-                          DropdownMenuItem(value: 'production_manager', child: Text('Prod Mgr')),
-                          DropdownMenuItem(value: 'transport_manager', child: Text('Transport Mgr')),
-                          DropdownMenuItem(value: 'qc_inspector', child: Text('QC')),
-                          DropdownMenuItem(value: 'worker', child: Text('Worker')),
-                          DropdownMenuItem(value: 'driver', child: Text('Driver')),
-                          DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                          DropdownMenuItem(value: 'office', child: Text('Office')),
+                        hint: Text(l.userMgmtFilterRole),
+                        items: [
+                          DropdownMenuItem(value: null, child: Text(l.customersFilterAll)),
+                          DropdownMenuItem(value: 'owner', child: Text(l.roleOwner)),
+                          DropdownMenuItem(value: 'production_manager', child: Text(l.roleProductionManagerShort)),
+                          DropdownMenuItem(value: 'transport_manager', child: Text(l.roleTransportManagerShort)),
+                          DropdownMenuItem(value: 'qc_inspector', child: Text(l.roleQcShort)),
+                          DropdownMenuItem(value: 'worker', child: Text(l.roleWorker)),
+                          DropdownMenuItem(value: 'driver', child: Text(l.roleDriver)),
+                          DropdownMenuItem(value: 'sales', child: Text(l.roleSales)),
+                          DropdownMenuItem(value: 'office', child: Text(l.roleOffice)),
+                          DropdownMenuItem(value: 'purchasing', child: Text(l.rolePurchasing)),
                         ],
                         onChanged: (v) {
                           setState(() => _role = v);
@@ -109,11 +112,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       const SizedBox(width: 8),
                       DropdownButton<bool?>(
                         value: _isActive,
-                        hint: const Text('Status'),
-                        items: const [
-                          DropdownMenuItem(value: null, child: Text('All')),
-                          DropdownMenuItem(value: true, child: Text('Active')),
-                          DropdownMenuItem(value: false, child: Text('Inactive')),
+                        hint: Text(l.userMgmtFilterStatus),
+                        items: [
+                          DropdownMenuItem(value: null, child: Text(l.customersFilterAll)),
+                          DropdownMenuItem(value: true, child: Text(l.statusActive)),
+                          DropdownMenuItem(value: false, child: Text(l.userMgmtInactive)),
                         ],
                         onChanged: (v) {
                           setState(() => _isActive = v);
@@ -129,11 +132,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     child: filtered.isEmpty
                         ? ListView(
                             padding: const EdgeInsets.all(24),
-                            children: const [
-                              SizedBox(height: 80),
+                            children: [
+                              const SizedBox(height: 80),
                               Center(
                                 child: Text(
-                                  'No registered users found for the current filters.',
+                                  l.userMgmtEmptyFiltered,
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -197,7 +200,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                                 .withValues(alpha: 0.12),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
-                                          child: Text(u.isActive == false ? 'Inactive' : 'Active'),
+                                          child: Text(u.isActive == false
+                                              ? l.userMgmtInactive
+                                              : l.statusActive),
                                         ),
                                       ],
                                     ),
@@ -206,16 +211,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: [
-                                        _detailChip('ID: ${u.id}'),
-                                        _detailChip(
-                                          'Dept: ${u.departmentId?.toString() ?? 'N/A'}',
-                                        ),
-                                        _detailChip(
-                                          'Location: ${u.locationId?.toString() ?? 'N/A'}',
-                                        ),
-                                        _detailChip(
-                                          'Created: ${u.createdAt?.toLocal().toString().split('.').first ?? 'N/A'}',
-                                        ),
+                                        _detailChip(l.userMgmtIdChip(u.id)),
+                                        _detailChip(l.userMgmtDeptChip(
+                                          u.departmentId?.toString() ?? l.userMgmtNotAvailable,
+                                        )),
+                                        _detailChip(l.userMgmtLocationChip(
+                                          u.locationId?.toString() ?? l.userMgmtNotAvailable,
+                                        )),
+                                        _detailChip(l.userMgmtCreatedChip(
+                                          u.createdAt?.toLocal().toString().split('.').first ?? l.userMgmtNotAvailable,
+                                        )),
                                       ],
                                     ),
                                     const SizedBox(height: 10),
@@ -227,7 +232,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                           onPressed: () => _openEdit(u),
                                           icon: const Icon(Icons.edit_outlined,
                                               size: 16),
-                                          label: const Text('Edit'),
+                                          label: Text(l.commonEdit),
                                         ),
                                         OutlinedButton.icon(
                                           onPressed: u.isActive == false
@@ -236,7 +241,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                           icon: const Icon(
                                               Icons.person_off_outlined,
                                               size: 16),
-                                          label: const Text('Deactivate'),
+                                          label: Text(l.userMgmtDeactivate),
                                         ),
                                         OutlinedButton.icon(
                                           onPressed: u.isActive == false
@@ -246,9 +251,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               Icons.person_add_alt_1,
                                               size: 16,
                                               color: AppColors.success),
-                                          label: const Text(
-                                            'Reactivate',
-                                            style: TextStyle(
+                                          label: Text(
+                                            l.userMgmtReactivate,
+                                            style: const TextStyle(
                                                 color: AppColors.success),
                                           ),
                                         ),
@@ -258,9 +263,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               Icons.delete_forever_outlined,
                                               size: 16,
                                               color: AppColors.error),
-                                          label: const Text(
-                                            'Delete',
-                                            style: TextStyle(
+                                          label: Text(
+                                            l.commonDelete,
+                                            style: const TextStyle(
                                                 color: AppColors.error),
                                           ),
                                           style: OutlinedButton.styleFrom(
@@ -324,22 +329,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _confirmDeactivate(User user) async {
+    final l = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Deactivate user?'),
-        content: Text(
-          '${user.name} will lose access immediately but their history is '
-          'preserved. You can reactivate later.',
-        ),
+        title: Text(l.userMgmtDeactivateTitle),
+        content: Text(l.userMgmtDeactivateBody(user.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Deactivate'),
+            child: Text(l.userMgmtDeactivate),
           ),
         ],
       ),
@@ -350,51 +353,47 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       await context.read<AdminViewModel>().deactivateUser(user.id);
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${user.name} deactivated')),
+        SnackBar(content: Text(l.userMgmtDeactivated(user.name))),
       );
       _load();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(l.commonFailed('$e'))));
     }
   }
 
   Future<void> _reactivate(User user) async {
+    final l = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<AdminViewModel>().reactivateUser(user.id);
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${user.name} reactivated')),
+        SnackBar(content: Text(l.userMgmtReactivated(user.name))),
       );
       _load();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(l.commonFailed('$e'))));
     }
   }
 
   Future<void> _confirmHardDelete(User user) async {
+    final l = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Permanently delete user?'),
+        title: Text(l.userMgmtDeleteTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'This permanently removes ${user.name} from the database. '
-                'This cannot be undone.',
-              ),
+              Text(l.userMgmtDeleteBody(user.name)),
               const SizedBox(height: 8),
-              const Text(
-                'The user must be deactivated first. Users with historical '
-                'activity (completed steps, inspections, deliveries, '
-                'messages) cannot be deleted — keep them deactivated to '
-                'preserve the audit trail.',
-                style: TextStyle(fontSize: 12, color: AppColors.disabled),
+              Text(
+                l.userMgmtDeleteHelper,
+                style: const TextStyle(fontSize: 12, color: AppColors.disabled),
               ),
             ],
           ),
@@ -402,12 +401,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete forever'),
+            child: Text(l.userMgmtDeleteForever),
           ),
         ],
       ),
@@ -418,12 +417,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       await context.read<AdminViewModel>().hardDeleteUser(user.id);
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${user.name} deleted')),
+        SnackBar(content: Text(l.userMgmtDeleted(user.name))),
       );
       _load();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(l.userMgmtDeleteFail('$e'))));
     }
   }
 }
@@ -477,6 +476,7 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -489,13 +489,15 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            Text(widget.existing == null ? 'Create User' : 'Edit User',
+            Text(widget.existing == null ? l.userMgmtAdd : l.userMgmtEdit,
                 style:
                     const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 12),
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                  labelText: l.userMgmtNameLabel,
+                  border: const OutlineInputBorder()),
               validator: (v) =>
                   Validators.required(v, fieldName: 'a full name'),
             ),
@@ -503,7 +505,8 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             TextFormField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                  labelText: l.loginEmail, border: const OutlineInputBorder()),
               validator: Validators.requiredEmail,
             ),
             const SizedBox(height: 10),
@@ -511,7 +514,9 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
               controller: _password,
               obscureText: true,
               decoration: InputDecoration(
-                labelText: widget.existing == null ? 'Password' : 'Password (optional)',
+                labelText: widget.existing == null
+                    ? l.loginPassword
+                    : l.userMgmtPasswordOptional,
                 border: const OutlineInputBorder(),
               ),
               validator: widget.existing == null
@@ -521,16 +526,19 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _role,
-              decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'owner', child: Text('Owner')),
-                DropdownMenuItem(value: 'production_manager', child: Text('Production Manager')),
-                DropdownMenuItem(value: 'transport_manager', child: Text('Transport Manager')),
-                DropdownMenuItem(value: 'qc_inspector', child: Text('QC Inspector')),
-                DropdownMenuItem(value: 'worker', child: Text('Worker')),
-                DropdownMenuItem(value: 'driver', child: Text('Driver')),
-                DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                DropdownMenuItem(value: 'office', child: Text('Office')),
+              decoration: InputDecoration(
+                  labelText: l.userMgmtFilterRole,
+                  border: const OutlineInputBorder()),
+              items: [
+                DropdownMenuItem(value: 'owner', child: Text(l.roleOwner)),
+                DropdownMenuItem(value: 'production_manager', child: Text(l.roleProductionManager)),
+                DropdownMenuItem(value: 'transport_manager', child: Text(l.roleTransportManager)),
+                DropdownMenuItem(value: 'qc_inspector', child: Text(l.roleQcInspector)),
+                DropdownMenuItem(value: 'worker', child: Text(l.roleWorker)),
+                DropdownMenuItem(value: 'driver', child: Text(l.roleDriver)),
+                DropdownMenuItem(value: 'sales', child: Text(l.roleSales)),
+                DropdownMenuItem(value: 'office', child: Text(l.roleOffice)),
+                DropdownMenuItem(value: 'purchasing', child: Text(l.rolePurchasing)),
               ],
               onChanged: (v) => setState(() => _role = v ?? UserRole.worker),
             ),
@@ -538,27 +546,35 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             TextFormField(
               controller: _phone,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone (optional)', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                  labelText: l.userMgmtPhoneOptional,
+                  border: const OutlineInputBorder()),
               validator: Validators.optionalPhone,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _dept,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Primary Department ID', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                  labelText: l.userMgmtDeptIdLabel,
+                  border: const OutlineInputBorder()),
               validator: Validators.optionalPositiveInt,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _loc,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Primary Location ID', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                  labelText: l.userMgmtLocationIdLabel,
+                  border: const OutlineInputBorder()),
               validator: Validators.optionalPositiveInt,
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _saving ? null : _save,
-              child: Text(widget.existing == null ? 'Create' : 'Save'),
+              child: Text(widget.existing == null
+                  ? l.userMgmtCreateAction
+                  : l.commonSave),
             ),
           ],
         ),
@@ -597,7 +613,9 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context).commonFailed('$e'))),
       );
     } finally {
       if (mounted) setState(() => _saving = false);

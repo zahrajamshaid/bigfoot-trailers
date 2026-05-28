@@ -6,11 +6,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/i18n/language_toggle_button.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/websocket/ws_client.dart';
 import '../../../core/websocket/ws_event_stream.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../notifications/viewmodel/notifications_viewmodel.dart';
@@ -49,10 +51,11 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return BlocBuilder<AuthViewModel, AuthState>(
       builder: (context, state) {
         final user = state is Authenticated ? state.user : null;
-        final tabs = _tabsForRole(user?.role ?? UserRole.worker);
+        final tabs = _tabsForRole(user?.role ?? UserRole.worker, l);
         final currentIndex = _currentIndex(context, tabs);
 
         return StreamBuilder<WsConnectionState>(
@@ -119,7 +122,7 @@ class _AppShellState extends State<AppShell> {
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
-                          r.isCompact ? 'Bigfoot' : 'Bigfoot Trailers',
+                          r.isCompact ? l.appTitleShort : l.appTitle,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 18,
@@ -135,6 +138,8 @@ class _AppShellState extends State<AppShell> {
                     ],
                   ),
                   actions: [
+                    const LanguageToggleButton(
+                        foregroundColor: AppColors.white),
                     BlocBuilder<NotificationsViewModel, NotificationsState>(
                       builder: (context, notificationState) {
                         final count = notificationState.unreadCount;
@@ -273,9 +278,9 @@ class _AppShellState extends State<AppShell> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text('Press back again to exit'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).backToExit),
+            duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -356,138 +361,152 @@ class _AppShellState extends State<AppShell> {
     return 0;
   }
 
-  List<_NavTab> _tabsForRole(String role) {
+  List<_NavTab> _tabsForRole(String role, AppLocalizations l) {
     switch (role) {
       case UserRole.owner:
-        return const [
+        return [
           _NavTab(
             '/dashboard',
-            'Dashboard',
+            l.navDashboard,
             Icons.dashboard_outlined,
             Icons.dashboard,
           ),
           _NavTab(
             '/trailers',
-            'Trailers',
+            l.navTrailers,
             Icons.local_shipping_outlined,
             Icons.local_shipping,
           ),
           _NavTab(
             '/production',
-            'Production',
+            l.navProduction,
             Icons.precision_manufacturing_outlined,
             Icons.precision_manufacturing,
           ),
-          _NavTab('/qc', 'QC', Icons.checklist_outlined, Icons.checklist),
+          _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
           _NavTab(
             '/payroll',
-            'Payroll',
+            l.navPayroll,
             Icons.payments_outlined,
             Icons.payments,
           ),
           _NavTab(
             '/deliveries',
-            'Deliveries',
+            l.navDeliveries,
             Icons.delivery_dining_outlined,
             Icons.delivery_dining,
           ),
           _NavTab(
             '/admin',
-            'Admin',
+            l.navAdmin,
             Icons.admin_panel_settings_outlined,
             Icons.admin_panel_settings,
           ),
         ];
       case UserRole.productionManager:
-        return const [
+        return [
           _NavTab(
             '/dashboard',
-            'Dashboard',
+            l.navDashboard,
             Icons.dashboard_outlined,
             Icons.dashboard,
           ),
           _NavTab(
             '/trailers',
-            'Trailers',
+            l.navTrailers,
             Icons.local_shipping_outlined,
             Icons.local_shipping,
           ),
           _NavTab(
             '/production',
-            'Production',
+            l.navProduction,
             Icons.precision_manufacturing_outlined,
             Icons.precision_manufacturing,
           ),
-          _NavTab('/qc', 'QC', Icons.checklist_outlined, Icons.checklist),
+          _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
           _NavTab(
             '/payroll',
-            'Payroll',
+            l.navPayroll,
             Icons.payments_outlined,
             Icons.payments,
           ),
         ];
       case UserRole.transportManager:
-        return const [
+        return [
           _NavTab(
             '/dashboard',
-            'Dashboard',
+            l.navDashboard,
             Icons.dashboard_outlined,
             Icons.dashboard,
           ),
           _NavTab(
             '/deliveries',
-            'Deliveries',
+            l.navDeliveries,
             Icons.delivery_dining_outlined,
             Icons.delivery_dining,
           ),
         ];
       case UserRole.qcInspector:
-        return const [
+        return [
           _NavTab(
             '/dashboard',
-            'Dashboard',
+            l.navDashboard,
             Icons.dashboard_outlined,
             Icons.dashboard,
           ),
-          _NavTab('/qc', 'QC', Icons.checklist_outlined, Icons.checklist),
+          _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
         ];
       case UserRole.worker:
-        return const [
-          _NavTab('/production', 'My Queue', Icons.queue_outlined, Icons.queue),
-          _NavTab('/payroll', 'My Points', Icons.star_outline, Icons.star),
+        return [
+          _NavTab(
+              '/production', l.navMyQueue, Icons.queue_outlined, Icons.queue),
+          _NavTab('/payroll', l.navMyPoints, Icons.star_outline, Icons.star),
         ];
       case UserRole.driver:
-        return const [
+        return [
           _NavTab(
             '/deliveries',
-            'My Deliveries',
+            l.navMyDeliveries,
             Icons.delivery_dining_outlined,
             Icons.delivery_dining,
           ),
         ];
       case UserRole.office:
-        return const [
+        return [
           _NavTab(
             '/deliveries',
-            'Deliveries',
+            l.navDeliveries,
             Icons.delivery_dining_outlined,
             Icons.delivery_dining,
           ),
         ];
       case UserRole.sales:
-        return const [
+        return [
           _NavTab(
             '/trailers',
-            'Trailers',
+            l.navTrailers,
+            Icons.local_shipping_outlined,
+            Icons.local_shipping,
+          ),
+        ];
+      case UserRole.purchasing:
+        // Purchasing lands on trailers pre-filtered to pending_production so
+        // they see the orders that haven't started building yet and can plan
+        // parts ordering. Trailer list + detail already gate create/edit/
+        // delete behind owner/production_manager — purchasing is read-only.
+        return [
+          _NavTab(
+            '/trailers?status=pending_production',
+            l.navTrailers,
             Icons.local_shipping_outlined,
             Icons.local_shipping,
           ),
         ];
       default:
-        return const [
+        return [
           _NavTab(
             '/dashboard',
-            'Dashboard',
+            l.navDashboard,
             Icons.dashboard_outlined,
             Icons.dashboard,
           ),
@@ -504,6 +523,7 @@ class _ConnectionDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final color = switch (state) {
       WsConnectionState.connected => AppColors.success,
       WsConnectionState.connecting => AppColors.warning,
@@ -511,9 +531,9 @@ class _ConnectionDot extends StatelessWidget {
     };
 
     final label = switch (state) {
-      WsConnectionState.connected => 'Connected',
-      WsConnectionState.connecting => 'Connecting',
-      WsConnectionState.disconnected => 'Offline',
+      WsConnectionState.connected => l.connectionConnected,
+      WsConnectionState.connecting => l.connectionConnecting,
+      WsConnectionState.disconnected => l.connectionOffline,
     };
 
     return Row(
@@ -573,14 +593,15 @@ class _OfflineBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: AppColors.error.withValues(alpha: 0.1),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.cloud_off_outlined, color: AppColors.error, size: 18),
-          SizedBox(width: 8),
+          const Icon(Icons.cloud_off_outlined,
+              color: AppColors.error, size: 18),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Offline - real-time updates paused',
-              style: TextStyle(
+              AppLocalizations.of(context).offlineBanner,
+              style: const TextStyle(
                 color: AppColors.error,
                 fontWeight: FontWeight.w600,
               ),

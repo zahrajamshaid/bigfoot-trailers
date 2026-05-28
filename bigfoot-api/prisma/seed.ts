@@ -15,6 +15,14 @@ const prisma = createPrismaClient();
 async function main() {
   console.log('🌱 Seeding Bigfoot Trailers database...\n');
 
+  // ─── ENUM PATCHES (idempotent) ────────────────────────────────────────────
+  // ADD VALUE IF NOT EXISTS is safe to re-run and runs in autocommit so we
+  // don't need a separate migration step before the upserts that reference
+  // the new role(s).
+  await prisma.$executeRawUnsafe(
+    `ALTER TYPE user_role_enum ADD VALUE IF NOT EXISTS 'purchasing'`,
+  );
+
   // ─── LOCATIONS (5 rows) ────────────────────────────────────────────────────
   // shortLabel is the chip text shown in mobile pickers (Mul, Jax, VA, GA, TAL).
   const locations = await Promise.all([
@@ -1091,6 +1099,12 @@ async function main() {
       role: UserRole.office,
       primaryDepartmentId: null,
     },
+    {
+      email: 'purchasing@bigfoot.dev',
+      fullName: 'Dev Purchasing',
+      role: UserRole.purchasing,
+      primaryDepartmentId: null,
+    },
   ];
 
   for (const u of devUserData) {
@@ -1109,6 +1123,43 @@ async function main() {
     });
   }
   console.log(`✅ Dev users seeded: ${devUserData.length} (password: ${DEV_PASSWORD})`);
+
+  // ─── LOCATION-SCOPED SALES USERS (Jacksonville, Tappahannock) ─────────────
+  // Sales reps that work out of the satellite yards rather than the Mulberry
+  // factory. primaryLocationId is set so trailer/customer filters that scope
+  // by user location land them on their yard by default.
+  const locationSalesUsers: { email: string; fullName: string; locationCode: string }[] = [
+    { email: 'jax-sales@bigfoot.dev', fullName: 'Jax Sales', locationCode: 'JACKSONVILLE' },
+    { email: 'va-sales@bigfoot.dev', fullName: 'VA Sales', locationCode: 'TAPPAHANNOCK' },
+  ];
+
+  for (const u of locationSalesUsers) {
+    const loc = locations.find((l) => l.code === u.locationCode);
+    if (!loc) {
+      throw new Error(`Location not found for sales user: ${u.locationCode}`);
+    }
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        passwordHash,
+        fullName: u.fullName,
+        role: UserRole.sales,
+        primaryLocationId: loc.id,
+        primaryDepartmentId: null,
+        isActive: true,
+      },
+      create: {
+        email: u.email,
+        fullName: u.fullName,
+        passwordHash,
+        role: UserRole.sales,
+        primaryLocationId: loc.id,
+        primaryDepartmentId: null,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`✅ Location sales users seeded: ${locationSalesUsers.length}`);
 
   // ─── DEPARTMENT USERS — one worker per production department (14 rows) ───
   // Covers all 14 production departments across the 4 trailer series (XP, Yeti,

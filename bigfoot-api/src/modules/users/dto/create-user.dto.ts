@@ -25,6 +25,7 @@ export enum UserRoleDto {
   SALES = 'sales',
   DRIVER = 'driver',
   OFFICE = 'office',
+  PURCHASING = 'purchasing',
 }
 
 export class CreateUserDto {

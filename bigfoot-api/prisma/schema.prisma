@@ -103,6 +103,7 @@ enum UserRole {
   sales
   driver
   office
+  purchasing
 
   @@map("user_role_enum")
 }

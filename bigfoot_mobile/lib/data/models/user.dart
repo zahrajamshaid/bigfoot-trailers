@@ -13,6 +13,7 @@ abstract final class UserRole {
   static const String driver = 'driver';
   static const String office = 'office';
   static const String sales = 'sales';
+  static const String purchasing = 'purchasing';
 }
 
 @JsonSerializable()
