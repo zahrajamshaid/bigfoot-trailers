@@ -12,7 +12,10 @@ on:
 
 env:
   FLUTTER_VERSION: 3.32.8
-  API_HOST: bigfoot.206-189-190-150.sslip.io
+  # Production API host — single source of truth is the repo variable
+  # DEPLOY_DOMAIN (also used by .github/workflows/android-distribute.yml
+  # and .github/workflows/api-deploy.yml).
+  API_HOST: ${{ vars.DEPLOY_DOMAIN }}
   BUNDLE_ID: com.bigfoottrailers.bigfootMobile
 
 jobs:
