@@ -7,6 +7,7 @@ import '../../../core/websocket/ws_client.dart';
 import '../../../data/models/queue_item.dart';
 import '../../../data/models/department.dart';
 import '../../../domain/repositories/production_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/production_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -52,6 +53,7 @@ class _QueueView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final authState = context.watch<AuthViewModel>().state;
     final user = authState is Authenticated ? authState.user : null;
     final isManager = user?.isManager ?? false;
@@ -81,7 +83,7 @@ class _QueueView extends StatelessWidget {
         if (state is ProductionQueueLoaded) {
           return _LoadedQueue(state: state, isManager: isManager);
         }
-        return const Center(child: Text('Loading queue...'));
+        return Center(child: Text(l.queueLoading));
       },
     );
   }
@@ -113,6 +115,7 @@ class _LoadedQueue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final visibleQueue = state.visibleQueue;
     final stalledCount = state.queue.where((q) => q.stallLevel > 0).length;
 
@@ -133,7 +136,7 @@ class _LoadedQueue extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                state.departmentName ?? 'Queue',
+                state.departmentName ?? l.queueTitleFallback,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -145,7 +148,9 @@ class _LoadedQueue extends StatelessWidget {
               // threshold. Always visible so a deep-linked filter can be
               // cleared even when it leaves the list empty.
               FilterChip(
-                label: Text('Stalled${stalledCount > 0 ? ' ($stalledCount)' : ''}'),
+                label: Text(stalledCount > 0
+                    ? l.queueFilterStalledCount(stalledCount)
+                    : l.queueFilterStalled),
                 avatar: const Icon(Icons.warning_amber, size: 16),
                 selected: state.stalledOnly,
                 selectedColor: AppColors.warning.withValues(alpha: 0.2),
@@ -164,7 +169,7 @@ class _LoadedQueue extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${visibleQueue.length} trailer${visibleQueue.length == 1 ? '' : 's'}',
+                  l.queueTrailerCount(visibleQueue.length),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -228,13 +233,14 @@ class _LoadedQueue extends StatelessWidget {
   }
 
   void _showReverseDialog(BuildContext context, QueueItem item) {
+    final l = AppLocalizations.of(context);
     // Only allow reversal within 10 minutes of becoming active
     // (We check if item was recently completed — but since it's still in queue,
     //  this is for items the user just saw complete. Reversal is on the cubit side.)
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Undo Completion?'),
+        title: Text(l.queueUndoTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,16 +250,16 @@ class _LoadedQueue extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'This will return the trailer to this department\'s queue.',
-              style: TextStyle(color: Colors.grey),
+            Text(
+              l.queueUndoBody,
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
@@ -265,18 +271,18 @@ class _LoadedQueue extends StatelessWidget {
                 );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Step reversed successfully')),
+                    SnackBar(content: Text(l.queueReversed)),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to reverse: $e')),
+                    SnackBar(content: Text(l.queueReverseFailed('$e'))),
                   );
                 }
               }
             },
-            child: const Text('Undo'),
+            child: Text(l.commonUndo),
           ),
         ],
       ),
@@ -299,6 +305,7 @@ class _DepartmentSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     // Filter to non-QC production departments
     final prodDepts = departments.where((d) => !d.isQcStep).toList();
 
@@ -308,7 +315,7 @@ class _DepartmentSelector extends StatelessWidget {
       child: DropdownButtonFormField<int>(
         value: prodDepts.any((d) => d.id == selectedId) ? selectedId : null,
         decoration: InputDecoration(
-          labelText: 'Department',
+          labelText: l.queueDepartmentLabel,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 10,
@@ -352,6 +359,7 @@ class _QueueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final stallLevel = item.stallLevel;
 
     return Padding(
@@ -526,7 +534,7 @@ class _QueueCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'REWORK ×${item.reworkCount}',
+                                    l.queueReworkBadge(item.reworkCount),
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
@@ -602,7 +610,7 @@ class _QueueCard extends StatelessWidget {
                                     Icons.info_outline,
                                     color: AppColors.navy,
                                   ),
-                                  tooltip: 'Open trailer detail',
+                                  tooltip: l.queueOpenDetailTooltip,
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 FilledButton.icon(
@@ -611,9 +619,9 @@ class _QueueCard extends StatelessWidget {
                                     Icons.check_circle,
                                     size: 20,
                                   ),
-                                  label: const Text(
-                                    'COMPLETE',
-                                    style: TextStyle(
+                                  label: Text(
+                                    l.queueCompleteButton,
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -645,6 +653,7 @@ class _StallText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final hours = item.calculatedHoursInQueue;
     final stallLevel = item.stallLevel;
     final color = stallLevel == 2
@@ -655,12 +664,12 @@ class _StallText extends StatelessWidget {
 
     String text;
     if (hours < 1) {
-      text = '${(hours * 60).round()}m in queue';
+      text = l.queueMinutesInQueue((hours * 60).round());
     } else if (hours < 24) {
-      text = '${hours.toStringAsFixed(1)}h in queue';
+      text = l.queueHoursInQueue(hours.toStringAsFixed(1));
     } else {
       final days = (hours / 24).floor();
-      text = '${days}d ${(hours % 24).round()}h in queue';
+      text = l.queueDaysHoursInQueue(days, (hours % 24).round());
     }
 
     if (stallLevel == 2) text = '⚠️ $text';
@@ -700,20 +709,22 @@ class _EmptyQueue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l = AppLocalizations.of(context);
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
-          SizedBox(height: 16),
+          const Icon(Icons.check_circle_outline,
+              size: 64, color: AppColors.success),
+          const SizedBox(height: 16),
           Text(
-            'Queue Empty',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            l.queueEmptyTitle,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'No trailers waiting in this department',
-            style: TextStyle(color: Colors.grey),
+            l.queueEmptyBody,
+            style: const TextStyle(color: Colors.grey),
           ),
         ],
       ),
@@ -727,22 +738,23 @@ class _NoStalledItems extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l = AppLocalizations.of(context);
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
-          SizedBox(height: 16),
+          const Icon(Icons.check_circle_outline,
+              size: 64, color: AppColors.success),
+          const SizedBox(height: 16),
           Text(
-            'No Stalled Trailers',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            l.queueNoStalledTitle,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Nothing in this department is past the stall threshold.\n'
-            'Turn off the "Stalled" filter to see the full queue.',
+            l.queueNoStalledBody,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: const TextStyle(color: Colors.grey),
           ),
         ],
       ),
@@ -759,6 +771,7 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -772,7 +785,7 @@ class _ErrorView extends StatelessWidget {
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(l.commonRetry),
               style: FilledButton.styleFrom(minimumSize: const Size(120, 48)),
             ),
           ],
@@ -847,6 +860,7 @@ class _PointsOverlayState extends State<_PointsOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return AnimatedBuilder(
       listenable: _controller,
       builder: (_, __) {
@@ -880,8 +894,9 @@ class _PointsOverlayState extends State<_PointsOverlay>
                     children: [
                       Text(
                         widget.points > 0
-                            ? '+${widget.points.toStringAsFixed(1)} points'
-                            : 'Completed (rework)',
+                            ? l.queueOverlayPoints(
+                                widget.points.toStringAsFixed(1))
+                            : l.queueOverlayRework,
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -892,7 +907,7 @@ class _PointsOverlayState extends State<_PointsOverlay>
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            'Next: ${widget.nextDepartment}',
+                            l.queueOverlayNext(widget.nextDepartment!),
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.white,

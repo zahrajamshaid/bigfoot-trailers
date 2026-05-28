@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/network/api_exception.dart';
 import '../../data/models/location.dart';
 import '../../domain/repositories/location_repository.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Chip-style picker for trailer yards (Mul, Jax, VA, GA, TAL).
 ///
@@ -122,7 +123,7 @@ class _StockLocationChipsState extends State<StockLocationChips> {
               ),
               TextButton(
                 onPressed: widget.enabled ? _load : null,
-                child: const Text('Retry'),
+                child: Text(AppLocalizations.of(context).commonRetry),
               ),
             ],
           )

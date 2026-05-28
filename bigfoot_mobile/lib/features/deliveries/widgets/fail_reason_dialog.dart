@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/generated/app_localizations.dart';
+
 /// Prompts for a delivery-failure reason.
 ///
 /// Returns the trimmed reason, or `null` if the user cancelled. The Confirm
@@ -14,6 +16,7 @@ Future<String?> showFailReasonDialog(
     context: context,
     builder: (ctx) {
       final controller = TextEditingController();
+      final l = AppLocalizations.of(ctx);
       return StatefulBuilder(
         builder: (ctx, setLocal) {
           final hasText = controller.text.trim().isNotEmpty;
@@ -21,9 +24,9 @@ Future<String?> showFailReasonDialog(
             title: Text(title),
             content: TextField(
               controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Reason',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.failReasonDialogLabel,
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
               autofocus: true,
@@ -32,13 +35,13 @@ Future<String?> showFailReasonDialog(
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(l.commonCancel),
               ),
               FilledButton(
                 onPressed: hasText
                     ? () => Navigator.pop(ctx, controller.text.trim())
                     : null,
-                child: const Text('Confirm'),
+                child: Text(l.completeDeliveryConfirm),
               ),
             ],
           );

@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/customer.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/customers_viewmodel.dart';
 import 'customer_form_screen.dart';
@@ -57,7 +58,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       if (!mounted) return;
       setState(() => _detail = null);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to load customer detail: $e')),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context).customerDetailLoadFail('$e'))),
       );
     } finally {
       if (mounted) {
@@ -68,12 +71,13 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final detail = _detail;
     final customer = detail?.customer;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customer Detail'),
+        title: Text(l.customerDetailTitle),
         actions: [
           IconButton(
             onPressed: customer == null || _deleting ? null : _edit,
@@ -81,7 +85,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
           ),
           if (_canDelete)
             IconButton(
-              tooltip: 'Delete customer',
+              tooltip: l.customerDetailDeleteTooltip,
               onPressed: customer == null || _deleting ? null : _confirmDelete,
               icon: _deleting
                   ? const SizedBox(
@@ -94,16 +98,16 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         ],
         bottom: TabBar(
           controller: _tabs,
-          tabs: const [
-            Tab(text: 'Trailer History'),
-            Tab(text: 'Delivery History'),
+          tabs: [
+            Tab(text: l.customerDetailTabTrailers),
+            Tab(text: l.customerDetailTabDeliveries),
           ],
         ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : detail == null
-              ? const Center(child: Text('Customer not found'))
+              ? Center(child: Text(l.customerDetailNotFound))
               : Column(
                   children: [
                     _ContactCard(
@@ -144,6 +148,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
   }
 
   Future<void> _confirmDelete() async {
+    final l = AppLocalizations.of(context);
     final detail = _detail;
     final existing = detail?.customer;
     if (existing == null || detail == null) return;
@@ -156,17 +161,17 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       choice = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Delete customer?'),
-          content: Text('This permanently deletes "${existing.name}".'),
+          title: Text(l.customerDetailDeleteTitle),
+          content: Text(l.customerDetailDeleteBody(existing.name)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(l.commonCancel),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.error),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete'),
+              child: Text(l.commonDelete),
             ),
           ],
         ),
@@ -177,24 +182,18 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       choice = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Customer has trailers'),
-          content: Text(
-            '"${existing.name}" is referenced by $trailerCount '
-            'trailer${trailerCount == 1 ? '' : 's'}.\n\n'
-            'Deleting the customer will also delete every associated '
-            'trailer along with its production history, QC inspections, '
-            'photos, deliveries, and messages.\n\n'
-            'This cannot be undone.',
-          ),
+          title: Text(l.customerDetailHasTrailersTitle),
+          content: Text(l.customerDetailHasTrailersBody(
+              existing.name, trailerCount)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(l.commonCancel),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.error),
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Delete customer + $trailerCount trailers'),
+              child: Text(l.customerDetailDeleteCascade(trailerCount)),
             ),
           ],
         ),
@@ -216,9 +215,8 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         SnackBar(
           content: Text(
             cascade
-                ? 'Deleted "${existing.name}" and $trailerCount trailer'
-                    '${trailerCount == 1 ? '' : 's'}'
-                : 'Deleted customer "${existing.name}"',
+                ? l.customerDetailDeletedCascade(existing.name, trailerCount)
+                : l.customerDetailDeleted(existing.name),
           ),
         ),
       );
@@ -227,12 +225,13 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       if (!mounted) return;
       setState(() => _deleting = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to delete: $e')),
+        SnackBar(content: Text(l.customerDetailDeleteFailed('$e'))),
       );
     }
   }
 
   Future<void> _toggleSms(bool value) async {
+    final l = AppLocalizations.of(context);
     final existing = _detail?.customer;
     if (existing == null) return;
 
@@ -263,7 +262,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update SMS preference: $e')),
+        SnackBar(content: Text(l.customerDetailSmsUpdateFailed('$e'))),
       );
     } finally {
       if (mounted) {
@@ -286,6 +285,7 @@ class _ContactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(12),
@@ -306,21 +306,21 @@ class _ContactCard extends StatelessWidget {
               child: Text(customer.company!),
             ),
           const SizedBox(height: 10),
-          Text('Phone: ${customer.phone ?? '-'}'),
-          Text('Email: ${customer.email ?? '-'}'),
-          Text('QuickBooks ID: ${customer.quickbooksCustomerId ?? '-'}'),
+          Text(l.customerDetailPhone(customer.phone ?? '-')),
+          Text(l.customerDetailEmail(customer.email ?? '-')),
+          Text(l.customerDetailQbId(customer.quickbooksCustomerId ?? '-')),
           SwitchListTile(
             value: customer.smsOptOut,
             onChanged: savingSms ? null : onToggleSms,
             contentPadding: EdgeInsets.zero,
-            title: const Text('SMS Opt-out'),
-            subtitle: savingSms ? const Text('Updating...') : null,
+            title: Text(l.customerFormSmsOptOut),
+            subtitle: savingSms ? Text(l.customerDetailUpdating) : null,
           ),
           const SizedBox(height: 8),
-          Text('Billing Address: ${customer.billingAddress ?? '-'}'),
-          Text('Delivery Address: ${customer.deliveryAddress ?? '-'}'),
+          Text(l.customerDetailBilling(customer.billingAddress ?? '-')),
+          Text(l.customerDetailDelivery(customer.deliveryAddress ?? '-')),
           const SizedBox(height: 8),
-          Text('Notes: ${customer.notes ?? '-'}'),
+          Text(l.customerDetailNotes(customer.notes ?? '-')),
         ],
       ),
     );
@@ -334,8 +334,9 @@ class _TrailerHistoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (items.isEmpty) {
-      return const Center(child: Text('No trailer history'));
+      return Center(child: Text(l.customerDetailNoTrailerHistory));
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -346,7 +347,9 @@ class _TrailerHistoryList extends StatelessWidget {
         return Card(
           child: ListTile(
             title: Text(t.soNumber),
-            subtitle: Text('VIN: ${t.vinNumber ?? '-'}\nStatus: ${t.status}'),
+            subtitle: Text(
+                '${l.customerDetailVin(t.vinNumber ?? '-')}\n'
+                '${l.customerDetailStatusValue(t.status)}'),
             trailing: OutlinedButton(
               onPressed: () {
                 if (t.trailerId > 0) {
@@ -356,7 +359,7 @@ class _TrailerHistoryList extends StatelessWidget {
                   );
                 }
               },
-              child: const Text('Open'),
+              child: Text(l.customerDetailOpen),
             ),
           ),
         );
@@ -372,8 +375,9 @@ class _DeliveryHistoryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (items.isEmpty) {
-      return const Center(child: Text('No delivery history'));
+      return Center(child: Text(l.customerDetailNoDeliveryHistory));
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -383,10 +387,10 @@ class _DeliveryHistoryList extends StatelessWidget {
         final d = items[i];
         return Card(
           child: ListTile(
-            title: Text('Delivery #${d.deliveryId}'),
+            title: Text(l.customerDetailDeliveryHash(d.deliveryId)),
             subtitle: Text(
-              'Trailer: ${d.trailerId ?? '-'}\n'
-              'Type: ${d.deliveryType ?? '-'} • Status: ${d.status}',
+              '${l.customerDetailTrailerValue('${d.trailerId ?? '-'}')}\n'
+              '${l.customerDetailTypeStatus(d.deliveryType ?? '-', d.status)}',
             ),
             trailing: OutlinedButton(
               onPressed: () {
@@ -395,7 +399,7 @@ class _DeliveryHistoryList extends StatelessWidget {
                   pathParameters: {'id': '${d.deliveryId}'},
                 );
               },
-              child: const Text('Open'),
+              child: Text(l.customerDetailOpen),
             ),
           ),
         );

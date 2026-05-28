@@ -10,6 +10,7 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../data/models/trailer.dart';
 import '../../../domain/repositories/storage_repository.dart';
 import '../../../domain/repositories/trailer_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/stock_location_chips.dart';
 import '../viewmodel/trailers_viewmodel.dart';
 
@@ -92,6 +93,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     });
     try {
       final api = context.read<DioClient>();
+      final l = AppLocalizations.of(context);
       final response = await api.get<List<dynamic>>(
         ApiEndpoints.adminTrailerModels,
         fromJson: (d) => d as List<dynamic>,
@@ -102,7 +104,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                 id: (m['id'] as num).toInt(),
                 displayName: (m['displayName'] as String?) ??
                     (m['code'] as String?) ??
-                    'Model ${m['id']}',
+                    l.createTrailerModelFallback('${m['id']}'),
                 series: (m['series'] as String?) ?? '',
               ))
           .toList();
@@ -110,9 +112,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       setState(() {
         _modelOptions = options;
         _loadingModels = false;
-        _loadModelsError = options.isEmpty
-            ? 'No trailer models are configured on the server.'
-            : null;
+        _loadModelsError =
+            options.isEmpty ? l.createTrailerModelsEmpty : null;
         // If the trailer's current model isn't in the loaded list (rare),
         // clear the selection so the validator forces a pick.
         if (_selectedModelId != null &&
@@ -132,12 +133,14 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       setState(() {
         _modelOptions = const [];
         _loadingModels = false;
-        _loadModelsError = 'Could not load trailer models. Check your connection.';
+        _loadModelsError =
+            AppLocalizations.of(context).createTrailerModelsLoadFail;
       });
     }
   }
 
   Future<void> _pickPdf() async {
+    final l = AppLocalizations.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -147,7 +150,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
       if (file.bytes == null) {
-        setState(() => _pdfWarning = 'Could not read the selected PDF file.');
+        setState(() => _pdfWarning = l.createTrailerPickPdfFail);
         return;
       }
       setState(() {
@@ -155,15 +158,16 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         _pdfWarning = null;
       });
     } catch (_) {
-      setState(() => _pdfWarning = 'Unable to open the file picker.');
+      setState(() => _pdfWarning = l.createTrailerPickerOpenFail);
     }
   }
 
   Future<void> _submit() async {
+    final l = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
     if (_isStockBuild && _selectedStockLocationId == null) {
       setState(() {
-        _stockLocationError = 'Pick a stock destination';
+        _stockLocationError = l.createTrailerStockDestRequired;
       });
       return;
     }
@@ -246,8 +250,8 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       context.read<TrailersViewModel>().load();
 
       final message = pdfWarning == null
-          ? 'Trailer $soNumber updated'
-          : 'Trailer updated. PDF upload failed: $pdfWarning';
+          ? l.editTrailerUpdated(soNumber)
+          : l.editTrailerUpdatedPdfWarn(pdfWarning);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -264,7 +268,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
       });
     } catch (_) {
       setState(() {
-        _errorMessage = 'Failed to update trailer';
+        _errorMessage = l.editTrailerFail;
         _isSubmitting = false;
       });
     }
@@ -276,6 +280,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
     required StorageRepository storageRepo,
     required PlatformFile file,
   }) async {
+    final l = AppLocalizations.of(context);
     try {
       final result = await storageRepo.uploadFile(
         fileType: 'so_pdf',
@@ -285,7 +290,7 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         contentType: 'application/pdf',
       );
       if (result.queued || result.storageKey == null) {
-        return 'no network — PDF will retry later';
+        return l.createTrailerPdfRetryLater;
       }
       final storageKey = result.storageKey!;
       await trailerRepo.uploadQbPdf(
@@ -303,8 +308,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text('Edit ${widget.trailer.soNumber}')),
+      appBar: AppBar(title: Text(l.editTrailerTitle(widget.trailer.soNumber))),
       body: _loadingModels
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : _modelOptions.isEmpty
@@ -319,14 +325,14 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                               size: 48, color: AppColors.error),
                           const SizedBox(height: 12),
                           Text(
-                            _loadModelsError ?? 'No trailer models available.',
+                            _loadModelsError ?? l.createTrailerModelsNone,
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
                             onPressed: _loadModels,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
+                            label: Text(l.commonRetry),
                           ),
                         ],
                       ),
@@ -369,20 +375,20 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                         TextFormField(
                           controller: _soController,
                           textCapitalization: TextCapitalization.characters,
-                          decoration: const InputDecoration(
-                            labelText: 'SO Number *',
-                            prefixIcon: Icon(Icons.tag),
+                          decoration: InputDecoration(
+                            labelText: l.createTrailerSoLabel,
+                            prefixIcon: const Icon(Icons.tag),
                           ),
                           validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'SO number is required'
+                              ? l.createTrailerSoRequired
                               : null,
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<int>(
                           value: _selectedModelId,
-                          decoration: const InputDecoration(
-                            labelText: 'Trailer Model *',
-                            prefixIcon: Icon(Icons.local_shipping_outlined),
+                          decoration: InputDecoration(
+                            labelText: l.createTrailerModelLabel,
+                            prefixIcon: const Icon(Icons.local_shipping_outlined),
                           ),
                           items: _modelOptions
                               .map((m) => DropdownMenuItem(
@@ -392,31 +398,31 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                               .toList(),
                           onChanged: (v) => setState(() => _selectedModelId = v),
                           validator: (v) =>
-                              v == null ? 'Select a trailer model' : null,
+                              v == null ? l.createTrailerModelRequired : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _colorController,
-                          decoration: const InputDecoration(
-                            labelText: 'Color',
-                            prefixIcon: Icon(Icons.palette_outlined),
+                          decoration: InputDecoration(
+                            labelText: l.createTrailerColorLabel,
+                            prefixIcon: const Icon(Icons.palette_outlined),
                           ),
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _sizeController,
-                          decoration: const InputDecoration(
-                            labelText: 'Size (ft)',
-                            prefixIcon: Icon(Icons.straighten),
+                          decoration: InputDecoration(
+                            labelText: l.createTrailerSizeLabel,
+                            prefixIcon: const Icon(Icons.straighten),
                           ),
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _notesController,
                           maxLines: 3,
-                          decoration: const InputDecoration(
-                            labelText: 'Options / Notes',
-                            prefixIcon: Padding(
+                          decoration: InputDecoration(
+                            labelText: l.createTrailerNotesLabel,
+                            prefixIcon: const Padding(
                               padding: EdgeInsets.only(bottom: 48),
                               child: Icon(Icons.notes),
                             ),
@@ -427,17 +433,17 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                         TextFormField(
                           controller: _specialNoteController,
                           maxLength: 500,
-                          decoration: const InputDecoration(
-                            labelText: 'Special Note',
-                            hintText: 'e.g. ship empty, hold for VIN check',
-                            prefixIcon: Icon(Icons.sticky_note_2_outlined),
+                          decoration: InputDecoration(
+                            labelText: l.createTrailerSpecialLabel,
+                            hintText: l.createTrailerSpecialHint,
+                            prefixIcon: const Icon(Icons.sticky_note_2_outlined),
                             counterText: '',
                           ),
                         ),
                         const SizedBox(height: 16),
                         SwitchListTile(
-                          title: const Text('Stock Build'),
-                          subtitle: const Text('No customer assigned'),
+                          title: Text(l.createTrailerStockBuild),
+                          subtitle: Text(l.createTrailerStockBuildSubtitle),
                           value: _isStockBuild,
                           activeColor: AppColors.amber,
                           onChanged: (v) => setState(() {
@@ -453,11 +459,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                         if (_isStockBuild) ...[
                           const SizedBox(height: 12),
                           StockLocationChips(
-                            labelText: 'Stock Destination *',
+                            labelText: l.createTrailerStockDestLabel,
                             selectedLocationId: _selectedStockLocationId,
                             enabled: !_isSubmitting,
-                            onChanged: (l) => setState(() {
-                              _selectedStockLocationId = l.id;
+                            onChanged: (loc) => setState(() {
+                              _selectedStockLocationId = loc.id;
                               _stockLocationError = null;
                             }),
                             errorText: _stockLocationError,
@@ -468,13 +474,11 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                           TextFormField(
                             controller: _customerController,
                             textCapitalization: TextCapitalization.words,
-                            decoration: const InputDecoration(
-                              labelText: 'Customer',
-                              hintText:
-                                  'Buyer name — leave blank for stock',
-                              helperText:
-                                  'Optional. A trailer with a customer is marked sold.',
-                              prefixIcon: Icon(Icons.person_outline),
+                            decoration: InputDecoration(
+                              labelText: l.createTrailerCustomerLabel,
+                              hintText: l.createTrailerCustomerHint,
+                              helperText: l.createTrailerCustomerHelper,
+                              prefixIcon: const Icon(Icons.person_outline),
                             ),
                           ),
                         ],
@@ -508,9 +512,9 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                                             color: AppColors.white,
                                           ),
                                         )
-                                      : const Text(
-                                          'Save Changes',
-                                          style: TextStyle(
+                                      : Text(
+                                          l.editTrailerSubmit,
+                                          style: const TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -562,6 +566,7 @@ class _PdfPickerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final hasNew = selectedFile != null;
     final hasExisting = existingKey != null && existingKey!.isNotEmpty;
     return Container(
@@ -577,17 +582,17 @@ class _PdfPickerTile extends StatelessWidget {
             children: [
               const Icon(Icons.picture_as_pdf_outlined, color: AppColors.navy),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'QB Sales Order PDF',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  l.createTrailerPdfSectionTitle,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               if (hasNew)
                 IconButton(
                   onPressed: onClear,
                   icon: const Icon(Icons.close, size: 20),
-                  tooltip: 'Discard new PDF',
+                  tooltip: l.editTrailerPdfDiscardTooltip,
                 ),
             ],
           ),
@@ -603,20 +608,22 @@ class _PdfPickerTile extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: AppColors.disabled),
             ),
           ] else if (hasExisting)
-            const Text(
-              'A PDF is already attached. Pick a new file to replace it.',
-              style: TextStyle(fontSize: 12, color: AppColors.disabled),
+            Text(
+              l.editTrailerPdfExisting,
+              style: const TextStyle(fontSize: 12, color: AppColors.disabled),
             )
           else
-            const Text(
-              'Optional — attach the QuickBooks SO PDF for this trailer.',
-              style: TextStyle(fontSize: 12, color: AppColors.disabled),
+            Text(
+              l.createTrailerPdfOptionalHelper,
+              style: const TextStyle(fontSize: 12, color: AppColors.disabled),
             ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: onPick,
             icon: const Icon(Icons.upload_file, size: 18),
-            label: Text(hasNew || hasExisting ? 'Replace PDF' : 'Attach PDF'),
+            label: Text(hasNew || hasExisting
+                ? l.createTrailerPdfReplace
+                : l.createTrailerPdfAttach),
           ),
           if (warning != null) ...[
             const SizedBox(height: 6),

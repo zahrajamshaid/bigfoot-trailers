@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/delivery.dart';
 import '../../../data/models/delivery_batch.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../utils/delivery_actions.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
@@ -74,11 +75,12 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       );
     }
 
+    final l = AppLocalizations.of(context);
     final d = _delivery;
     if (d == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Delivery Detail')),
-        body: const Center(child: Text('Delivery not found')),
+        appBar: AppBar(title: Text(l.deliveryDetailTitle(widget.deliveryId))),
+        body: Center(child: Text(l.deliveryDetailNotFound)),
       );
     }
 
@@ -92,11 +94,11 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Delivery #${d.id}'),
+        title: Text(l.deliveryDetailTitle(d.id)),
         actions: [
           if (canDelete)
             IconButton(
-              tooltip: 'Delete delivery',
+              tooltip: l.deliveryDetailDeleteTooltip,
               icon: const Icon(Icons.delete_outline),
               onPressed: _actionBusy ? null : () => _delete(d),
             ),
@@ -110,11 +112,11 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             _TimelineHeader(status: d.status),
             const SizedBox(height: 14),
             _SectionCard(
-              title: 'Trailer',
+              title: l.deliveryDetailSectionTrailer,
               children: [
-                Text('SO: ${d.soNumber}'),
-                Text('Model: ${d.modelName}'),
-                Text('Customer: ${d.customerName}'),
+                Text(l.deliveryDetailSo(d.soNumber)),
+                Text(l.deliveryDetailModel(d.modelName)),
+                Text(l.deliveryDetailCustomer(d.customerName)),
               ],
             ),
             if (_batch != null)
@@ -127,11 +129,11 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                 onComplete: () => _completeBatch(_batch!),
               ),
             _SectionCard(
-              title: 'Driver',
-              children: [Text('Assigned: ${d.driverName}')],
+              title: l.deliveryDetailSectionDriver,
+              children: [Text(l.deliveryDetailAssigned(d.driverName))],
             ),
             _SectionCard(
-              title: 'Destination',
+              title: l.deliveryDetailSectionDestination,
               children: [
                 Text(d.destinationLabel),
                 if (d.destinationLocation?.city != null)
@@ -146,7 +148,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () => _openMaps(d),
                         icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('Open in Maps'),
+                        label: Text(l.deliveryDetailOpenMaps),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -154,7 +156,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                       child: OutlinedButton.icon(
                         onPressed: hasPhone ? () => _textCustomer(d) : null,
                         icon: const Icon(Icons.sms_outlined, size: 18),
-                        label: const Text('Text Customer'),
+                        label: Text(l.deliveryDetailTextCustomer),
                       ),
                     ),
                   ],
@@ -163,17 +165,17 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
             ),
             if ((d.balanceDue ?? 0) > 0)
               _SectionCard(
-                title: 'Balance Due',
+                title: l.deliveryDetailSectionBalance,
                 children: [Text(_money(d.balanceDue))],
               ),
             if ((d.pickedUpByName ?? '').isNotEmpty)
               _SectionCard(
-                title: 'Picked Up By',
+                title: l.deliveryDetailSectionPickedUp,
                 children: [Text(d.pickedUpByName!)],
               ),
             if (d.status == 'failed' && (d.failReason ?? '').isNotEmpty)
               _SectionCard(
-                title: 'Failure Reason',
+                title: l.deliveryDetailSectionFailReason,
                 children: [Text(d.failReason!)],
               ),
             const SizedBox(height: 8),
@@ -190,13 +192,13 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.task_alt_outlined),
-                    label: const Text('Complete Delivery'),
+                    label: Text(l.deliveryDetailCompleteAction),
                   ),
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
                     onPressed: _actionBusy ? null : _markFailed,
                     icon: const Icon(Icons.report_gmailerrorred),
-                    label: const Text('Mark Failed'),
+                    label: Text(l.deliveryDetailMarkFailed),
                   ),
                 ],
               ),
@@ -212,7 +214,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     final ok = await openDeliveryInMaps(d);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No destination address for this delivery.')),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context).deliveryDetailNoAddress)),
       );
     }
   }
@@ -221,7 +225,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     final ok = await textDeliveryCustomer(d);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No phone number on file for this customer.')),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context).deliveryDetailNoPhone)),
       );
     }
   }
@@ -240,7 +246,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to complete delivery: $e')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .deliveryDetailCompleteFail('$e'))),
       );
     } finally {
       if (mounted) setState(() => _actionBusy = false);
@@ -251,23 +259,21 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   /// trailer in the batch is marked delivered. Available to owner / transport
   /// manager so they don't have to complete each delivery individually.
   Future<void> _completeBatch(DeliveryBatch batch) async {
+    final l = AppLocalizations.of(context);
     final count = (batch.deliveries ?? const []).length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Complete Batch'),
-        content: Text(
-          'Mark all $count trailer(s) in ${batch.batchNumber} as delivered? '
-          'This completes the whole batch in one step.',
-        ),
+        title: Text(l.deliveryDetailCompleteBatchTitle),
+        content: Text(l.deliveryDetailCompleteBatchBody(count, batch.batchNumber)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mark All Delivered'),
+            child: Text(l.deliveryDetailMarkAllDelivered),
           ),
         ],
       ),
@@ -281,13 +287,13 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${batch.batchNumber} — all trailers delivered.')),
+          SnackBar(content: Text(l.deliveryDetailBatchAllDelivered(batch.batchNumber))),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to complete batch: $e')),
+        SnackBar(content: Text(l.deliveryDetailBatchFail('$e'))),
       );
     } finally {
       if (mounted) setState(() => _actionBusy = false);
@@ -295,23 +301,21 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
   }
 
   Future<void> _delete(Delivery d) async {
+    final l = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Delivery'),
-        content: Text(
-          'Delete this delivery for ${d.soNumber}? The trailer goes back to '
-          'ready for delivery. This cannot be undone.',
-        ),
+        title: Text(l.deliveryDetailDeleteTitle),
+        content: Text(l.deliveryDetailDeleteBody(d.soNumber)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(l.commonDelete),
           ),
         ],
       ),
@@ -326,21 +330,22 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       await context.read<DeliveriesViewModel>().deleteDelivery(widget.deliveryId);
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${d.soNumber} delivery deleted.')),
+        SnackBar(content: Text(l.deliveryDetailDeleted(d.soNumber))),
       );
       navigator.pop();
     } catch (e) {
       if (!mounted) return;
       setState(() => _actionBusy = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to delete delivery: $e')),
+        SnackBar(content: Text(l.deliveryDetailDeleteFail('$e'))),
       );
     }
   }
 
   Future<void> _markFailed() async {
+    final l = AppLocalizations.of(context);
     final reason =
-        await showFailReasonDialog(context, title: 'Mark Delivery Failed');
+        await showFailReasonDialog(context, title: l.deliveryDetailMarkFailedTitle);
 
     if (!mounted) return;
     if (reason == null || reason.isEmpty) return;
@@ -351,7 +356,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to mark failed: $e')),
+        SnackBar(content: Text(l.deliveryDetailMarkFailedError('$e'))),
       );
     } finally {
       if (mounted) setState(() => _actionBusy = false);
@@ -368,6 +373,7 @@ class _TimelineHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final delivered = status == 'delivered';
     final failed = status == 'failed';
 
@@ -383,7 +389,8 @@ class _TimelineHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('Status', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(l.deliveryDetailStatusLabel,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               const Spacer(),
               StatusBadge(status: status),
             ],
@@ -403,11 +410,11 @@ class _TimelineHeader extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            const Row(
+            Row(
               children: [
-                Text('Scheduled'),
-                Spacer(),
-                Text('Delivered'),
+                Text(l.deliveryListTabScheduled),
+                const Spacer(),
+                Text(l.statusDelivered),
               ],
             ),
           ],
@@ -452,23 +459,25 @@ class _BatchSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final deliveries = batch.deliveries ?? const [];
     final isComplete = batch.status == 'complete';
     return _SectionCard(
-      title: 'Batch — ${batch.batchNumber}',
+      title: l.deliveryDetailBatchTitle(batch.batchNumber),
       children: [
         Row(
           children: [
-            Text('Status: ${batch.statusLabel}',
+            Text(l.deliveryDetailBatchStatus(batch.statusLabel),
                 style: const TextStyle(color: AppColors.disabled)),
             const Spacer(),
-            Text('${deliveries.length} trailers',
+            Text(l.deliveryDetailTrailerCount(deliveries.length),
                 style: const TextStyle(color: AppColors.disabled)),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          'Driver: ${batch.driverUser?.fullName ?? 'Unassigned'}',
+          l.deliveryListDriverLabel(
+              batch.driverUser?.fullName ?? l.deliveryDetailUnassigned),
           style: const TextStyle(color: AppColors.disabled),
         ),
         const SizedBox(height: 8),
@@ -516,7 +525,7 @@ class _BatchSection extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.task_alt_outlined),
-              label: const Text('Complete Entire Batch'),
+              label: Text(l.deliveryDetailCompleteEntireBatch),
             ),
           ),
         ],

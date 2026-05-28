@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/delivery_batch.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
 
 class BatchScreen extends StatefulWidget {
@@ -37,25 +38,22 @@ class _BatchScreenState extends State<BatchScreen> {
   }
 
   Future<void> _deleteBatch(DeliveryBatch b) async {
+    final l = AppLocalizations.of(context);
     final count = (b.deliveries ?? const []).length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Batch'),
-        content: Text(
-          'Delete ${b.batchNumber}? This removes the batch and its '
-          '$count delivery record(s). Trailers not yet delivered are returned '
-          'to the ready-for-delivery pool.',
-        ),
+        title: Text(l.batchScreenDeleteTitle),
+        content: Text(l.batchScreenDeleteBody(b.batchNumber, count)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(l.commonDelete),
           ),
         ],
       ),
@@ -69,33 +67,32 @@ class _BatchScreenState extends State<BatchScreen> {
       await context.read<DeliveriesViewModel>().deleteBatch(b.id);
       if (mounted) await _load();
       messenger.showSnackBar(
-        SnackBar(content: Text('${b.batchNumber} deleted.')),
+        SnackBar(content: Text(l.batchScreenDeleted(b.batchNumber))),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      messenger.showSnackBar(
+          SnackBar(content: Text(l.batchScreenDeleteFail('$e'))));
     } finally {
       if (mounted) setState(() => _busyBatchId = null);
     }
   }
 
   Future<void> _completeBatch(DeliveryBatch b) async {
+    final l = AppLocalizations.of(context);
     final count = (b.deliveries ?? const []).length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Complete Batch'),
-        content: Text(
-          'Mark all $count trailer(s) in ${b.batchNumber} as delivered? '
-          'This completes the whole batch in one step.',
-        ),
+        title: Text(l.deliveryDetailCompleteBatchTitle),
+        content: Text(l.deliveryDetailCompleteBatchBody(count, b.batchNumber)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mark All Delivered'),
+            child: Text(l.deliveryDetailMarkAllDelivered),
           ),
         ],
       ),
@@ -109,10 +106,11 @@ class _BatchScreenState extends State<BatchScreen> {
       await context.read<DeliveriesViewModel>().completeBatch(b.id);
       if (mounted) await _load();
       messenger.showSnackBar(
-        SnackBar(content: Text('${b.batchNumber} — all trailers delivered.')),
+        SnackBar(content: Text(l.deliveryDetailBatchAllDelivered(b.batchNumber))),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed to complete: $e')));
+      messenger.showSnackBar(
+          SnackBar(content: Text(l.batchScreenCompleteFail('$e'))));
     } finally {
       if (mounted) setState(() => _busyBatchId = null);
     }
@@ -120,14 +118,15 @@ class _BatchScreenState extends State<BatchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delivery Batches'),
+        title: Text(l.batchScreenTitle),
         actions: [
           IconButton(
             onPressed: _openCreate,
             icon: const Icon(Icons.add),
-            tooltip: 'Create Batch',
+            tooltip: l.batchScreenNewBatch,
           ),
         ],
       ),
@@ -159,11 +158,11 @@ class _BatchScreenState extends State<BatchScreen> {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text('Type: ${b.batchType}'),
-                          Text('Driver: ${b.driverUser?.fullName ?? '-'}'),
-                          Text('Destination: ${b.destinationLocation?.name ?? b.destinationName ?? '-'}'),
+                          Text(l.batchScreenTypeLabel(b.batchType)),
+                          Text(l.batchScreenDriverLabel(b.driverUser?.fullName ?? '-')),
+                          Text(l.batchScreenDestinationLabel(b.destinationLocation?.name ?? b.destinationName ?? '-')),
                           const SizedBox(height: 8),
-                          Text('Trailers: ${deliveries.length}'),
+                          Text(l.batchScreenTrailersLabel(deliveries.length)),
                           if (deliveries.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
@@ -207,6 +206,7 @@ class _BatchScreenState extends State<BatchScreen> {
   }
 
   Future<void> _openUpdate(DeliveryBatch batch) async {
+    final l = AppLocalizations.of(context);
     final form = await context.read<DeliveriesViewModel>().getCreateFormData();
     if (!mounted) return;
 
@@ -219,16 +219,16 @@ class _BatchScreenState extends State<BatchScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Update ${batch.batchNumber}'),
+        title: Text(l.batchScreenUpdateTitle(batch.batchNumber)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<int>(
                 value: driverId,
-                decoration: const InputDecoration(labelText: 'Driver'),
+                decoration: InputDecoration(labelText: l.batchScreenDriverField),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Unassigned')),
+                  DropdownMenuItem(value: null, child: Text(l.deliveryDetailUnassigned)),
                   ...form.drivers.map((d) => DropdownMenuItem(value: d.id, child: Text(d.name))),
                 ],
                 onChanged: (v) => driverId = v,
@@ -236,35 +236,35 @@ class _BatchScreenState extends State<BatchScreen> {
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
                 value: destinationLocationId,
-                decoration: const InputDecoration(labelText: 'Destination Location'),
+                decoration: InputDecoration(labelText: l.createDeliveryDestinationLocation),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Custom destination name')),
-                  ...form.locations.map((l) => DropdownMenuItem(value: l.id, child: Text(l.name))),
+                  DropdownMenuItem(value: null, child: Text(l.batchScreenCustomDestination)),
+                  ...form.locations.map((loc) => DropdownMenuItem(value: loc.id, child: Text(loc.name))),
                 ],
                 onChanged: (v) => destinationLocationId = v,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: destinationNameCtrl,
-                decoration: const InputDecoration(labelText: 'Destination Name'),
+                decoration: InputDecoration(labelText: l.batchScreenDestinationName),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: addTrailerCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Add Trailer ID (optional)'),
+                decoration: InputDecoration(labelText: l.batchScreenAddTrailerId),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: removeDeliveryCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Remove Delivery ID (optional)'),
+                decoration: InputDecoration(labelText: l.batchScreenRemoveDeliveryId),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(l.commonCancel)),
           FilledButton(
             onPressed: () async {
               await context.read<DeliveriesViewModel>().updateBatch(
@@ -281,7 +281,7 @@ class _BatchScreenState extends State<BatchScreen> {
                   );
               if (context.mounted) Navigator.pop(context);
             },
-            child: const Text('Save'),
+            child: Text(l.commonSave),
           ),
         ],
       ),
@@ -315,6 +315,7 @@ class _BatchActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final spinner = busy
         ? const SizedBox(
             width: 16,
@@ -329,7 +330,7 @@ class _BatchActions extends StatelessWidget {
     final deleteButton = OutlinedButton.icon(
       onPressed: busy ? null : onDelete,
       icon: const Icon(Icons.delete_outline, size: 18),
-      label: const Text('Delete'),
+      label: Text(l.commonDelete),
       style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
     );
 
@@ -338,11 +339,11 @@ class _BatchActions extends StatelessWidget {
       children: [
         if (isComplete)
           Row(
-            children: const [
-              Icon(Icons.check_circle, color: AppColors.success, size: 18),
-              SizedBox(width: 6),
+            children: [
+              const Icon(Icons.check_circle, color: AppColors.success, size: 18),
+              const SizedBox(width: 6),
               Expanded(
-                child: Text('Batch completed — all trailers delivered.'),
+                child: Text(l.batchScreenCompletedNote),
               ),
             ],
           )
@@ -355,7 +356,7 @@ class _BatchActions extends StatelessWidget {
                   FilledButton.styleFrom(backgroundColor: AppColors.success),
               onPressed: (busy || !hasTrailers) ? null : onComplete,
               icon: spinner ?? const Icon(Icons.task_alt_outlined),
-              label: const Text('Complete Batch'),
+              label: Text(l.deliveryDetailCompleteBatchTitle),
             ),
           ),
         const SizedBox(height: 8),
@@ -367,7 +368,7 @@ class _BatchActions extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: busy ? null : onUpdate,
                 icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Update'),
+                label: Text(l.batchScreenUpdate),
               ),
             deleteButton,
           ],

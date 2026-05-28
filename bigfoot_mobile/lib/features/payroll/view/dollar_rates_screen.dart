@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/department.dart';
 import '../../../data/models/payroll_record.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../admin/viewmodel/admin_viewmodel.dart';
 import '../viewmodel/payroll_viewmodel.dart';
 
@@ -44,6 +45,7 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final grouped = <int, List<DollarRate>>{};
     for (final r in _rates) {
       grouped.putIfAbsent(r.departmentId, () => []).add(r);
@@ -57,7 +59,7 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dollar Rates'),
+        title: Text(l.payrollDrTitle),
         actions: [
           IconButton(onPressed: _openAddSheet, icon: const Icon(Icons.add)),
         ],
@@ -69,9 +71,9 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
               child: grouped.isEmpty
                   ? ListView(
                       padding: const EdgeInsets.all(24),
-                      children: const [
-                        SizedBox(height: 80),
-                        Center(child: Text('No dollar rates yet. Tap + to add one.')),
+                      children: [
+                        const SizedBox(height: 80),
+                        Center(child: Text(l.payrollDrEmpty)),
                       ],
                     )
                   : ListView(
@@ -81,24 +83,29 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
                         final dept = deptById[entry.key];
                         final deptName = dept?.displayName ??
                             latest.department?.displayName ??
-                            'Department ${entry.key}';
+                            l.payrollDrDeptFallback(entry.key);
                         return Card(
                           child: ExpansionTile(
                             title: Text(deptName),
-                            subtitle: Text(
-                              'Current: '
-                              r'$ ${latest.dollarPerPoint.toStringAsFixed(2)} / point',
-                            ),
+                            subtitle: Text(l.payrollDrCurrent(
+                                latest.dollarPerPoint.toStringAsFixed(2))),
                             children: [
                               ...entry.value.map(
                                 (r) => ListTile(
                                   dense: true,
-                                  title: Text(
-                                      r'$ ${r.dollarPerPoint.toStringAsFixed(2)} / point'),
-                                  subtitle: Text(
-                                    'From ${r.effectiveFrom?.toIso8601String().split('T').first ?? '-'}'
-                                    ' to ${r.effectiveTo?.toIso8601String().split('T').first ?? 'present'}',
-                                  ),
+                                  title: Text(l.payrollDrRatePerPoint(
+                                      r.dollarPerPoint.toStringAsFixed(2))),
+                                  subtitle: Text(l.payrollDrFromTo(
+                                      r.effectiveFrom
+                                              ?.toIso8601String()
+                                              .split('T')
+                                              .first ??
+                                          '-',
+                                      r.effectiveTo
+                                              ?.toIso8601String()
+                                              .split('T')
+                                              .first ??
+                                          l.payrollDrPresent)),
                                 ),
                               ),
                             ],
@@ -111,9 +118,10 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
   }
 
   Future<void> _openAddSheet() async {
+    final l = AppLocalizations.of(context);
     if (_departments.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Departments not loaded yet. Try again.')),
+        SnackBar(content: Text(l.payrollDrDeptsNotLoaded)),
       );
       return;
     }
@@ -165,6 +173,7 @@ class _AddDollarRateSheetState extends State<_AddDollarRateSheet> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     if (_saving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final deptId = _selectedDeptId;
@@ -187,13 +196,14 @@ class _AddDollarRateSheetState extends State<_AddDollarRateSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to add rate: $e')),
+        SnackBar(content: Text(l.payrollDrAddFail('$e'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -207,17 +217,17 @@ class _AddDollarRateSheetState extends State<_AddDollarRateSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Add Dollar Rate',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            Text(
+              l.payrollDrAddTitle,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<int>(
               value: _selectedDeptId,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Department',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.payrollPmDept,
+                border: const OutlineInputBorder(),
               ),
               items: widget.departments
                   .map((d) => DropdownMenuItem<int>(
@@ -228,7 +238,7 @@ class _AddDollarRateSheetState extends State<_AddDollarRateSheet> {
               onChanged: _saving
                   ? null
                   : (v) => setState(() => _selectedDeptId = v),
-              validator: (v) => v == null ? 'Select a department' : null,
+              validator: (v) => v == null ? l.payrollPmSelectDept : null,
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -236,15 +246,15 @@ class _AddDollarRateSheetState extends State<_AddDollarRateSheet> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               enabled: !_saving,
-              decoration: const InputDecoration(
-                labelText: 'Dollar per Point',
+              decoration: InputDecoration(
+                labelText: l.payrollDrDollarLabel,
                 prefixText: r'$ ',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
               validator: (v) {
                 final parsed = double.tryParse((v ?? '').trim());
                 if (parsed == null || parsed <= 0) {
-                  return 'Enter a valid positive number';
+                  return l.payrollDrValidNumber;
                 }
                 return null;
               },
@@ -253,8 +263,8 @@ class _AddDollarRateSheetState extends State<_AddDollarRateSheet> {
             OutlinedButton.icon(
               onPressed: _saving ? null : _pickDate,
               icon: const Icon(Icons.event),
-              label: Text(
-                  'Effective: ${_effective.toIso8601String().split('T').first}'),
+              label: Text(l.payrollPmEffective(
+                  _effective.toIso8601String().split('T').first)),
             ),
             const SizedBox(height: 10),
             FilledButton(
@@ -265,7 +275,7 @@ class _AddDollarRateSheetState extends State<_AddDollarRateSheet> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l.commonSave),
             ),
           ],
         ),

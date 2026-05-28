@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/websocket/ws_client.dart';
 import '../../../data/models/user.dart';
 import '../../../domain/repositories/qc_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/qc_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -35,6 +36,7 @@ class _QcQueueView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return BlocBuilder<QcViewModel, QcState>(
       builder: (context, state) {
         if (state is QcLoading) {
@@ -54,7 +56,7 @@ class _QcQueueView extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: () => context.read<QcViewModel>().load(),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    label: Text(l.commonRetry),
                   ),
                 ],
               ),
@@ -103,6 +105,7 @@ class _LoadedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final hideWaiting = _hideWaitingFor(context);
     final visibleQueue = _filteredQueue(context);
     final totalCount =
@@ -132,8 +135,8 @@ class _LoadedView extends StatelessWidget {
               Expanded(
                 child: Text(
                   hideWaiting
-                      ? '$totalCount ready to inspect'
-                      : '$totalCount inspection${totalCount == 1 ? '' : 's'} pending',
+                      ? l.qcReadyToInspect(totalCount)
+                      : l.qcInspectionsPending(totalCount),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -142,7 +145,7 @@ class _LoadedView extends StatelessWidget {
                 ),
               ),
               FilterChip(
-                label: const Text('Rework'),
+                label: Text(l.qcFilterRework),
                 avatar: const Icon(Icons.replay, size: 16),
                 selected: state.reworkOnly,
                 selectedColor: AppColors.warning.withValues(alpha: 0.2),
@@ -169,18 +172,18 @@ class _LoadedView extends StatelessWidget {
                             const SizedBox(height: 16),
                             Text(
                               state.reworkOnly
-                                  ? 'No Rework Items'
-                                  : 'Nothing to Inspect',
+                                  ? l.qcNoReworkTitle
+                                  : l.qcNoInspectionsTitle,
                               style: const TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               state.reworkOnly
-                                  ? 'No rework inspections in the queue.'
+                                  ? l.qcNoReworkBody
                                   : hideWaiting
-                                      ? 'All ready inspections are done.'
-                                      : 'All QC queues are clear.',
+                                      ? l.qcAllInspectedBody
+                                      : l.qcQueuesClearBody,
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: Colors.grey),
                             ),
@@ -223,6 +226,7 @@ class _DepartmentGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final isFinalQc = departmentCode == 'FINAL_QC';
     final activeCount = items.where((e) => !e.isWaiting).length;
     final waitingCount = items.length - activeCount;
@@ -265,8 +269,8 @@ class _DepartmentGroup extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '$activeCount ready'
-                '${waitingCount > 0 ? ' · $waitingCount upcoming' : ''}',
+                '${l.qcReadyCount(activeCount)}'
+                '${waitingCount > 0 ? ' ${l.qcUpcomingCount(waitingCount)}' : ''}',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -290,6 +294,7 @@ class _QcQueueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final isWaiting = item.isWaiting;
     final stripColor = isWaiting
         ? Colors.grey.shade400
@@ -308,12 +313,13 @@ class _QcQueueCard extends StatelessWidget {
                 ? () {
                     final stage = item.currentStageName ??
                         item.currentStageCode ??
-                        'an earlier stage';
+                        l.qcEarlierStageFallback;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         duration: const Duration(seconds: 2),
                         content: Text(
-                          '${item.soNumber} is still at $stage. Inspect when it reaches ${item.departmentCode}.',
+                          l.qcStillAtStage(
+                              item.soNumber, stage, item.departmentCode),
                         ),
                       ),
                     );
@@ -362,7 +368,7 @@ class _QcQueueCard extends StatelessWidget {
                                       ),
                                     ),
                                     _StageChip(code: item.departmentCode),
-                                    if (isWaiting) _WaitingChip(),
+                                    if (isWaiting) const _WaitingChip(),
                                     if (item.isRework)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
@@ -380,7 +386,8 @@ class _QcQueueCard extends StatelessWidget {
                                                 color: AppColors.warning),
                                             const SizedBox(width: 3),
                                             Text(
-                                              'REWORK x${item.reworkCount}',
+                                              l.trailerDetailReworkBadge(
+                                                  item.reworkCount),
                                               style: const TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w700,
@@ -406,7 +413,8 @@ class _QcQueueCard extends StatelessWidget {
                                 if (isWaiting && item.currentStageCode != null) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Currently at: ${item.currentStageName ?? item.currentStageCode}',
+                                    l.qcCurrentlyAt(item.currentStageName ??
+                                        item.currentStageCode!),
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontStyle: FontStyle.italic,
@@ -480,6 +488,8 @@ class _StageChip extends StatelessWidget {
 }
 
 class _WaitingChip extends StatelessWidget {
+  const _WaitingChip();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -495,7 +505,7 @@ class _WaitingChip extends StatelessWidget {
           Icon(Icons.hourglass_empty, size: 11, color: Colors.grey.shade700),
           const SizedBox(width: 3),
           Text(
-            'UPCOMING',
+            AppLocalizations.of(context).qcUpcomingChip,
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,

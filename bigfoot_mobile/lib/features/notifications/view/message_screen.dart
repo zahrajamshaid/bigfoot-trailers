@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/validation/validators.dart';
 import '../../../data/models/worker_message.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/messages_viewmodel.dart';
 
 class MessageScreen extends StatefulWidget {
@@ -51,9 +52,10 @@ class _MessageScreenState extends State<MessageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Trailer #${widget.trailerId} Messages'),
+        title: Text(l.messagesTitle(widget.trailerId)),
       ),
       body: Form(
         key: _formKey,
@@ -64,9 +66,9 @@ class _MessageScreenState extends State<MessageScreen> {
             child: TextFormField(
               controller: _recipient,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Recipient User ID',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.messagesRecipientLabel,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) => Validators.requiredPositiveInt(v,
                   fieldName: 'a recipient user ID'),
@@ -93,7 +95,7 @@ class _MessageScreenState extends State<MessageScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                m.senderName ?? 'User ${m.senderUserId}',
+                                m.senderName ?? l.messagesUserFallback(m.senderUserId),
                                 style: const TextStyle(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 4),
@@ -121,9 +123,9 @@ class _MessageScreenState extends State<MessageScreen> {
                       controller: _text,
                       minLines: 1,
                       maxLines: 4,
-                      decoration: const InputDecoration(
-                        hintText: 'Message...',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        hintText: l.messagesHint,
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (v) =>
                           Validators.required(v, fieldName: 'a message'),
@@ -132,7 +134,7 @@ class _MessageScreenState extends State<MessageScreen> {
                   const SizedBox(width: 8),
                   FilledButton(
                     onPressed: _sending ? null : _send,
-                    child: const Text('Send'),
+                    child: Text(l.messagesSend),
                   ),
                 ],
               ),
@@ -164,7 +166,9 @@ class _MessageScreenState extends State<MessageScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send message: $e')),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context).messagesSendFail('$e'))),
       );
     } finally {
       if (mounted) {

@@ -7,6 +7,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../data/models/queue_item.dart';
 import '../../../data/models/department.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/status_badge.dart';
 
 /// All-departments queue view for production_manager and owner.
@@ -88,7 +89,7 @@ class _AllQueuesScreenState extends State<AllQueuesScreen>
     } on ApiException catch (e) {
       if (mounted) setState(() { _isLoading = false; _error = e.displayMessage; });
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = 'Failed to load queues'; });
+      if (mounted) setState(() { _isLoading = false; _error = AppLocalizations.of(context).allQueuesLoadFail; });
     }
   }
 
@@ -112,7 +113,9 @@ class _AllQueuesScreenState extends State<AllQueuesScreen>
       _loadAll();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to reorder queue')),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context).allQueuesReorderFail)),
         );
       }
     }
@@ -120,6 +123,7 @@ class _AllQueuesScreenState extends State<AllQueuesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -135,7 +139,7 @@ class _AllQueuesScreenState extends State<AllQueuesScreen>
               const SizedBox(height: 16),
               Text(_error!),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _loadAll, child: const Text('Retry')),
+              FilledButton(onPressed: _loadAll, child: Text(l.commonRetry)),
             ],
           ),
         ),
@@ -144,7 +148,7 @@ class _AllQueuesScreenState extends State<AllQueuesScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All Queues'),
+        title: Text(l.allQueuesTitle),
       ),
       body: Column(
         children: [
@@ -197,13 +201,15 @@ class _AllQueuesScreenState extends State<AllQueuesScreen>
                 children: _departments.map((dept) {
                   final queue = _queues[dept.id] ?? [];
                   if (queue.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle_outline, size: 48, color: AppColors.success),
-                          SizedBox(height: 8),
-                          Text('Queue empty', style: TextStyle(color: Colors.grey)),
+                          const Icon(Icons.check_circle_outline,
+                              size: 48, color: AppColors.success),
+                          const SizedBox(height: 8),
+                          Text(l.allQueuesEmpty,
+                              style: const TextStyle(color: Colors.grey)),
                         ],
                       ),
                     );
@@ -344,7 +350,8 @@ class _AllQueueCard extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        'REWORK ×${item.reworkCount}',
+                                        AppLocalizations.of(context)
+                                            .queueReworkBadge(item.reworkCount),
                                         style: const TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w700,

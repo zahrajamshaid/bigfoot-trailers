@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/websocket/ws_events.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../dashboard/viewmodel/dashboard_viewmodel.dart';
 
 /// Slide-out notification panel showing recent activity.
@@ -45,7 +46,7 @@ class NotificationPanel extends StatelessWidget {
                     const Icon(Icons.notifications, color: AppColors.navy),
                     const SizedBox(width: 8),
                     Text(
-                      'Notifications',
+                      AppLocalizations.of(context).notificationPanelTitle,
                       style:
                           Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
@@ -70,11 +71,11 @@ class NotificationPanel extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.notifications_off_outlined,
+                            const Icon(Icons.notifications_off_outlined,
                                 size: 48, color: AppColors.disabled),
                             const SizedBox(height: 8),
                             Text(
-                              'No notifications yet',
+                              AppLocalizations.of(context).notificationsEmpty,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium

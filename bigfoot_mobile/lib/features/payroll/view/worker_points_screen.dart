@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/payroll_viewmodel.dart';
 
@@ -30,6 +31,7 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final auth = context.watch<AuthViewModel>().state;
     final user = auth is Authenticated ? auth.user : null;
     final isManager = user != null &&
@@ -43,7 +45,7 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
           builder: (context, state) {
             if (state is PayrollLoading || state is PayrollInitial) {
               return ListView(
-                children: [
+                children: const [
                   SizedBox(height: 280),
                   Center(
                     child: CircularProgressIndicator(color: AppColors.amber),
@@ -62,7 +64,7 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
                   Center(
                     child: OutlinedButton(
                       onPressed: _load,
-                      child: const Text('Retry'),
+                      child: Text(l.commonRetry),
                     ),
                   ),
                 ],
@@ -83,19 +85,19 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
                       OutlinedButton.icon(
                         onPressed: () => context.pushNamed(RouteNames.weeklyReport),
                         icon: const Icon(Icons.table_chart_outlined),
-                        label: const Text('Weekly Report'),
+                        label: Text(l.payrollWeeklyReport),
                       ),
                       if (isOwner)
                         OutlinedButton.icon(
                           onPressed: () => context.pushNamed(RouteNames.pointMatrix),
                           icon: const Icon(Icons.grid_view_outlined),
-                          label: const Text('Point Matrix'),
+                          label: Text(l.payrollPointMatrix),
                         ),
                       if (isOwner)
                         OutlinedButton.icon(
                           onPressed: () => context.pushNamed(RouteNames.dollarRates),
                           icon: const Icon(Icons.attach_money_outlined),
-                          label: const Text('Dollar Rates'),
+                          label: Text(l.payrollDollarRates),
                         ),
                     ],
                   ),
@@ -127,6 +129,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -136,9 +139,10 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Current Week Summary',
-            style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w700),
+          Text(
+            l.payrollCurrentWeekSummary,
+            style: const TextStyle(
+                color: AppColors.white, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 10),
           Text(
@@ -149,14 +153,16 @@ class _SummaryCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const Text('Total Points', style: TextStyle(color: AppColors.white)),
+          Text(l.payrollTotalPoints,
+              style: const TextStyle(color: AppColors.white)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 12,
             runSpacing: 8,
             children: [
-              _mini('Projected', r'$ ' + summary.projectedEarnings.toStringAsFixed(2)),
-              _mini('Steps', '${summary.stepsCompleted}'),
+              _mini(l.payrollProjected,
+                  r'$ ' + summary.projectedEarnings.toStringAsFixed(2)),
+              _mini(l.payrollSteps, '${summary.stepsCompleted}'),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
@@ -164,7 +170,7 @@ class _SummaryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Reworks: ${summary.reworkCount}',
+                  l.payrollReworks(summary.reworkCount as int),
                   style: const TextStyle(color: AppColors.white),
                 ),
               ),
@@ -197,7 +203,16 @@ class _DailyChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final l = AppLocalizations.of(context);
+    final days = [
+      l.payrollDaySun,
+      l.payrollDayMon,
+      l.payrollDayTue,
+      l.payrollDayWed,
+      l.payrollDayThu,
+      l.payrollDayFri,
+      l.payrollDaySat,
+    ];
     final max = points.fold<double>(0, (m, v) => v > m ? v : m);
 
     return Container(
@@ -210,8 +225,8 @@ class _DailyChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Daily Breakdown (Sun-Sat)',
-              style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(l.payrollDailyBreakdown,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           SizedBox(
             height: 130,
@@ -240,9 +255,9 @@ class _DailyChart extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Estimated from available API data',
-            style: TextStyle(fontSize: 11, color: AppColors.disabled),
+          Text(
+            l.payrollEstimated,
+            style: const TextStyle(fontSize: 11, color: AppColors.disabled),
           ),
         ],
       ),
@@ -257,6 +272,7 @@ class _DepartmentBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final departments = summary.departments as List<dynamic>;
     return Container(
       padding: const EdgeInsets.all(12),
@@ -268,11 +284,11 @@ class _DepartmentBreakdown extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Department Breakdown',
-              style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(l.payrollDeptBreakdown,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           if (departments.isEmpty)
-            const Text('No department activity this week')
+            Text(l.payrollDeptEmpty)
           else
             ...departments.map(
               (d) => Padding(
@@ -280,7 +296,8 @@ class _DepartmentBreakdown extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(child: Text('${d.code} - ${d.name}')),
-                    Text('${d.points.toStringAsFixed(2)} pts'),
+                    Text(l.payrollPtsSuffix(
+                        (d.points as double).toStringAsFixed(2))),
                   ],
                 ),
               ),
@@ -304,6 +321,7 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -314,18 +332,20 @@ class _HistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('History', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(l.payrollHistory,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           if (historyUnavailable)
-            const Text('History endpoint is manager-only in current API permissions')
+            Text(l.payrollHistoryNoAccess)
           else if (historyCount == 0)
-            const Text('No historical records found')
+            Text(l.payrollHistoryEmpty)
           else
             ...history.take(8).map(
               (r) => ListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                title: Text('${r.department?.displayName ?? 'Department'}'),
+                title: Text(r.department?.displayName ??
+                    l.payrollDepartmentFallback),
                 subtitle: Text(r.weekStartDate.toIso8601String().split('T').first),
                 trailing: Text(r.totalPoints.toStringAsFixed(2)),
               ),

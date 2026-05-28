@@ -6,6 +6,7 @@ import '../../../core/validation/validators.dart';
 import '../../../data/models/department.dart';
 import '../../../data/models/payroll_record.dart';
 import '../../../data/models/trailer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../admin/viewmodel/admin_viewmodel.dart';
 import '../viewmodel/payroll_viewmodel.dart';
 
@@ -69,6 +70,7 @@ class _PointMatrixScreenState extends State<PointMatrixScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final depts = _productionDepartments;
     final models = [..._models]..sort((a, b) {
         final s = a.series.compareTo(b.series);
@@ -87,10 +89,10 @@ class _PointMatrixScreenState extends State<PointMatrixScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Point Values Matrix'),
+        title: Text(l.payrollPmTitle),
         actions: [
           IconButton(
-            tooltip: 'Add point value',
+            tooltip: l.payrollPmAddTooltip,
             onPressed: _loading ? null : _openAddSheet,
             icon: const Icon(Icons.add),
           ),
@@ -105,12 +107,11 @@ class _PointMatrixScreenState extends State<PointMatrixScreen> {
                       onRefresh: _load,
                       child: ListView(
                         padding: const EdgeInsets.all(24),
-                        children: const [
-                          SizedBox(height: 80),
+                        children: [
+                          const SizedBox(height: 80),
                           Center(
                             child: Text(
-                              'No production departments or trailer models '
-                              'are configured yet.',
+                              l.payrollPmNoData,
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -127,11 +128,12 @@ class _PointMatrixScreenState extends State<PointMatrixScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 8, left: 4),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(bottom: 8, left: 4),
                                 child: Text(
-                                  'Tap any cell to set or edit its points.',
-                                  style: TextStyle(
+                                  l.payrollPmTapCell,
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     color: AppColors.disabled,
                                   ),
@@ -141,7 +143,7 @@ class _PointMatrixScreenState extends State<PointMatrixScreen> {
                                 headingRowColor: WidgetStateProperty.all(
                                     AppColors.navy.withValues(alpha: 0.08)),
                                 columns: [
-                                  const DataColumn(label: Text('Department')),
+                                  DataColumn(label: Text(l.payrollPmDept)),
                                   ...models.map((m) => DataColumn(
                                         label: Text(m.displayName),
                                       )),
@@ -208,12 +210,11 @@ class _PointMatrixScreenState extends State<PointMatrixScreen> {
   }
 
   Future<void> _openAddSheet() async {
+    final l = AppLocalizations.of(context);
     final depts = _productionDepartments;
     if (depts.isEmpty || _models.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Departments and trailer models not loaded yet.'),
-        ),
+        SnackBar(content: Text(l.payrollPmNotLoaded)),
       );
       return;
     }
@@ -239,6 +240,7 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -248,11 +250,11 @@ class _ErrorView extends StatelessWidget {
             const Icon(Icons.error_outline, color: AppColors.error, size: 40),
             const SizedBox(height: 12),
             Text(
-              'Could not load the point matrix.\n$message',
+              l.payrollPmLoadFail(message),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            FilledButton(onPressed: onRetry, child: Text(l.commonRetry)),
           ],
         ),
       ),
@@ -298,6 +300,7 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     if (_saving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final deptId = _selectedDeptId;
@@ -322,13 +325,14 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to add point value: $e')),
+        SnackBar(content: Text(l.payrollPmAddFail('$e'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -342,15 +346,15 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Add Point Value',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(l.payrollPmAddTitle,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               value: _selectedDeptId,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Department',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.payrollPmDept,
+                border: const OutlineInputBorder(),
               ),
               items: widget.departments
                   .map((d) => DropdownMenuItem<int>(
@@ -361,15 +365,15 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
               onChanged: _saving
                   ? null
                   : (v) => setState(() => _selectedDeptId = v),
-              validator: (v) => v == null ? 'Select a department' : null,
+              validator: (v) => v == null ? l.payrollPmSelectDept : null,
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<int>(
               value: _selectedModelId,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Trailer Model',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.payrollPmTrailerModel,
+                border: const OutlineInputBorder(),
               ),
               items: widget.models
                   .map((m) => DropdownMenuItem<int>(
@@ -380,7 +384,7 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
               onChanged: _saving
                   ? null
                   : (v) => setState(() => _selectedModelId = v),
-              validator: (v) => v == null ? 'Select a trailer model' : null,
+              validator: (v) => v == null ? l.payrollPmSelectModel : null,
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -388,9 +392,9 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               enabled: !_saving,
-              decoration: const InputDecoration(
-                labelText: 'Points',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.payrollPmPointsLabel,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) => Validators.requiredPositiveNumber(v,
                   fieldName: 'a points value'),
@@ -399,8 +403,8 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
             OutlinedButton.icon(
               onPressed: _saving ? null : _pickDate,
               icon: const Icon(Icons.event),
-              label: Text(
-                  'Effective: ${_effective.toIso8601String().split('T').first}'),
+              label: Text(l.payrollPmEffective(
+                  _effective.toIso8601String().split('T').first)),
             ),
             const SizedBox(height: 12),
             FilledButton(
@@ -411,7 +415,7 @@ class _AddPointValueSheetState extends State<_AddPointValueSheet> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l.commonSave),
             ),
           ],
         ),
@@ -469,6 +473,7 @@ class _EditPointValueSheetState extends State<_EditPointValueSheet> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     if (_saving) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final points = double.tryParse(_pointsCtrl.text.trim());
@@ -504,13 +509,14 @@ class _EditPointValueSheetState extends State<_EditPointValueSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
+        SnackBar(content: Text(l.payrollPmSaveFail('$e'))),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -524,17 +530,21 @@ class _EditPointValueSheetState extends State<_EditPointValueSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.existing == null ? 'Set Point Value' : 'Edit Point Value',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(
+                widget.existing == null
+                    ? l.payrollPmSetTitle
+                    : l.payrollPmEditTitle,
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 10),
             TextFormField(
               controller: _pointsCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               enabled: !_saving,
-              decoration: const InputDecoration(
-                labelText: 'Points',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.payrollPmPointsLabel,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) => Validators.requiredPositiveNumber(v,
                   fieldName: 'a points value'),
@@ -543,8 +553,8 @@ class _EditPointValueSheetState extends State<_EditPointValueSheet> {
             OutlinedButton.icon(
               onPressed: _saving ? null : _pickDate,
               icon: const Icon(Icons.event),
-              label: Text(
-                  'Effective: ${_effective.toIso8601String().split('T').first}'),
+              label: Text(l.payrollPmEffective(
+                  _effective.toIso8601String().split('T').first)),
             ),
             const SizedBox(height: 10),
             FilledButton(
@@ -555,7 +565,7 @@ class _EditPointValueSheetState extends State<_EditPointValueSheet> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l.commonSave),
             ),
           ],
         ),

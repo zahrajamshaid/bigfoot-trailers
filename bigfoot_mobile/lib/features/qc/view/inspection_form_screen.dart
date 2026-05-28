@@ -5,6 +5,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../data/models/qc_inspection.dart';
 import '../../../data/models/department.dart';
 import '../../../domain/repositories/qc_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/qc_viewmodel.dart';
 import '../../../shared/widgets/photo_capture_widget.dart';
 
@@ -176,7 +177,8 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     // Validation before advancing
     if (page > 1 && _currentPage == 1 && !_allChecklistAnswered) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please answer all checklist items')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context).qcAnswerAll)),
       );
       return;
     }
@@ -213,9 +215,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   }
 
   Future<void> _submit() async {
+    final l = AppLocalizations.of(context);
     if (!_canSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
+        SnackBar(content: Text(l.qcFillRequired)),
       );
       return;
     }
@@ -267,7 +270,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed: $e'),
+            content: Text(l.commonFailed('$e')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -285,12 +288,13 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final item = widget.item;
     final totalSteps = _result == 'fail' ? 4 : 3;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Inspect ${item.soNumber}'),
+        title: Text(l.qcInspectTitle(item.soNumber)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
@@ -301,15 +305,15 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
         ),
       ),
       body: _isSubmitting
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
                   Text(
-                    'Submitting inspection...',
-                    style: TextStyle(fontSize: 16),
+                    l.qcSubmittingInspection,
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ],
               ),
@@ -393,26 +397,27 @@ class _PhotosStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Step 1: Photos',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          Text(
+            l.qcStep1Title,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
-            'Photos are optional',
+            l.qcStep1Subtitle,
             style: TextStyle(color: Colors.grey.shade600),
           ),
           if (hasError)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Please wait for pending uploads to finish before continuing',
-                style: TextStyle(
+                l.qcStep1PendingUploads,
+                style: const TextStyle(
                   color: AppColors.error,
                   fontWeight: FontWeight.w600,
                 ),
@@ -423,7 +428,7 @@ class _PhotosStep extends StatelessWidget {
           Expanded(
             child: PhotoCaptureWidget(
               fileType: 'qc_photo',
-              title: 'QC Inspection Photos',
+              title: l.qcInspectionPhotos,
               trailerId: trailerId,
               minPhotoCount: 0,
               onChanged: onChanged,
@@ -442,9 +447,9 @@ class _PhotosStep extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Next: Checklist',
-                      style: TextStyle(
+                    Text(
+                      l.qcNextChecklist,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -502,6 +507,7 @@ class _ChecklistStep extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final l = AppLocalizations.of(context);
     if (items.isEmpty) {
       final hasError = loadError != null;
       return Padding(
@@ -513,9 +519,9 @@ class _ChecklistStep extends StatelessWidget {
               child: IntrinsicHeight(
                 child: Column(
                   children: [
-                    const Text(
-                      'Step 2: Checklist',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    Text(
+                      l.qcStep2Title,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 24),
                     Icon(
@@ -526,8 +532,8 @@ class _ChecklistStep extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       hasError
-                          ? 'Could not load checklist'
-                          : 'No checklist items configured for this department',
+                          ? l.qcChecklistLoadFail
+                          : l.qcChecklistNotConfigured,
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
@@ -546,7 +552,7 @@ class _ChecklistStep extends StatelessWidget {
                     _NavButtons(
                       onBack: onBack,
                       onNext: onNext,
-                      nextLabel: 'Next: Result',
+                      nextLabel: l.qcNextResult,
                     ),
                   ],
                 ),
@@ -564,9 +570,9 @@ class _ChecklistStep extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text(
-                'Step 2: Checklist',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              Text(
+                l.qcStep2Title,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const Spacer(),
               Container(
@@ -581,7 +587,7 @@ class _ChecklistStep extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '$answeredCount of $totalCount',
+                  l.qcAnsweredOf(answeredCount, totalCount),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -621,7 +627,7 @@ class _ChecklistStep extends StatelessWidget {
           _NavButtons(
             onBack: onBack,
             onNext: answeredCount == totalCount ? onNext : null,
-            nextLabel: 'Next: Result',
+            nextLabel: l.qcNextResult,
           ),
         ],
       ),
@@ -687,7 +693,7 @@ class _ChecklistRowState extends State<_ChecklistRow> {
               const SizedBox(width: 8),
               // Pass button
               _ToggleButton(
-                label: 'PASS',
+                label: AppLocalizations.of(context).qcPass,
                 isSelected: widget.answer == true,
                 color: AppColors.success,
                 onTap: widget.onPass,
@@ -695,7 +701,7 @@ class _ChecklistRowState extends State<_ChecklistRow> {
               const SizedBox(width: 6),
               // Fail button
               _ToggleButton(
-                label: 'FAIL',
+                label: AppLocalizations.of(context).qcFail,
                 isSelected: widget.answer == false,
                 color: AppColors.error,
                 onTap: widget.onFail,
@@ -719,7 +725,7 @@ class _ChecklistRowState extends State<_ChecklistRow> {
               child: TextField(
                 controller: widget.noteController,
                 decoration: InputDecoration(
-                  hintText: 'Optional note...',
+                  hintText: AppLocalizations.of(context).qcOptionalNote,
                   isDense: true,
                   contentPadding: const EdgeInsets.all(10),
                   border: OutlineInputBorder(
@@ -744,9 +750,10 @@ class _UpstreamHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final passed = upstream.passed;
     final color = passed ? AppColors.success : AppColors.error;
-    final who = upstream.checkedByName ?? 'Worker';
+    final who = upstream.checkedByName ?? l.qcWorker;
     final dept = upstream.departmentCode.isNotEmpty
         ? ' (${upstream.departmentCode})'
         : '';
@@ -766,9 +773,9 @@ class _UpstreamHint extends StatelessWidget {
               text: TextSpan(
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 children: [
-                  TextSpan(text: '$who$dept marked '),
+                  TextSpan(text: l.qcUpstreamMarkedPrefix(who, dept)),
                   TextSpan(
-                    text: passed ? 'PASS' : 'FAIL',
+                    text: passed ? l.qcPass : l.qcFail,
                     style: TextStyle(color: color, fontWeight: FontWeight.w700),
                   ),
                   if (upstream.note != null && upstream.note!.isNotEmpty)
@@ -883,8 +890,10 @@ class _UpstreamChecksPanelState extends State<_UpstreamChecksPanel> {
                   Expanded(
                     child: Text(
                       hasFailures
-                          ? 'Upstream self-checks: $failedCount failed of $totalCount'
-                          : 'All $totalCount upstream self-checks passed',
+                          ? AppLocalizations.of(context)
+                              .qcUpstreamFailedCount(failedCount, totalCount)
+                          : AppLocalizations.of(context)
+                              .qcUpstreamAllPassed(totalCount),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
@@ -1010,6 +1019,7 @@ class _ResultStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: LayoutBuilder(
@@ -1020,14 +1030,14 @@ class _ResultStep extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Step 3: Inspection Result',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  Text(
+                    l.qcStep3Title,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Select the final inspection result',
-                    style: TextStyle(color: Colors.grey),
+                  Text(
+                    l.qcStep3Subtitle,
+                    style: const TextStyle(color: Colors.grey),
                   ),
                   if (isFinalQc)
                     Container(
@@ -1038,14 +1048,14 @@ class _ResultStep extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: AppColors.amber),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.verified, color: AppColors.amber, size: 20),
-                          SizedBox(width: 8),
+                          const Icon(Icons.verified, color: AppColors.amber, size: 20),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'FINAL QC — Passing will mark trailer as Ready for Delivery',
-                              style: TextStyle(
+                              l.qcFinalQcWarning,
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                               ),
@@ -1060,7 +1070,7 @@ class _ResultStep extends StatelessWidget {
                     children: [
                       Expanded(
                         child: _ResultCard(
-                          label: 'PASS',
+                          label: l.qcPass,
                           icon: Icons.check_circle,
                           color: AppColors.success,
                           isSelected: result == 'pass',
@@ -1070,7 +1080,7 @@ class _ResultStep extends StatelessWidget {
                       const SizedBox(width: 16),
                       Expanded(
                         child: _ResultCard(
-                          label: 'FAIL',
+                          label: l.qcFail,
                           icon: Icons.cancel,
                           color: AppColors.error,
                           isSelected: result == 'fail',
@@ -1084,8 +1094,8 @@ class _ResultStep extends StatelessWidget {
                     onBack: onBack,
                     onNext: onNext,
                     nextLabel: result == 'pass'
-                        ? 'Submit Inspection'
-                        : 'Next: Fail Details',
+                        ? l.qcSubmitInspection
+                        : l.qcNextFailDetails,
                   ),
                 ],
               ),
@@ -1176,6 +1186,7 @@ class _FailDetailsStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: LayoutBuilder(
@@ -1186,22 +1197,22 @@ class _FailDetailsStep extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Step 4: Fail Details',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  Text(
+                    l.qcStep4Title,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Describe the defect and select rework department',
-                    style: TextStyle(color: Colors.grey),
+                  Text(
+                    l.qcStep4Subtitle,
+                    style: const TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 16),
                   // Fail notes (required)
                   TextField(
                     controller: failNotesController,
                     decoration: InputDecoration(
-                      labelText: 'Fail Notes *',
-                      hintText: 'Describe what failed and needs to be fixed...',
+                      labelText: l.qcFailNotesLabel,
+                      hintText: l.qcFailNotesHint,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1213,9 +1224,9 @@ class _FailDetailsStep extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   // Rework target department
-                  const Text(
-                    'Rework Target Department *',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  Text(
+                    l.qcReworkTargetLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   if (isLoading)
@@ -1224,7 +1235,7 @@ class _FailDetailsStep extends StatelessWidget {
                     DropdownButtonFormField<int>(
                       value: selectedDeptId,
                       decoration: InputDecoration(
-                        hintText: 'Select department...',
+                        hintText: l.qcSelectDept,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1266,7 +1277,11 @@ class _FailDetailsStep extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'This trailer will be inserted at #1 priority in ${reworkTargets.where((d) => d.id == selectedDeptId).map((d) => d.displayName).firstOrNull ?? "the selected department"}\'s queue',
+                              l.qcInsertedAtPriorityOne(reworkTargets
+                                      .where((d) => d.id == selectedDeptId)
+                                      .map((d) => d.displayName)
+                                      .firstOrNull ??
+                                  l.qcTheSelectedDept),
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -1281,7 +1296,7 @@ class _FailDetailsStep extends StatelessWidget {
                   _NavButtons(
                     onBack: onBack,
                     onNext: onSubmit,
-                    nextLabel: 'Submit Inspection',
+                    nextLabel: l.qcSubmitInspection,
                     nextColor: AppColors.error,
                   ),
                 ],
@@ -1319,7 +1334,7 @@ class _NavButtons extends StatelessWidget {
           TextButton.icon(
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back, size: 18),
-            label: const Text('Back'),
+            label: Text(AppLocalizations.of(context).commonBack),
           ),
           const Spacer(),
           SizedBox(
@@ -1381,25 +1396,30 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
         _smsSent = true;
       });
       messenger.showSnackBar(
-        const SnackBar(content: Text('Customer SMS sent')),
+        SnackBar(content: Text(AppLocalizations.of(context).qcCustomerSmsSent)),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _smsSending = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('SMS failed: ${e.message}')),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context).qcSmsFailed(e.message))),
       );
     } catch (_) {
       if (!mounted) return;
       setState(() => _smsSending = false);
       messenger.showSnackBar(
-        const SnackBar(content: Text('SMS failed — please retry')),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context).qcSmsFailedRetry)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final result = widget.result;
     final isPassed = result.isPassed;
     final bgColor = isPassed ? AppColors.success : AppColors.error;
@@ -1424,7 +1444,7 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        isPassed ? 'QC PASSED' : 'QC FAILED',
+                        isPassed ? l.qcResultPassed : l.qcResultFailed,
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w800,
@@ -1433,9 +1453,9 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                       ),
                       const SizedBox(height: 16),
                       if (isPassed && result.isFinalQc) ...[
-                        const Text(
-                          'Trailer Ready for Delivery!',
-                          style: TextStyle(
+                        Text(
+                          l.qcReadyForDelivery,
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: AppColors.white,
@@ -1461,7 +1481,7 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                                     color: AppColors.white,
                                   ),
                             label: Text(
-                              _smsSent ? 'SMS Sent' : 'Send Customer SMS',
+                              _smsSent ? l.qcSmsSent : l.qcSendSms,
                               style: const TextStyle(
                                 color: AppColors.white,
                                 fontWeight: FontWeight.w600,
@@ -1485,7 +1505,7 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              'Next: ${result.nextDepartment}',
+                              l.queueOverlayNext(result.nextDepartment!),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -1505,7 +1525,9 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                             children: [
                               if (result.reworkTargetDepartment != null)
                                 Text(
-                                  'Rework sent to ${result.reworkTargetDepartment} at Priority #${result.reworkQueuePosition ?? 1}',
+                                  l.qcReworkSentTo(
+                                      result.reworkTargetDepartment!,
+                                      result.reworkQueuePosition ?? 1),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -1514,9 +1536,10 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                                   textAlign: TextAlign.center,
                                 ),
                               const SizedBox(height: 8),
-                              const Text(
-                                'Production managers have been notified',
-                                style: TextStyle(fontSize: 13, color: AppColors.white),
+                              Text(
+                                l.qcManagersNotified,
+                                style: const TextStyle(
+                                    fontSize: 13, color: AppColors.white),
                               ),
                             ],
                           ),
@@ -1530,9 +1553,10 @@ class _InspectionResultDialogState extends State<_InspectionResultDialog> {
                           foregroundColor: bgColor,
                           minimumSize: const Size(160, 48),
                         ),
-                        child: const Text(
-                          'Done',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        child: Text(
+                          l.commonDone,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],

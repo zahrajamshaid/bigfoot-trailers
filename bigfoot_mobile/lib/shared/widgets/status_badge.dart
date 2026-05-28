@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Color-coded status chip for trailer / delivery status.
 class StatusBadge extends StatelessWidget {
@@ -8,7 +9,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = _resolve(status);
+    final (label, color) = _resolve(status, AppLocalizations.of(context));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -27,34 +28,34 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
-  (String, Color) _resolve(String s) {
+  (String, Color) _resolve(String s, AppLocalizations l) {
     switch (s) {
       case 'pending_production':
-        return ('Pending', AppColors.statusPending);
+        return (l.statusPending, AppColors.statusPending);
       case 'in_production':
-        return ('In Production', AppColors.statusInProduction);
+        return (l.statusInProduction, AppColors.statusInProduction);
       case 'ready_for_delivery':
-        return ('Ready', AppColors.statusReady);
+        return (l.statusReady, AppColors.statusReady);
       case 'in_transit':
-        return ('In Transit', AppColors.statusInTransit);
+        return (l.statusInTransit, AppColors.statusInTransit);
       case 'delivered':
-        return ('Delivered', AppColors.statusDelivered);
+        return (l.statusDelivered, AppColors.statusDelivered);
       case 'on_hold':
-        return ('On Hold', AppColors.statusOnHold);
+        return (l.statusOnHold, AppColors.statusOnHold);
       // Delivery statuses
       case 'scheduled':
-        return ('Scheduled', AppColors.statusPending);
+        return (l.statusScheduled, AppColors.statusPending);
       case 'failed':
-        return ('Failed', AppColors.error);
+        return (l.statusFailed, AppColors.error);
       // Step statuses
       case 'waiting':
-        return ('Waiting', AppColors.statusPending);
+        return (l.statusWaiting, AppColors.statusPending);
       case 'active':
-        return ('Active', AppColors.statusInProduction);
+        return (l.statusActive, AppColors.statusInProduction);
       case 'complete':
-        return ('Complete', AppColors.success);
+        return (l.statusComplete, AppColors.success);
       case 'rework':
-        return ('Rework', AppColors.warning);
+        return (l.statusRework, AppColors.warning);
       default:
         return (s.replaceAll('_', ' '), AppColors.disabled);
     }
@@ -69,7 +70,7 @@ class SaleStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved = _resolve(saleStatus);
+    final resolved = _resolve(saleStatus, AppLocalizations.of(context));
     if (resolved == null) return const SizedBox.shrink();
     final (label, color, icon) = resolved;
     return Container(
@@ -96,12 +97,12 @@ class SaleStatusBadge extends StatelessWidget {
     );
   }
 
-  (String, Color, IconData)? _resolve(String s) {
+  (String, Color, IconData)? _resolve(String s, AppLocalizations l) {
     switch (s) {
       case 'sold':
-        return ('SOLD', AppColors.success, Icons.sell);
+        return (l.saleStatusSold, AppColors.success, Icons.sell);
       case 'sale_pending':
-        return ('SALE PENDING', AppColors.warning, Icons.pending_actions);
+        return (l.saleStatusSalePending, AppColors.warning, Icons.pending_actions);
       default:
         return null;
     }
@@ -133,6 +134,7 @@ class SeriesBadge extends StatelessWidget {
     );
   }
 
+  // Series labels are brand/product identifiers — kept as-is in both locales.
   (String, Color) _resolve(String s) {
     switch (s) {
       case 'xp':

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
 
 /// PIN entry screen — UI scaffold only, no real crypto.
@@ -49,6 +50,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.navy,
       body: SafeArea(
@@ -74,7 +76,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
                       // Title
                       Text(
-                        'Enter PIN',
+                        l.authPinTitle,
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               color: AppColors.white,
                               fontWeight: FontWeight.w600,
@@ -83,14 +85,14 @@ class _PinLockScreenState extends State<PinLockScreen> {
                       const SizedBox(height: 8),
                       if (_error)
                         Text(
-                          'Incorrect PIN',
+                          l.authPinIncorrect,
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: AppColors.error,
                               ),
                         )
                       else
                         Text(
-                          'Enter your 4-digit PIN to unlock',
+                          l.authPinSubtitle,
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: AppColors.white.withValues(alpha: 0.6),
                               ),

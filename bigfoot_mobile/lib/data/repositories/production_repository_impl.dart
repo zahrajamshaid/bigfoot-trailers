@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -142,6 +143,12 @@ class ProductionRepositoryImpl implements ProductionRepository {
   Future<void> _initializeQueue() async {
     if (_queueInitialized) return;
     _queueInitialized = true;
+
+    // The offline retry queue persists pending step completions to the device
+    // file system. `path_provider` isn't supported on web, and a browser tab
+    // doesn't need offline-retry persistence anyway — just skip the queue on
+    // web entirely.
+    if (kIsWeb) return;
 
     await _loadQueue();
 

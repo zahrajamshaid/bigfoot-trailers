@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/payroll_viewmodel.dart';
 
@@ -48,12 +49,13 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final auth = context.watch<AuthViewModel>().state;
     final role = auth is Authenticated ? auth.user.role : '';
     final canLock = role == UserRole.owner;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Weekly Payroll Report')),
+      appBar: AppBar(title: Text(l.payrollWeeklyReportTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : _error != null
@@ -77,13 +79,15 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                     final ok = await showDialog<bool>(
                           context: context,
                           builder: (_) => AlertDialog(
-                            title: const Text('Lock Payroll Week'),
-                            content: Text(
-                              'Lock payroll for ${_fmt(_weekStart)}? This cannot be undone.',
-                            ),
+                            title: Text(l.payrollLockTitle),
+                            content: Text(l.payrollLockBody(_fmt(_weekStart))),
                             actions: [
-                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Lock')),
+                              TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: Text(l.commonCancel)),
+                              FilledButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: Text(l.payrollLockConfirm)),
                             ],
                           ),
                         ) ??
@@ -96,7 +100,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                       await cubit.lockWeek(_fmt(_weekStart));
                       if (!mounted) return;
                       messenger.showSnackBar(
-                        const SnackBar(content: Text('Payroll week locked')),
+                        SnackBar(content: Text(l.payrollWeekLocked)),
                       );
                       _load();
                     } catch (e) {
@@ -106,10 +110,10 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                         SnackBar(
                           content: Text(
                             msg.contains('PAYROLL_WEEK_LOCKED')
-                                ? 'Already locked'
+                                ? l.payrollAlreadyLocked
                                 : msg.contains('INVALID_WEEK_START')
-                                    ? 'Date must be a Sunday'
-                                    : 'Failed to lock week: $e',
+                                    ? l.payrollDateMustBeSunday
+                                    : l.payrollLockFailed('$e'),
                           ),
                         ),
                       );
@@ -120,7 +124,8 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                   onExportCsv: () {
                     final csv = _buildCsv(_report);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('CSV prepared (${csv.length} chars)')),
+                      SnackBar(
+                          content: Text(l.payrollCsvPrepared(csv.length))),
                     );
                   },
                 ),
@@ -163,6 +168,7 @@ class _ReportBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final workers = report.workers as List<dynamic>;
     final totalPoints = workers.fold<double>(0, (s, w) => s + (w.totalPoints as double));
     final totalGross = workers.fold<double>(0, (s, w) => s + (w.totalGrossPay as double));
@@ -186,11 +192,11 @@ class _ReportBody extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         if (report.isLocked)
-          const Row(
+          Row(
             children: [
-              Icon(Icons.lock, size: 16, color: AppColors.navy),
-              SizedBox(width: 6),
-              Text('Week is locked'),
+              const Icon(Icons.lock, size: 16, color: AppColors.navy),
+              const SizedBox(width: 6),
+              Text(l.payrollWeekIsLocked),
             ],
           ),
         const SizedBox(height: 10),
@@ -199,14 +205,14 @@ class _ReportBody extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onExportCsv,
               icon: const Icon(Icons.download_outlined),
-              label: const Text('Export CSV'),
+              label: Text(l.payrollExportCsv),
             ),
             const SizedBox(width: 8),
             if (canLock)
               FilledButton.icon(
                 onPressed: report.isLocked || locking ? null : onLock,
                 icon: const Icon(Icons.lock_outline),
-                label: const Text('Lock Week'),
+                label: Text(l.payrollLockWeek),
               ),
           ],
         ),
@@ -220,13 +226,28 @@ class _ReportBody extends StatelessWidget {
           ),
           child: Column(
             children: [
-              const Row(
+              Row(
                 children: [
-                  Expanded(flex: 3, child: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
-                  Expanded(child: Text('Points', textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.w700))),
-                  Expanded(child: Text('Steps', textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.w700))),
-                  Expanded(child: Text('Reworks', textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.w700))),
-                  Expanded(child: Text('Gross', textAlign: TextAlign.end, style: TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(
+                      flex: 3,
+                      child: Text(l.payrollColName,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(
+                      child: Text(l.payrollColPoints,
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(
+                      child: Text(l.payrollSteps,
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(
+                      child: Text(l.payrollColReworks,
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
+                  Expanded(
+                      child: Text(l.payrollColGross,
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontWeight: FontWeight.w700))),
                 ],
               ),
               const Divider(),
@@ -279,8 +300,8 @@ class _ReportBody extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            'Totals: ${totalPoints.toStringAsFixed(2)} points • '
-            '\$ ${totalGross.toStringAsFixed(2)}',
+            l.payrollTotals(
+                totalPoints.toStringAsFixed(2), totalGross.toStringAsFixed(2)),
             style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w700),
           ),
         ),
@@ -297,6 +318,7 @@ class _ErrorBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -307,7 +329,8 @@ class _ErrorBody extends StatelessWidget {
             const SizedBox(height: 10),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 10),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+            OutlinedButton(
+                onPressed: onRetry, child: Text(l.commonRetry)),
           ],
         ),
       ),

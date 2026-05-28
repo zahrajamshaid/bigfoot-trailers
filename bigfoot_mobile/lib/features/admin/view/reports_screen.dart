@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -46,7 +47,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final r = _report;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Production Reports'),
+        title: Text(AppLocalizations.of(context).adminNavReports),
         actions: [
           IconButton(
             onPressed: () async {
@@ -69,46 +70,52 @@ class _ReportsScreenState extends State<ReportsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : r == null
-              ? const Center(child: Text('No report'))
-              : ListView(
+              ? Center(child: Text(AppLocalizations.of(context).adminReportsNoReport))
+              : Builder(builder: (context) {
+                  final l = AppLocalizations.of(context);
+                  return ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
                     _MetricCard(
-                      title: 'Weekly Steps Completed',
+                      title: l.adminReportWeeklySteps,
                       value: '${r.totalStepsCompleted}',
                     ),
                     _MetricCard(
-                      title: 'Weekly Points',
+                      title: l.adminReportWeeklyPoints,
                       value: r.totalPoints.toStringAsFixed(1),
                     ),
                     _MetricCard(
-                      title: 'QC Fail Trend',
-                      value: 'N/A (endpoint not available)',
+                      title: l.adminReportQcFailTrend,
+                      value: l.adminReportNotAvailable,
                     ),
                     _MetricCard(
-                      title: 'Avg Time Per Step',
-                      value: 'N/A (endpoint not available)',
+                      title: l.adminReportAvgTimePerStep,
+                      value: l.adminReportNotAvailable,
                     ),
                     _MetricCard(
-                      title: 'Stalled Trailers',
-                      value: 'Use production dashboard queue view',
+                      title: l.adminReportStalledTrailers,
+                      value: l.adminReportUseProdDashboard,
                     ),
                     const SizedBox(height: 8),
-                    const Text('Worker Summary',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    Text(l.adminReportWorkerSummary,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
                     ...r.workerSummary.map((w) => Card(
                           child: ListTile(
-                            title: Text(w['workerName']?.toString() ?? 'Unknown'),
-                            subtitle: Text('Role: ${w['role'] ?? '-'}'),
+                            title: Text(w['workerName']?.toString() ?? l.commonUnknown),
+                            subtitle: Text(l.adminReportRoleValue('${w['role'] ?? '-'}')),
                             trailing: Text(
-                              '${w['stepsCompleted'] ?? 0} steps\n${w['totalPoints'] ?? 0} pts',
+                              l.adminReportStepsPtsLine(
+                                '${w['stepsCompleted'] ?? 0}',
+                                '${w['totalPoints'] ?? 0}',
+                              ),
                               textAlign: TextAlign.right,
                             ),
                           ),
                         )),
                   ],
-                ),
+                  );
+                }),
     );
   }
 }

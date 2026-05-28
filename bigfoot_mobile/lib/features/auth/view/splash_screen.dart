@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -143,7 +144,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              'Built to haul. Ready to move.',
+                              AppLocalizations.of(context).authSplashTagline,
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: AppColors.white.withValues(alpha: 0.7),
                                     letterSpacing: 0.3,

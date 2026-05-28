@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/i18n/language_toggle_button.dart';
 import '../../../core/validation/validators.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 
@@ -87,6 +89,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return BlocListener<AuthViewModel, AuthState>(
       listener: (context, state) {
         if (state is Authenticated) {
@@ -114,7 +117,18 @@ class _LoginScreenState extends State<LoginScreen>
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: Center(
+          child: Stack(
+            children: [
+              // Top-right language toggle — visible before sign-in so a
+              // non-English user can switch the UI immediately.
+              const Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: EdgeInsets.only(top: 8, right: 8),
+                  child: LanguageToggleButton(),
+                ),
+              ),
+              Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: ConstrainedBox(
@@ -132,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen>
                         const BrandLogoAvatar(size: 80),
                         const SizedBox(height: 16),
                         Text(
-                          'BIGFOOT TRAILERS',
+                          l.loginTitle,
                           style: Theme.of(context)
                               .textTheme
                               .headlineSmall
@@ -144,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Sign in to continue',
+                          l.loginSubtitle,
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -161,9 +175,9 @@ class _LoginScreenState extends State<LoginScreen>
                           autofillHints: const [AutofillHints.email],
                           onFieldSubmitted: (_) =>
                               FocusScope.of(context).requestFocus(_passwordFocus),
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            prefixIcon: Icon(Icons.email_outlined),
+                          decoration: InputDecoration(
+                            labelText: l.loginEmail,
+                            prefixIcon: const Icon(Icons.email_outlined),
                           ),
                           validator: Validators.requiredEmail,
                         ),
@@ -178,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen>
                           autofillHints: const [AutofillHints.password],
                           onFieldSubmitted: (_) => _submit(),
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: l.loginPassword,
                             prefixIcon: const Icon(Icons.lock_outlined),
                             suffixIcon: IconButton(
                               icon: Icon(_obscurePassword
@@ -189,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                           ),
                           validator: (v) => (v == null || v.isEmpty)
-                              ? 'Please enter your password'
+                              ? l.loginPasswordRequired
                               : null,
                         ),
                         const SizedBox(height: 8),
@@ -214,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen>
                               onTap: () => setState(
                                   () => _rememberEmail = !_rememberEmail),
                               child: Text(
-                                'Remember email',
+                                l.loginRememberEmail,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -250,9 +264,9 @@ class _LoginScreenState extends State<LoginScreen>
                                           color: AppColors.white,
                                         ),
                                       )
-                                    : const Text(
-                                        'Sign In',
-                                        style: TextStyle(
+                                    : Text(
+                                        l.loginSignIn,
+                                        style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -268,6 +282,8 @@ class _LoginScreenState extends State<LoginScreen>
               ),
               ),
             ),
+              ),
+            ],
           ),
         ),
         // Version at bottom

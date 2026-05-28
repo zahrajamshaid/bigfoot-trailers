@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/delivery.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Outcome of the complete-delivery dialog. A non-null result means the driver
 /// confirmed; [paymentCollected] is the optional balance they recorded.
@@ -46,7 +47,8 @@ class _CompleteDeliveryDialogState extends State<_CompleteDeliveryDialog> {
     if (raw.isNotEmpty) {
       collected = double.tryParse(raw);
       if (collected == null || collected < 0) {
-        setState(() => _error = 'Enter a valid amount, or leave blank');
+        setState(() =>
+            _error = AppLocalizations.of(context).payrollDrValidNumber);
         return;
       }
     }
@@ -55,22 +57,23 @@ class _CompleteDeliveryDialogState extends State<_CompleteDeliveryDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final d = widget.delivery;
     final balanceDue = d.balanceDue ?? 0;
 
     return AlertDialog(
-      title: const Text('Complete Delivery'),
+      title: Text(l.completeDeliveryDialogTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Confirm trailer ${d.soNumber} was delivered to ${d.destinationLabel}.',
+            '${l.deliveryDetailSo(d.soNumber)} → ${d.destinationLabel}',
           ),
           if (balanceDue > 0) ...[
             const SizedBox(height: 12),
             Text(
-              'Balance due: \$${balanceDue.toStringAsFixed(2)}',
+              '${l.deliveryDetailSectionBalance}: \$${balanceDue.toStringAsFixed(2)}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ],
@@ -79,7 +82,7 @@ class _CompleteDeliveryDialogState extends State<_CompleteDeliveryDialog> {
             controller: _collectedCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'Balance Collected (optional)',
+              labelText: l.completeDeliveryPaymentLabel,
               prefixText: r'$ ',
               border: const OutlineInputBorder(),
               errorText: _error,
@@ -90,11 +93,11 @@ class _CompleteDeliveryDialogState extends State<_CompleteDeliveryDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l.commonCancel),
         ),
         FilledButton(
           onPressed: _confirm,
-          child: const Text('Mark Delivered'),
+          child: Text(l.driverMarkDelivered),
         ),
       ],
     );

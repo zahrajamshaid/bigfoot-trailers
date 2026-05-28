@@ -8,6 +8,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/queue_item.dart';
 import '../../../domain/repositories/production_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/production_viewmodel.dart';
 import '../../../shared/widgets/pdf_viewer_screen.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -81,7 +82,8 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _checklistError = 'Failed to load checklist: $e';
+        _checklistError =
+            AppLocalizations.of(context).stepChecklistLoadFail('$e');
         _loadingChecklist = false;
       });
     }
@@ -121,13 +123,12 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
   }
 
   Future<void> _submit() async {
+    final l = AppLocalizations.of(context);
     if (!_checklistComplete) {
       HapticFeedback.lightImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Answer every checklist item. Notes are required on any "No".',
-          ),
+        SnackBar(
+          content: Text(l.stepChecklistRequired),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -181,13 +182,16 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e'), backgroundColor: AppColors.error),
+        SnackBar(
+            content: Text(l.commonFailed('$e')),
+            backgroundColor: AppColors.error),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final item = widget.item;
 
     if (_showSuccess) {
@@ -204,7 +208,7 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
     return Dialog.fullscreen(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Complete Step'),
+          title: Text(l.stepCompleteTitle),
           leading: IconButton(
             icon: const Icon(Icons.close),
             onPressed: () => Navigator.pop(context),
@@ -251,14 +255,14 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                             color: AppColors.error.withValues(alpha: 0.3),
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('🔥', style: TextStyle(fontSize: 12)),
-                            SizedBox(width: 4),
+                            const Text('🔥', style: TextStyle(fontSize: 12)),
+                            const SizedBox(width: 4),
                             Text(
-                              'HOT',
-                              style: TextStyle(
+                              l.stepHotBadge,
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.error,
@@ -280,20 +284,25 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (item.modelName != null)
-                        _DetailRow(label: 'Model', value: item.modelName!),
+                        _DetailRow(
+                            label: l.stepDetailModel, value: item.modelName!),
                       if (item.customerName != null &&
                           item.customerName!.isNotEmpty)
                         _DetailRow(
-                          label: 'Customer',
+                          label: l.stepDetailCustomer,
                           value: item.customerName!,
                         ),
                       if (item.color != null)
-                        _DetailRow(label: 'Color', value: item.color!),
+                        _DetailRow(
+                            label: l.stepDetailColor, value: item.color!),
                       if (item.size != null)
-                        _DetailRow(label: 'Size', value: '${item.size}ft'),
+                        _DetailRow(
+                            label: l.stepDetailSize, value: '${item.size}ft'),
                       if (item.optionsNotes != null &&
                           item.optionsNotes!.isNotEmpty)
-                        _DetailRow(label: 'Notes', value: item.optionsNotes!),
+                        _DetailRow(
+                            label: l.stepDetailNotes,
+                            value: item.optionsNotes!),
                       if (item.qbSoPdfStorageKey != null) ...[
                         const SizedBox(height: 12),
                         Row(
@@ -304,18 +313,18 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                                   RouteNames.pdfViewer,
                                   extra: PdfViewerArgs(
                                     storageKey: item.qbSoPdfStorageKey!,
-                                    title: '${item.soNumber} — QB Sales Order',
+                                    title: l.stepPdfTitle(item.soNumber),
                                   ),
                                 ),
                                 icon: const Icon(Icons.picture_as_pdf_outlined),
-                                label: const Text('View QB Sales Order'),
+                                label: Text(l.stepViewQbPdf),
                               ),
                             ),
                             const SizedBox(width: 8),
                             OutlinedButton.icon(
                               onPressed: _openFullDetails,
                               icon: const Icon(Icons.info_outline),
-                              label: const Text('Full Details'),
+                              label: Text(l.stepFullDetails),
                             ),
                           ],
                         ),
@@ -324,7 +333,7 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                         OutlinedButton.icon(
                           onPressed: _openFullDetails,
                           icon: const Icon(Icons.info_outline),
-                          label: const Text('View full trailer details'),
+                          label: Text(l.stepViewFullDetails),
                         ),
                       ],
                     ],
@@ -355,7 +364,7 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'REWORK — QC Fail Notes (×${item.reworkCount})',
+                            l.stepReworkHeader(item.reworkCount),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: AppColors.error,
@@ -384,18 +393,18 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                     color: AppColors.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.info_outline,
                         color: AppColors.warning,
                         size: 18,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Rework steps award 0 points.',
-                          style: TextStyle(
+                          l.stepReworkWarning,
+                          style: const TextStyle(
                             color: AppColors.warning,
                             fontWeight: FontWeight.w600,
                           ),
@@ -439,15 +448,15 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                           });
                           _loadChecklist();
                         },
-                        child: const Text('Retry'),
+                        child: Text(l.commonRetry),
                       ),
                     ],
                   ),
                 )
               else if (_checklistItems.isNotEmpty) ...[
-                const Text(
-                  'Self-Check',
-                  style: TextStyle(
+                Text(
+                  l.stepSelfCheckTitle,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppColors.navy,
@@ -455,7 +464,7 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Confirm each item before completing. Notes are required on any "No".',
+                  l.stepSelfCheckHint,
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 12),
@@ -476,8 +485,8 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
               TextField(
                 controller: _notesController,
                 decoration: InputDecoration(
-                  labelText: 'Completion Notes (optional)',
-                  hintText: 'Any notes about this step...',
+                  labelText: l.stepNotesLabel,
+                  hintText: l.stepNotesHint,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -510,7 +519,7 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                         )
                       : const Icon(Icons.check_circle, size: 28),
                   label: Text(
-                    _isSubmitting ? 'Completing...' : 'COMPLETE STEP',
+                    _isSubmitting ? l.stepCompleting : l.stepCompleteCta,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -551,6 +560,7 @@ class _ChecklistRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final failedWithoutNote =
         answer == false && noteController.text.trim().isEmpty;
 
@@ -578,7 +588,7 @@ class _ChecklistRow extends StatelessWidget {
             children: [
               Expanded(
                 child: _AnswerButton(
-                  label: 'Yes',
+                  label: l.commonYes,
                   icon: Icons.check,
                   selected: answer == true,
                   selectedColor: AppColors.success,
@@ -588,7 +598,7 @@ class _ChecklistRow extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _AnswerButton(
-                  label: 'No',
+                  label: l.commonNo,
                   icon: Icons.close,
                   selected: answer == false,
                   selectedColor: AppColors.error,
@@ -603,7 +613,7 @@ class _ChecklistRow extends StatelessWidget {
               controller: noteController,
               onChanged: (_) => onNoteChanged(),
               decoration: InputDecoration(
-                hintText: 'Note (required)',
+                hintText: l.stepNoteRequired,
                 isDense: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -724,6 +734,7 @@ class _SuccessView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
@@ -751,9 +762,9 @@ class _SuccessView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Step Complete!',
-                    style: TextStyle(
+                  Text(
+                    l.stepCompleteSuccessTitle,
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
                       color: AppColors.white,
@@ -763,8 +774,9 @@ class _SuccessView extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       result!.pointsAwarded > 0
-                          ? '+${result!.pointsAwarded.toStringAsFixed(1)} points'
-                          : 'Rework — 0 points',
+                          ? l.queueOverlayPoints(
+                              result!.pointsAwarded.toStringAsFixed(1))
+                          : l.stepReworkSuccessPoints,
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -783,7 +795,7 @@ class _SuccessView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          'Next → ${result!.nextDepartment}',
+                          l.stepNextDept(result!.nextDepartment!),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -796,9 +808,9 @@ class _SuccessView extends StatelessWidget {
                   const SizedBox(height: 40),
                   TextButton(
                     onPressed: onClose,
-                    child: const Text(
-                      'Close',
-                      style: TextStyle(
+                    child: Text(
+                      l.commonClose,
+                      style: const TextStyle(
                         fontSize: 16,
                         color: AppColors.white,
                         fontWeight: FontWeight.w600,

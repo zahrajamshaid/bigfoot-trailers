@@ -7,6 +7,7 @@ import '../../../data/models/qc_inspection.dart';
 import '../../../data/models/department.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../domain/repositories/qc_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/qc_viewmodel.dart';
 
 /// Admin screen to manage QC checklist items grouped by QC department.
@@ -61,11 +62,17 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = 'Failed to load checklist items'; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = AppLocalizations.of(context).qcMgmtLoadFail;
+        });
+      }
     }
   }
 
   void _showAddDialog() {
+    final l = AppLocalizations.of(context);
     final labelCtrl = TextEditingController();
     final sortCtrl = TextEditingController(text: '0');
     int? selectedDeptId;
@@ -75,13 +82,13 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Checklist Item'),
+          title: Text(l.qcMgmtAddTitle),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<int>(
-                  decoration: const InputDecoration(labelText: 'QC Department'),
+                  decoration: InputDecoration(labelText: l.qcMgmtDeptLabel),
                   items: _qcDepts.map((d) => DropdownMenuItem(
                     value: d.id,
                     child: Text(d.displayName),
@@ -91,24 +98,24 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: labelCtrl,
-                  decoration: const InputDecoration(labelText: 'Label'),
+                  decoration: InputDecoration(labelText: l.qcMgmtLabelField),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: sortCtrl,
-                  decoration: const InputDecoration(labelText: 'Sort Order'),
+                  decoration: InputDecoration(labelText: l.qcMgmtSortOrder),
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: selectedSeries,
-                  decoration: const InputDecoration(labelText: 'Applies To Series'),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('All Series')),
-                    DropdownMenuItem(value: 'xp', child: Text('XP')),
-                    DropdownMenuItem(value: 'yeti', child: Text('Yeti')),
-                    DropdownMenuItem(value: 'deck_over', child: Text('Deck Over')),
-                    DropdownMenuItem(value: 'gooseneck_dump', child: Text('Gooseneck')),
+                  decoration: InputDecoration(labelText: l.qcMgmtSeriesLabel),
+                  items: [
+                    DropdownMenuItem(value: 'all', child: Text(l.qcMgmtAllSeries)),
+                    const DropdownMenuItem(value: 'xp', child: Text('XP')),
+                    const DropdownMenuItem(value: 'yeti', child: Text('Yeti')),
+                    const DropdownMenuItem(value: 'deck_over', child: Text('Deck Over')),
+                    const DropdownMenuItem(value: 'gooseneck_dump', child: Text('Gooseneck')),
                   ],
                   onChanged: (v) => setDialogState(() => selectedSeries = v ?? 'all'),
                 ),
@@ -116,7 +123,9 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(l.commonCancel)),
             FilledButton(
               onPressed: () async {
                 if (selectedDeptId == null || labelCtrl.text.trim().isEmpty) return;
@@ -132,12 +141,12 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to create: $e')),
+                      SnackBar(content: Text(l.qcMgmtCreateFail('$e'))),
                     );
                   }
                 }
               },
-              child: const Text('Add'),
+              child: Text(l.commonAdd),
             ),
           ],
         ),
@@ -146,25 +155,26 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
   }
 
   void _showEditDialog(QcChecklistItem item) {
+    final l = AppLocalizations.of(context);
     final labelCtrl = TextEditingController(text: item.label);
     final sortCtrl = TextEditingController(text: '${item.sortOrder}');
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Edit Checklist Item'),
+        title: Text(l.qcMgmtEditTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: labelCtrl,
-                decoration: const InputDecoration(labelText: 'Label'),
+                decoration: InputDecoration(labelText: l.qcMgmtLabelField),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: sortCtrl,
-                decoration: const InputDecoration(labelText: 'Sort Order'),
+                decoration: InputDecoration(labelText: l.qcMgmtSortOrder),
                 keyboardType: TextInputType.number,
               ),
             ],
@@ -180,14 +190,17 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e')),
+                    SnackBar(content: Text(l.commonFailed('$e'))),
                   );
                 }
               }
             },
-            child: const Text('Deactivate', style: TextStyle(color: AppColors.error)),
+            child: Text(l.qcMgmtDeactivate,
+                style: const TextStyle(color: AppColors.error)),
           ),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l.commonCancel)),
           FilledButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -201,12 +214,12 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e')),
+                    SnackBar(content: Text(l.commonFailed('$e'))),
                   );
                 }
               }
             },
-            child: const Text('Save'),
+            child: Text(l.commonSave),
           ),
         ],
       ),
@@ -215,9 +228,10 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('QC Checklist Items'),
+        title: Text(l.qcMgmtScreenTitle),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddDialog,
@@ -232,12 +246,13 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
                     children: [
                       Text(_error!),
                       const SizedBox(height: 12),
-                      FilledButton(onPressed: _load, child: const Text('Retry')),
+                      FilledButton(
+                          onPressed: _load, child: Text(l.commonRetry)),
                     ],
                   ),
                 )
               : _items.isEmpty
-                  ? const Center(child: Text('No checklist items'))
+                  ? Center(child: Text(l.qcMgmtEmpty))
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: _buildGroupedList(),
@@ -246,6 +261,7 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
   }
 
   Widget _buildGroupedList() {
+    final l = AppLocalizations.of(context);
     // Group items by department
     final grouped = <int, List<QcChecklistItem>>{};
     for (final item in _items) {
@@ -263,7 +279,7 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
         final deptName = _qcDepts
             .where((d) => d.id == deptId)
             .map((d) => d.displayName)
-            .firstOrNull ?? 'Dept $deptId';
+            .firstOrNull ?? l.qcMgmtDeptFallback(deptId);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,7 +321,9 @@ class _ChecklistManagementScreenState extends State<ChecklistManagementScreen> {
                   ),
                 ),
                 subtitle: Text(
-                  'Series: ${item.appliesToSeries}${item.isActive ? '' : ' (inactive)'}',
+                  item.isActive
+                      ? l.qcMgmtSeriesValue(item.appliesToSeries)
+                      : l.qcMgmtSeriesValueInactive(item.appliesToSeries),
                   style: const TextStyle(fontSize: 12),
                 ),
                 trailing: const Icon(Icons.edit_outlined, size: 18),

@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../domain/repositories/storage_repository.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class PdfViewerArgs {
   final String storageKey;
@@ -77,7 +78,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : _error != null
-              ? Center(child: Text('Failed to load PDF: $_error'))
+              ? Center(child: Text('${AppLocalizations.of(context).pdfViewerLoadFail}: $_error'))
               : PDFView(
                   filePath: _file!.path,
                   enableSwipe: true,

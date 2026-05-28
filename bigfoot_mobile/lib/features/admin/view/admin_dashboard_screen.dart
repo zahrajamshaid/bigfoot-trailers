@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/websocket/realtime_cubits.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -60,12 +61,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final stats = _stats ?? const AdminDashboardStats();
     final r = context.responsive;
     final statCols = r.gridColumns(compact: 2, medium: 4, expanded: 4, large: 4);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Panel')),
+      appBar: AppBar(title: Text(l.adminDashboardTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : RefreshIndicator(
@@ -85,11 +87,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       mainAxisSpacing: 8,
                       crossAxisSpacing: 8,
                       children: [
-                        _StatCard(title: 'Total Users', value: '${stats.totalUsers}'),
-                        _StatCard(title: 'Active Trailers', value: '${stats.activeTrailers}'),
-                        _StatCard(title: 'Weekly Output', value: '${stats.weeklyProduction}'),
+                        _StatCard(title: l.adminStatTotalUsers, value: '${stats.totalUsers}'),
+                        _StatCard(title: l.adminStatActiveTrailers, value: '${stats.activeTrailers}'),
+                        _StatCard(title: l.adminStatWeeklyOutput, value: '${stats.weeklyProduction}'),
                         _StatCard(
-                          title: 'QC Fail Rate',
+                          title: l.adminStatQcFailRate,
                           value: '${stats.qcFailRate.toStringAsFixed(1)}%',
                         ),
                       ],
@@ -97,32 +99,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     const SizedBox(height: 14),
                     _NavTile(
                       icon: Icons.people_alt,
-                      title: 'User Management',
-                      subtitle: 'Create/edit/deactivate users and filter by role',
+                      title: l.adminUsers,
+                      subtitle: l.adminNavUsersSubtitle,
                       onTap: () => context.pushNamed(RouteNames.userManagement),
                     ),
                     _NavTile(
                       icon: Icons.account_tree,
-                      title: 'Department Config',
-                      subtitle: 'Edit stall thresholds and inspect workflow mapping',
+                      title: l.adminDepartmentConfig,
+                      subtitle: l.adminNavDeptsSubtitle,
                       onTap: () => context.pushNamed(RouteNames.departmentConfig),
                     ),
                     _NavTile(
                       icon: Icons.view_timeline,
-                      title: 'Workflow Templates',
-                      subtitle: 'View 4 trailer series template steps',
+                      title: l.adminNavWorkflowTemplates,
+                      subtitle: l.adminNavWorkflowSubtitle,
                       onTap: () => context.pushNamed(RouteNames.workflowViewer),
                     ),
                     _NavTile(
                       icon: Icons.history,
-                      title: 'Audit Log',
-                      subtitle: 'Paginated events with before/after changes',
+                      title: l.adminAuditLog,
+                      subtitle: l.adminNavAuditSubtitle,
                       onTap: () => context.pushNamed(RouteNames.auditLog),
                     ),
                     _NavTile(
                       icon: Icons.bar_chart,
-                      title: 'Production Reports',
-                      subtitle: 'Weekly summary and worker output overview',
+                      title: l.adminNavReports,
+                      subtitle: l.adminNavReportsSubtitle,
                       onTap: () => context.pushNamed(RouteNames.adminReports),
                     ),
                   ],

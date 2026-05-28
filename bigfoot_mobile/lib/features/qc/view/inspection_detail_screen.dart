@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/websocket/ws_client.dart';
 import '../../../data/models/qc_inspection.dart';
 import '../../../domain/repositories/qc_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/qc_viewmodel.dart';
 
 /// Displays a single QC inspection: photos, checklist results, inspector info.
@@ -37,15 +38,16 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
       await cubit.close();
       if (mounted) setState(() { _inspection = inspection; _isLoading = false; });
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = 'Failed to load inspection'; });
+      if (mounted) setState(() { _isLoading = false; _error = AppLocalizations.of(context).qcInspectionLoadFail; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Inspection #${widget.inspectionId}'),
+        title: Text(l.qcInspectionTitle(widget.inspectionId)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -58,7 +60,8 @@ class _InspectionDetailScreenState extends State<InspectionDetailScreen> {
                       const SizedBox(height: 16),
                       Text(_error!),
                       const SizedBox(height: 16),
-                      FilledButton(onPressed: _load, child: const Text('Retry')),
+                      FilledButton(
+                          onPressed: _load, child: Text(l.commonRetry)),
                     ],
                   ),
                 )
@@ -73,6 +76,7 @@ class _InspectionContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final isPassed = inspection.result == 'pass';
 
     return SingleChildScrollView(
@@ -104,7 +108,7 @@ class _InspectionContent extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isPassed ? 'PASSED' : 'FAILED',
+                      isPassed ? l.qcStatusPassed : l.qcStatusFailed,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -112,7 +116,7 @@ class _InspectionContent extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Attempt #${inspection.attemptNumber}',
+                      l.qcAttemptNumber(inspection.attemptNumber),
                       style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     ),
                   ],
@@ -130,8 +134,8 @@ class _InspectionContent extends StatelessWidget {
           // Fail notes
           if (!isPassed && inspection.failNotes != null) ...[
             const SizedBox(height: 16),
-            const Text('Fail Notes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(l.qcFailNotesHeader,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
@@ -151,7 +155,7 @@ class _InspectionContent extends StatelessWidget {
           // Photos
           if (inspection.photos != null && inspection.photos!.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text('Photos (${inspection.photos!.length})',
+            Text(l.qcPhotosCount(inspection.photos!.length),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             SizedBox(
@@ -186,7 +190,7 @@ class _InspectionContent extends StatelessWidget {
           if (inspection.checklistResults != null &&
               inspection.checklistResults!.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text('Checklist (${inspection.checklistResults!.length} items)',
+            Text(l.qcChecklistCount(inspection.checklistResults!.length),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Card(
@@ -212,7 +216,7 @@ class _InspectionContent extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Item #${result.checklistItemId}',
+                                    l.qcItemNumber(result.checklistItemId),
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600, fontSize: 14),
                                   ),
@@ -236,7 +240,7 @@ class _InspectionContent extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                result.passed ? 'PASS' : 'FAIL',
+                                result.passed ? l.qcPass : l.qcFail,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -290,7 +294,7 @@ class _PhotoPlaceholder extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.photo, color: Colors.grey, size: 32),
-          Text('Photo ${index + 1}',
+          Text(AppLocalizations.of(context).qcPhotoNumber(index + 1),
               style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ],
       ),

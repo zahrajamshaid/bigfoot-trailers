@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/location.dart' as loc_model;
 import '../../../data/models/user.dart';
 import '../../../domain/repositories/location_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/trailers_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -76,6 +77,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final authState = context.watch<AuthViewModel>().state;
     final canCreate = authState is Authenticated &&
         (authState.user.role == UserRole.owner ||
@@ -91,7 +93,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
               controller: _searchController,
               onChanged: (q) => context.read<TrailersViewModel>().searchDebounced(q),
               decoration: InputDecoration(
-                hintText: 'Search by SO# or customer...',
+                hintText: loc.trailersSearchHint,
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -130,14 +132,14 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                 child: Row(
                   children: [
                     _FilterChip(
-                      label: 'Hot Only',
+                      label: loc.trailersFilterHotOnly,
                       icon: Icons.local_fire_department,
                       selected: hotOnly,
                       color: AppColors.error,
                       onTap: cubit.toggleHotOnly,
                     ),
                     const SizedBox(width: 6),
-                    ..._statusFilters.map((f) => Padding(
+                    ..._statusFilters(loc).map((f) => Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: _FilterChip(
                             label: f.label,
@@ -159,7 +161,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                           ),
                         )),
                     const SizedBox(width: 4),
-                    ..._saleFilters.map((f) => Padding(
+                    ..._saleFilters(loc).map((f) => Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: _FilterChip(
                             label: f.label,
@@ -172,15 +174,17 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                         )),
                     if (_locations.isNotEmpty) ...[
                       const SizedBox(width: 4),
-                      ..._locations.map((l) => Padding(
+                      ..._locations.map((locItem) => Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: _FilterChip(
-                              label: l.chipLabel,
+                              label: locItem.chipLabel,
                               icon: Icons.location_on_outlined,
-                              selected: locationFilter == l.id,
+                              selected: locationFilter == locItem.id,
                               color: AppColors.navy,
                               onTap: () => cubit.setLocationFilter(
-                                  locationFilter == l.id ? null : l.id),
+                                  locationFilter == locItem.id
+                                      ? null
+                                      : locItem.id),
                             ),
                           )),
                     ],
@@ -215,7 +219,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                             OutlinedButton(
                               onPressed: () =>
                                   context.read<TrailersViewModel>().load(),
-                              child: const Text('Retry'),
+                              child: Text(loc.commonRetry),
                             ),
                           ],
                         ),
@@ -232,11 +236,12 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.local_shipping_outlined,
+                                const Icon(Icons.local_shipping_outlined,
                                     size: 56, color: AppColors.disabled),
                                 const SizedBox(height: 12),
-                                Text('No trailers found',
-                                    style: TextStyle(color: AppColors.disabled)),
+                                Text(loc.trailersEmpty,
+                                    style: const TextStyle(
+                                        color: AppColors.disabled)),
                               ],
                             ),
                           )
@@ -298,15 +303,16 @@ class _CacheInfoBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final now = DateTime.now();
     final minutes = lastUpdated == null
         ? null
         : now.difference(lastUpdated!).inMinutes;
     final updatedText = minutes == null
-        ? 'unknown time'
+        ? l.cacheBannerUnknownTime
         : minutes <= 0
-            ? 'just now'
-            : '$minutes minute${minutes == 1 ? '' : 's'} ago';
+            ? l.cacheBannerJustNow
+            : l.cacheBannerMinutesAgo(minutes);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -322,7 +328,7 @@ class _CacheInfoBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Showing cached data. Last updated $updatedText.',
+              l.cacheBannerMessage(updatedText),
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -342,12 +348,13 @@ class _TrailerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = trailer;
     final series = t.trailerModel?.series ?? '';
     final modelName = t.trailerModel?.displayName ?? '';
     final customerName = t.customer?.name ??
         (t.soldToName as String?) ??
-        (t.isStockBuild ? 'Stock Build' : '');
+        (t.isStockBuild ? l.trailersStockBuild : '');
 
     // A customer trailer is sold by definition; otherwise use the stored flag.
     final saleStatus = t.customer != null
@@ -361,8 +368,9 @@ class _TrailerCard extends StatelessWidget {
       final activeStep = steps.where((s) => s.status == 'active').toList();
       if (activeStep.isNotEmpty) {
         final s = activeStep.first;
-        stepIndicator =
-            'Step ${s.stepOrder}/12 — ${s.departmentName ?? s.departmentCode ?? ''}';
+        final dept =
+            (s.departmentName ?? s.departmentCode ?? '') as String;
+        stepIndicator = l.trailersStepIndicator(s.stepOrder as int, 12, dept);
       }
     }
 
@@ -670,14 +678,18 @@ class _FilterChip extends StatelessWidget {
 
 // ── Filter data ──────────────────────────────────────────────────────────────
 
-const _statusFilters = [
-  (label: 'Pending', value: 'pending_production', color: AppColors.statusPending),
-  (label: 'In Production', value: 'in_production', color: AppColors.statusInProduction),
-  (label: 'Ready', value: 'ready_for_delivery', color: AppColors.statusReady),
-  (label: 'In Transit', value: 'in_transit', color: AppColors.statusInTransit),
-  (label: 'Delivered', value: 'delivered', color: AppColors.statusDelivered),
-];
+List<({String label, String value, Color color})> _statusFilters(
+    AppLocalizations l) {
+  return [
+    (label: l.statusPending, value: 'pending_production', color: AppColors.statusPending),
+    (label: l.statusInProduction, value: 'in_production', color: AppColors.statusInProduction),
+    (label: l.statusReady, value: 'ready_for_delivery', color: AppColors.statusReady),
+    (label: l.statusInTransit, value: 'in_transit', color: AppColors.statusInTransit),
+    (label: l.statusDelivered, value: 'delivered', color: AppColors.statusDelivered),
+  ];
+}
 
+// Series labels are brand/product identifiers — kept as-is in both locales.
 const _seriesFilters = [
   (label: 'XP', value: 'xp', color: AppColors.seriesXp),
   (label: 'Yeti', value: 'yeti', color: AppColors.seriesYeti),
@@ -685,18 +697,26 @@ const _seriesFilters = [
   (label: 'Gooseneck', value: 'gooseneck_dump', color: AppColors.seriesGooseneck),
 ];
 
-const _saleFilters = [
-  (
-    label: 'Available',
-    value: 'available',
-    color: AppColors.disabled,
-    icon: Icons.inventory_2_outlined,
-  ),
-  (
-    label: 'Sale Pending',
-    value: 'sale_pending',
-    color: AppColors.warning,
-    icon: Icons.pending_actions,
-  ),
-  (label: 'Sold', value: 'sold', color: AppColors.success, icon: Icons.sell),
-];
+List<({String label, String value, Color color, IconData icon})> _saleFilters(
+    AppLocalizations l) {
+  return [
+    (
+      label: l.saleStatusAvailable,
+      value: 'available',
+      color: AppColors.disabled,
+      icon: Icons.inventory_2_outlined,
+    ),
+    (
+      label: l.saleStatusSalePendingLong,
+      value: 'sale_pending',
+      color: AppColors.warning,
+      icon: Icons.pending_actions,
+    ),
+    (
+      label: l.saleStatusSoldLong,
+      value: 'sold',
+      color: AppColors.success,
+      icon: Icons.sell,
+    ),
+  ];
+}

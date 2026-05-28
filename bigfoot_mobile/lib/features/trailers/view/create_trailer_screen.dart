@@ -8,6 +8,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../domain/repositories/storage_repository.dart';
 import '../../../domain/repositories/trailer_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/stock_location_chips.dart';
 import '../viewmodel/trailers_viewmodel.dart';
 
@@ -60,6 +61,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
     }
     try {
       final api = context.read<DioClient>();
+      final l = AppLocalizations.of(context);
       final response = await api.get<List<dynamic>>(
         ApiEndpoints.adminTrailerModels,
         fromJson: (d) => d as List<dynamic>,
@@ -70,7 +72,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                 id: (m['id'] as num).toInt(),
                 displayName: (m['displayName'] as String?) ??
                     (m['code'] as String?) ??
-                    'Model ${m['id']}',
+                    l.createTrailerModelFallback('${m['id']}'),
                 series: (m['series'] as String?) ?? '',
               ))
           .toList();
@@ -79,9 +81,8 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
       setState(() {
         _modelOptions = options;
         _loadingModels = false;
-        _loadModelsError = options.isEmpty
-            ? 'No trailer models are configured on the server.'
-            : null;
+        _loadModelsError =
+            options.isEmpty ? l.createTrailerModelsEmpty : null;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -95,12 +96,14 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
       setState(() {
         _modelOptions = const [];
         _loadingModels = false;
-        _loadModelsError = 'Could not load trailer models. Check your connection.';
+        _loadModelsError =
+            AppLocalizations.of(context).createTrailerModelsLoadFail;
       });
     }
   }
 
   Future<void> _pickPdf() async {
+    final l = AppLocalizations.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -111,7 +114,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
       final file = result.files.first;
       if (file.bytes == null) {
         setState(() {
-          _pdfWarning = 'Could not read the selected PDF file.';
+          _pdfWarning = l.createTrailerPickPdfFail;
         });
         return;
       }
@@ -121,16 +124,17 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
       });
     } catch (_) {
       setState(() {
-        _pdfWarning = 'Unable to open the file picker.';
+        _pdfWarning = l.createTrailerPickerOpenFail;
       });
     }
   }
 
   Future<void> _submit() async {
+    final l = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
     if (_isStockBuild && _selectedStockLocationId == null) {
       setState(() {
-        _stockLocationError = 'Pick a stock destination';
+        _stockLocationError = l.createTrailerStockDestRequired;
       });
       return;
     }
@@ -187,8 +191,8 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
       context.read<TrailersViewModel>().load();
 
       final message = pdfWarning == null
-          ? 'Trailer ${_soController.text.trim()} created with 12 workflow steps'
-          : 'Trailer created. PDF upload failed: $pdfWarning';
+          ? l.createTrailerCreated(_soController.text.trim())
+          : l.createTrailerCreatedPdfWarn(pdfWarning);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -204,7 +208,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
       });
     } catch (_) {
       setState(() {
-        _errorMessage = 'Failed to create trailer';
+        _errorMessage = l.createTrailerFail;
         _isSubmitting = false;
       });
     }
@@ -216,6 +220,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
     required StorageRepository storageRepo,
     required PlatformFile file,
   }) async {
+    final l = AppLocalizations.of(context);
     try {
       final result = await storageRepo.uploadFile(
         fileType: 'so_pdf',
@@ -225,7 +230,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
         contentType: 'application/pdf',
       );
       if (result.queued || result.storageKey == null) {
-        return 'no network — PDF will retry later';
+        return l.createTrailerPdfRetryLater;
       }
       final storageKey = result.storageKey!;
       // qbSoPdfStorageUrl is stored but never read — the detail screen
@@ -260,8 +265,9 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Trailer')),
+      appBar: AppBar(title: Text(l.createTrailerTitle)),
       body: _loadingModels
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : _modelOptions.isEmpty
@@ -276,14 +282,14 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                               size: 48, color: AppColors.error),
                           const SizedBox(height: 12),
                           Text(
-                            _loadModelsError ?? 'No trailer models available.',
+                            _loadModelsError ?? l.createTrailerModelsNone,
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
                             onPressed: _loadModels,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
+                            label: Text(l.commonRetry),
                           ),
                         ],
                       ),
@@ -324,21 +330,22 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                     TextFormField(
                       controller: _soController,
                       textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'SO Number *',
-                        prefixIcon: Icon(Icons.tag),
+                      decoration: InputDecoration(
+                        labelText: l.createTrailerSoLabel,
+                        prefixIcon: const Icon(Icons.tag),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'SO number is required' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? l.createTrailerSoRequired
+                          : null,
                     ),
                     const SizedBox(height: 16),
 
                     // Trailer Model
                     DropdownButtonFormField<int>(
                       value: _selectedModelId,
-                      decoration: const InputDecoration(
-                        labelText: 'Trailer Model *',
-                        prefixIcon: Icon(Icons.local_shipping_outlined),
+                      decoration: InputDecoration(
+                        labelText: l.createTrailerModelLabel,
+                        prefixIcon: const Icon(Icons.local_shipping_outlined),
                       ),
                       items: _modelOptions.map((m) {
                         return DropdownMenuItem(
@@ -353,16 +360,17 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                         );
                       }).toList(),
                       onChanged: (v) => setState(() => _selectedModelId = v),
-                      validator: (v) => v == null ? 'Select a trailer model' : null,
+                      validator: (v) =>
+                          v == null ? l.createTrailerModelRequired : null,
                     ),
                     const SizedBox(height: 16),
 
                     // Color
                     TextFormField(
                       controller: _colorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Color',
-                        prefixIcon: Icon(Icons.palette_outlined),
+                      decoration: InputDecoration(
+                        labelText: l.createTrailerColorLabel,
+                        prefixIcon: const Icon(Icons.palette_outlined),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -370,9 +378,9 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                     // Size
                     TextFormField(
                       controller: _sizeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Size (ft)',
-                        prefixIcon: Icon(Icons.straighten),
+                      decoration: InputDecoration(
+                        labelText: l.createTrailerSizeLabel,
+                        prefixIcon: const Icon(Icons.straighten),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -381,9 +389,9 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                     TextFormField(
                       controller: _notesController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Options / Notes',
-                        prefixIcon: Padding(
+                      decoration: InputDecoration(
+                        labelText: l.createTrailerNotesLabel,
+                        prefixIcon: const Padding(
                           padding: EdgeInsets.only(bottom: 48),
                           child: Icon(Icons.notes),
                         ),
@@ -396,10 +404,10 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                     TextFormField(
                       controller: _specialNoteController,
                       maxLength: 500,
-                      decoration: const InputDecoration(
-                        labelText: 'Special Note',
-                        hintText: 'e.g. ship empty, hold for VIN check',
-                        prefixIcon: Icon(Icons.sticky_note_2_outlined),
+                      decoration: InputDecoration(
+                        labelText: l.createTrailerSpecialLabel,
+                        hintText: l.createTrailerSpecialHint,
+                        prefixIcon: const Icon(Icons.sticky_note_2_outlined),
                         counterText: '',
                       ),
                     ),
@@ -407,8 +415,8 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
 
                     // Stock Build toggle
                     SwitchListTile(
-                      title: const Text('Stock Build'),
-                      subtitle: const Text('No customer assigned'),
+                      title: Text(l.createTrailerStockBuild),
+                      subtitle: Text(l.createTrailerStockBuildSubtitle),
                       value: _isStockBuild,
                       activeColor: AppColors.amber,
                       onChanged: (v) => setState(() {
@@ -429,23 +437,22 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                       TextFormField(
                         controller: _customerController,
                         textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(
-                          labelText: 'Customer',
-                          hintText: 'Buyer name — leave blank for stock',
-                          helperText:
-                              'Optional. A trailer with a customer is marked sold.',
-                          prefixIcon: Icon(Icons.person_outline),
+                        decoration: InputDecoration(
+                          labelText: l.createTrailerCustomerLabel,
+                          hintText: l.createTrailerCustomerHint,
+                          helperText: l.createTrailerCustomerHelper,
+                          prefixIcon: const Icon(Icons.person_outline),
                         ),
                       ),
                     ],
                     if (_isStockBuild) ...[
                       const SizedBox(height: 12),
                       StockLocationChips(
-                        labelText: 'Stock Destination *',
+                        labelText: l.createTrailerStockDestLabel,
                         selectedLocationId: _selectedStockLocationId,
                         enabled: !_isSubmitting,
-                        onChanged: (l) => setState(() {
-                          _selectedStockLocationId = l.id;
+                        onChanged: (loc) => setState(() {
+                          _selectedStockLocationId = loc.id;
                           _stockLocationError = null;
                         }),
                         errorText: _stockLocationError,
@@ -481,8 +488,8 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2.5, color: AppColors.white),
                                     )
-                                  : const Text('Create Trailer',
-                                      style: TextStyle(
+                                  : Text(l.createTrailerSubmit,
+                                      style: const TextStyle(
                                           fontSize: 16, fontWeight: FontWeight.w600)),
                             ),
                           ),
@@ -525,6 +532,7 @@ class _PdfPickerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final hasFile = selectedFile != null;
     return Container(
       padding: const EdgeInsets.all(12),
@@ -539,17 +547,17 @@ class _PdfPickerTile extends StatelessWidget {
             children: [
               const Icon(Icons.picture_as_pdf_outlined, color: AppColors.navy),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'QB Sales Order PDF',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  l.createTrailerPdfSectionTitle,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               if (hasFile)
                 IconButton(
                   onPressed: onClear,
                   icon: const Icon(Icons.close, size: 20),
-                  tooltip: 'Remove PDF',
+                  tooltip: l.createTrailerPdfRemoveTooltip,
                 ),
             ],
           ),
@@ -565,15 +573,17 @@ class _PdfPickerTile extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: AppColors.disabled),
             ),
           ] else
-            const Text(
-              'Optional — attach the QuickBooks SO PDF for this trailer.',
-              style: TextStyle(fontSize: 12, color: AppColors.disabled),
+            Text(
+              l.createTrailerPdfOptionalHelper,
+              style: const TextStyle(fontSize: 12, color: AppColors.disabled),
             ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: onPick,
             icon: const Icon(Icons.upload_file, size: 18),
-            label: Text(hasFile ? 'Replace PDF' : 'Attach PDF'),
+            label: Text(hasFile
+                ? l.createTrailerPdfReplace
+                : l.createTrailerPdfAttach),
           ),
           if (warning != null) ...[
             const SizedBox(height: 6),

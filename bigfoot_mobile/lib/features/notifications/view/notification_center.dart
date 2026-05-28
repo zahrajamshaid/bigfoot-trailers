@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/app_notification.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/notifications_viewmodel.dart';
 
 class NotificationCenter extends StatefulWidget {
@@ -25,20 +26,21 @@ class _NotificationCenterState extends State<NotificationCenter> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notification Center'),
+        title: Text(l.notificationsTitle),
         actions: [
           TextButton(
             onPressed: () => context.read<NotificationsViewModel>().markAllRead(),
-            child: const Text('Mark all read'),
+            child: Text(l.notificationsMarkAllRead),
           ),
         ],
       ),
       body: BlocBuilder<NotificationsViewModel, NotificationsState>(
         builder: (context, state) {
           if (state.items.isEmpty) {
-            return const Center(child: Text('No notifications yet'));
+            return Center(child: Text(l.notificationsEmpty));
           }
 
           return ListView.separated(
@@ -58,7 +60,7 @@ class _NotificationCenterState extends State<NotificationCenter> {
                       onPressed: (_) => context.read<NotificationsViewModel>().dismiss(n.id),
                       backgroundColor: AppColors.error,
                       icon: Icons.delete_outline,
-                      label: 'Delete',
+                      label: l.notificationsDelete,
                     ),
                   ],
                 ),

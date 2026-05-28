@@ -3,14 +3,17 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/config/app_environment.dart';
 import 'core/constants/app_theme.dart';
+import 'core/i18n/locale_cubit.dart';
 import 'core/network/dio_client.dart';
 import 'core/router/app_router.dart';
 import 'core/security/mobile_security.dart';
 import 'core/websocket/realtime_cubits.dart';
 import 'core/websocket/ws_client.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'data/models/app_notification.dart';
 import 'di/service_locator.dart';
 import 'domain/repositories/storage_repository.dart';
@@ -48,6 +51,7 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
   late final TrailerDetailRealtimeCubit _trailerDetailRealtimeCubit;
   late final DashboardStatsRealtimeCubit _dashboardStatsRealtimeCubit;
   late final NotificationCountCubit _notificationCountCubit;
+  late final LocaleCubit _localeCubit;
 
   late final AppRouter _appRouter;
   late final StreamSubscription<AuthState> _authSub;
@@ -112,6 +116,9 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
     _dashboardStatsRealtimeCubit =
         DashboardStatsRealtimeCubit(ws: _sl.wsClient);
     _notificationCountCubit = NotificationCountCubit(ws: _sl.wsClient);
+
+    _localeCubit = LocaleCubit();
+    _localeCubit.load();
 
     _appRouter = AppRouter();
 
@@ -202,6 +209,7 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
     _notificationCountCubit.close();
     _dashboardViewModel.close();
     _authViewModel.close();
+    _localeCubit.close();
     _sl.dispose();
     super.dispose();
   }
@@ -277,6 +285,7 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
               value: _dashboardStatsRealtimeCubit),
           BlocProvider<NotificationCountCubit>.value(
               value: _notificationCountCubit),
+          BlocProvider<LocaleCubit>.value(value: _localeCubit),
         ],
         child: BlocListener<NotificationsViewModel, NotificationsState>(
           listenWhen: (previous, current) =>
@@ -310,27 +319,37 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
               ),
             );
           },
-          child: MaterialApp.router(
-            title: 'Bigfoot Trailers',
-            theme: AppTheme.light,
-            debugShowCheckedModeBanner: false,
-            routerConfig: _appRouter.router,
-            // Clamp the OS text-scale factor so a device set to a very large
-            // accessibility font cannot blow fixed-height layouts (stat cards,
-            // nav bar, list tiles) past their bounds and trigger bottom
-            // overflow. 1.3 still gives a meaningful accessibility boost.
-            builder: (context, child) {
-              final mq = MediaQuery.of(context);
-              return MediaQuery(
-                data: mq.copyWith(
-                  textScaler: mq.textScaler.clamp(
-                    minScaleFactor: 0.85,
-                    maxScaleFactor: 1.3,
+          child: BlocBuilder<LocaleCubit, Locale>(
+            builder: (context, locale) => MaterialApp.router(
+              title: 'Bigfoot Trailers',
+              theme: AppTheme.light,
+              debugShowCheckedModeBanner: false,
+              routerConfig: _appRouter.router,
+              locale: locale,
+              supportedLocales: LocaleCubit.supportedLocales,
+              localizationsDelegates: const [
+                AppLocalizations.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              // Clamp the OS text-scale factor so a device set to a very large
+              // accessibility font cannot blow fixed-height layouts (stat cards,
+              // nav bar, list tiles) past their bounds and trigger bottom
+              // overflow. 1.3 still gives a meaningful accessibility boost.
+              builder: (context, child) {
+                final mq = MediaQuery.of(context);
+                return MediaQuery(
+                  data: mq.copyWith(
+                    textScaler: mq.textScaler.clamp(
+                      minScaleFactor: 0.85,
+                      maxScaleFactor: 1.3,
+                    ),
                   ),
-                ),
-                child: child ?? const SizedBox.shrink(),
-              );
-            },
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+            ),
           ),
         ),
       ),

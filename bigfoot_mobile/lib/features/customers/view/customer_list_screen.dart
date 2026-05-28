@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/customer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/customers_viewmodel.dart';
 import 'customer_form_screen.dart';
 
@@ -60,7 +61,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
         _totalPages = 1;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to load customers: $e')),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context).customersLoadFail('$e'))),
       );
     } finally {
       if (mounted) {
@@ -71,8 +74,9 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Customers')),
+      appBar: AppBar(title: Text(l.customersTitle)),
       body: Column(
         children: [
           Padding(
@@ -82,10 +86,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Search name or company',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.search),
+                    decoration: InputDecoration(
+                      hintText: l.customersSearchHint,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.search),
                       isDense: true,
                     ),
                     onChanged: (_) {
@@ -100,12 +104,12 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                 const SizedBox(width: 10),
                 DropdownButton<String?>(
                   value: _filterType,
-                  hint: const Text('Type'),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('All')),
-                    DropdownMenuItem(value: CustomerType.endUser, child: Text('End User')),
-                    DropdownMenuItem(value: CustomerType.dealer, child: Text('Dealer')),
-                    DropdownMenuItem(value: CustomerType.stockLocation, child: Text('Stock Loc')),
+                  hint: Text(l.customersFilterType),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text(l.customersFilterAll)),
+                    DropdownMenuItem(value: CustomerType.endUser, child: Text(l.customerTypeEndUser)),
+                    DropdownMenuItem(value: CustomerType.dealer, child: Text(l.customerTypeDealer)),
+                    DropdownMenuItem(value: CustomerType.stockLocation, child: Text(l.customerTypeStockLoc)),
                   ],
                   onChanged: (v) {
                     setState(() {
@@ -176,7 +180,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                                     _Meta(icon: Icons.email_outlined, text: c.email ?? '-'),
                                     _Meta(
                                       icon: Icons.local_shipping_outlined,
-                                      text: 'Active trailers: ${c.activeTrailerCount}',
+                                      text: l.customersActiveTrailers(c.activeTrailerCount),
                                     ),
                                   ],
                                 ),
@@ -200,11 +204,11 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           _load();
                         }
                       : null,
-                  child: const Text('Prev'),
+                  child: Text(l.customersPrev),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('Page $_page / $_totalPages'),
+                  child: Text(l.customersPageOf(_page, _totalPages)),
                 ),
                 OutlinedButton(
                   onPressed: _page < _totalPages
@@ -213,7 +217,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                           _load();
                         }
                       : null,
-                  child: const Text('Next'),
+                  child: Text(l.customersNext),
                 ),
               ],
             ),
@@ -223,7 +227,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createCustomer,
         icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('New Customer'),
+        label: Text(l.customersNew),
       ),
     );
   }
@@ -268,10 +272,11 @@ class _TypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final (label, color) = switch (type) {
-      CustomerType.dealer => ('Dealer', Colors.blue),
-      CustomerType.stockLocation => ('Stock', Colors.orange),
-      _ => ('End User', Colors.green),
+      CustomerType.dealer => (l.customerTypeDealer, Colors.blue),
+      CustomerType.stockLocation => (l.customerTypeStockShort, Colors.orange),
+      _ => (l.customerTypeEndUser, Colors.green),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/validation/validators.dart';
 import '../../../data/models/department.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
 class DepartmentConfigScreen extends StatefulWidget {
@@ -43,8 +44,9 @@ class _DepartmentConfigScreenState extends State<DepartmentConfigScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Department Configuration')),
+      appBar: AppBar(title: Text(l.deptConfigTitle)),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : RefreshIndicator(
@@ -56,19 +58,21 @@ class _DepartmentConfigScreenState extends State<DepartmentConfigScreen> {
                     (d) => Card(
                       child: ListTile(
                         title: Text('${d.code} - ${d.displayName}'),
-                        subtitle: Text(
-                          '${d.isQcStep ? 'QC' : 'Production'} • ${d.completionType} • Stall ${d.stallThresholdHours}h',
-                        ),
+                        subtitle: Text(l.deptConfigSubtitle(
+                          d.isQcStep ? l.deptTypeQc : l.deptTypeProduction,
+                          d.completionType,
+                          d.stallThresholdHours,
+                        )),
                         trailing: OutlinedButton(
                           onPressed: () => _editThreshold(d),
-                          child: const Text('Edit Threshold'),
+                          child: Text(l.deptConfigEditThreshold),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text('Workflow Diagram by Series',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  Text(l.deptConfigWorkflowDiagram,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   ...['xp', 'yeti', 'deck_over', 'gooseneck_dump'].map(
                     (series) => _SeriesFlowCard(
@@ -101,7 +105,9 @@ class _DepartmentConfigScreenState extends State<DepartmentConfigScreen> {
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to update threshold: $e')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .deptConfigUpdateFail('$e'))),
       );
     }
   }
@@ -158,17 +164,18 @@ class _EditThresholdDialogState extends State<_EditThresholdDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text('Edit ${widget.department.code} Stall Threshold'),
+      title: Text(l.deptConfigEditThresholdTitle(widget.department.code)),
       content: Form(
         key: _formKey,
         child: TextFormField(
           controller: _ctrl,
           keyboardType: TextInputType.number,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Hours',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l.deptConfigHoursLabel,
+            border: const OutlineInputBorder(),
           ),
           validator: (v) =>
               Validators.requiredPositiveInt(v, fieldName: 'a number of hours'),
@@ -178,11 +185,11 @@ class _EditThresholdDialogState extends State<_EditThresholdDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l.commonCancel),
         ),
         FilledButton(
           onPressed: _submit,
-          child: const Text('Save'),
+          child: Text(l.commonSave),
         ),
       ],
     );

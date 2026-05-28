@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/dashboard_viewmodel.dart';
 import '../../deliveries/view/driver_delivery_screen.dart';
@@ -76,12 +77,13 @@ class _Greeting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final hour = DateTime.now().hour;
     final greeting = hour < 12
-        ? 'Good morning'
+        ? l.dashboardGoodMorning
         : hour < 17
-            ? 'Good afternoon'
-            : 'Good evening';
+            ? l.dashboardGoodAfternoon
+            : l.dashboardGoodEvening;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -95,7 +97,7 @@ class _Greeting extends StatelessWidget {
                 ),
           ),
           Text(
-            user?.name ?? 'User',
+            user?.name ?? l.commonUser,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.navy,
@@ -116,6 +118,7 @@ class _ManagerDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
+    final l = AppLocalizations.of(context);
     return Column(
       children: [
         Padding(
@@ -129,7 +132,7 @@ class _ManagerDashboard extends StatelessWidget {
             crossAxisSpacing: 8,
             children: [
               StatCard(
-                title: 'Active Trailers',
+                title: l.dashStatActiveTrailers,
                 value: '${data.activeTrailers}',
                 icon: Icons.precision_manufacturing,
                 color: AppColors.statusInProduction,
@@ -139,7 +142,7 @@ class _ManagerDashboard extends StatelessWidget {
                 ),
               ),
               StatCard(
-                title: 'Ready for Delivery',
+                title: l.dashStatReadyForDelivery,
                 value: '${data.readyForDelivery}',
                 icon: Icons.local_shipping,
                 color: AppColors.success,
@@ -149,7 +152,7 @@ class _ManagerDashboard extends StatelessWidget {
                 ),
               ),
               StatCard(
-                title: 'Hot Trailers',
+                title: l.dashStatHotTrailers,
                 value: '${data.hotTrailers}',
                 icon: Icons.local_fire_department,
                 color: AppColors.error,
@@ -165,8 +168,8 @@ class _ManagerDashboard extends StatelessWidget {
                           color: AppColors.error,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text('HOT',
-                            style: TextStyle(
+                        child: Text(l.dashStatHotBadge,
+                            style: const TextStyle(
                                 color: AppColors.white,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700)),
@@ -174,7 +177,7 @@ class _ManagerDashboard extends StatelessWidget {
                     : null,
               ),
               StatCard(
-                title: 'Stalled Steps',
+                title: l.dashStatStalledSteps,
                 value: '${data.stalledSteps}',
                 icon: Icons.warning_amber,
                 color: AppColors.warning,
@@ -194,7 +197,7 @@ class _ManagerDashboard extends StatelessWidget {
                     : null,
               ),
               StatCard(
-                title: 'Completed This Week',
+                title: l.dashStatCompletedThisWeek,
                 value: '${data.weeklyCompleted}',
                 icon: Icons.check_circle_outline,
                 color: AppColors.statusDelivered,
@@ -204,7 +207,7 @@ class _ManagerDashboard extends StatelessWidget {
                 ),
               ),
               StatCard(
-                title: 'QC Fail Rate',
+                title: l.dashStatQcFailRate,
                 value: '${data.qcFailRate.toStringAsFixed(1)}%',
                 icon: Icons.analytics_outlined,
                 color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
@@ -227,6 +230,7 @@ class _WorkerDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
+    final l = AppLocalizations.of(context);
     return Column(
       children: [
         Padding(
@@ -240,21 +244,21 @@ class _WorkerDashboard extends StatelessWidget {
             crossAxisSpacing: 8,
             children: [
               StatCard(
-                title: 'My Queue',
+                title: l.navMyQueue,
                 value: '${data.myQueueCount}',
                 icon: Icons.queue,
                 color: AppColors.navy,
                 onTap: () => context.goNamed(RouteNames.productionQueue),
               ),
               StatCard(
-                title: 'Points Today',
+                title: l.dashStatPointsToday,
                 value: data.myPointsToday.toStringAsFixed(1),
                 icon: Icons.star,
                 color: AppColors.amber,
                 onTap: () => context.goNamed(RouteNames.workerPoints),
               ),
               StatCard(
-                title: 'Points This Week',
+                title: l.dashStatPointsThisWeek,
                 value: data.myPointsWeek.toStringAsFixed(1),
                 icon: Icons.emoji_events,
                 color: AppColors.success,
@@ -265,7 +269,7 @@ class _WorkerDashboard extends StatelessWidget {
         ),
         if (data.nextTrailerSo != null)
           WideStatCard(
-            title: 'Next Trailer',
+            title: l.dashStatNextTrailer,
             value: data.nextTrailerSo!,
             subtitle: data.nextTrailerColor,
             icon: Icons.arrow_forward,
@@ -286,6 +290,7 @@ class _QcDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
       child: GridView.count(
@@ -297,28 +302,28 @@ class _QcDashboard extends StatelessWidget {
         crossAxisSpacing: 8,
         children: [
           StatCard(
-            title: 'Ready for Inspection',
+            title: l.dashStatReadyForInspection,
             value: '${data.readyForInspection}',
             icon: Icons.fact_check,
             color: AppColors.navy,
             onTap: () => context.goNamed(RouteNames.qcQueue),
           ),
           StatCard(
-            title: 'Inspections Today',
+            title: l.dashStatInspectionsToday,
             value: '${data.inspectionsToday}',
             icon: Icons.checklist,
             color: AppColors.success,
             onTap: () => context.goNamed(RouteNames.qcQueue),
           ),
           StatCard(
-            title: 'Fail Rate Today',
+            title: l.dashStatFailRateToday,
             value: '${data.failRateToday.toStringAsFixed(1)}%',
             icon: Icons.trending_down,
             color: data.failRateToday > 20 ? AppColors.error : AppColors.navy,
             onTap: () => context.goNamed(RouteNames.qcQueue),
           ),
           StatCard(
-            title: 'Rework Queue',
+            title: l.dashStatReworkQueue,
             value: '${data.reworkQueue}',
             icon: Icons.replay,
             color: AppColors.warning,
@@ -342,6 +347,7 @@ class _TransportDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
       child: GridView.count(
@@ -353,7 +359,7 @@ class _TransportDashboard extends StatelessWidget {
         crossAxisSpacing: 8,
         children: [
           StatCard(
-            title: 'Scheduled',
+            title: l.dashStatScheduled,
             value: '${data.scheduledDeliveries}',
             icon: Icons.event_note,
             color: AppColors.navy,
@@ -363,7 +369,7 @@ class _TransportDashboard extends StatelessWidget {
             ),
           ),
           StatCard(
-            title: 'Ready for Pickup',
+            title: l.dashStatReadyForPickup,
             value: '${data.readyForPickup}',
             icon: Icons.inventory,
             color: AppColors.success,
@@ -404,7 +410,7 @@ class _ErrorView extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(AppLocalizations.of(context).commonRetry),
             ),
           ],
         ),
@@ -472,11 +478,11 @@ class _StockInventoryCard extends StatelessWidget {
                         child: const Icon(Icons.warehouse_rounded,
                             color: AppColors.amber, size: 28),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Center(
                           child: Text(
-                            'Stock Inventory',
-                            style: TextStyle(
+                            AppLocalizations.of(context).dashStockInventory,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 19,
                               fontWeight: FontWeight.w700,

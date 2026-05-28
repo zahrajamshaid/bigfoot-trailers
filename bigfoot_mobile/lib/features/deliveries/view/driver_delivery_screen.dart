@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/delivery.dart';
 import '../../../data/models/delivery_batch.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../utils/delivery_actions.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
@@ -22,7 +23,7 @@ class DriverDeliveryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Deliveries')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).driverDeliveriesTitle)),
       body: const DriverDeliveryList(),
     );
   }
@@ -87,7 +88,7 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
         });
       } else if (state is DeliveriesError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load deliveries: ${state.message}')),
+          SnackBar(content: Text(AppLocalizations.of(context).driverDeliveriesLoadFail(state.message))),
         );
       }
     } finally {
@@ -96,23 +97,26 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
   }
 
   Future<void> _completeBatch(DeliveryBatch b) async {
+    final l = AppLocalizations.of(context);
     final count = (b.deliveries ?? const []).length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Complete Batch'),
-        content: Text(
-          'Confirm all $count trailer(s) in ${b.batchNumber} were delivered to '
-          '${b.destinationLocation?.name ?? b.destinationName ?? 'the destination'}.',
-        ),
+        title: Text(l.deliveryDetailCompleteBatchTitle),
+        content: Text(l.driverCompleteBatchBody(
+            count,
+            b.batchNumber,
+            b.destinationLocation?.name ??
+                b.destinationName ??
+                l.driverTheDestination)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mark All Delivered'),
+            child: Text(l.deliveryDetailMarkAllDelivered),
           ),
         ],
       ),
@@ -126,11 +130,11 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
       await context.read<DeliveriesViewModel>().completeBatch(b.id);
       if (mounted) await _load();
       messenger.showSnackBar(
-        SnackBar(content: Text('${b.batchNumber} — all trailers delivered.')),
+        SnackBar(content: Text(l.deliveryDetailBatchAllDelivered(b.batchNumber))),
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to complete batch: $e')),
+        SnackBar(content: Text(l.deliveryDetailBatchFail('$e'))),
       );
     } finally {
       if (mounted) setState(() => _busyBatchId = null);
@@ -140,21 +144,21 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
   /// Complete a single trailer inside a batch (the rest stay in transit).
   Future<void> _completeBatchTrailer(
       DeliveryBatch b, BatchDeliveryItem item) async {
+    final l = AppLocalizations.of(context);
     final so = item.trailer?.soNumber ?? '#${item.trailerId}';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Complete Trailer'),
-        content: Text('Mark $so as delivered? Other trailers in the batch '
-            'stay in transit.'),
+        title: Text(l.driverCompleteTrailerTitle),
+        content: Text(l.driverCompleteTrailerBody(so)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mark Delivered'),
+            child: Text(l.driverMarkDelivered),
           ),
         ],
       ),
@@ -166,9 +170,9 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
     try {
       await context.read<DeliveriesViewModel>().completeDelivery(item.id);
       if (mounted) await _load();
-      messenger.showSnackBar(SnackBar(content: Text('$so delivered.')));
+      messenger.showSnackBar(SnackBar(content: Text(l.driverTrailerDelivered(so))));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(l.commonFailed('$e'))));
     } finally {
       if (mounted) setState(() => _busyBatchId = null);
     }
@@ -177,8 +181,9 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
   /// Mark a single trailer inside a batch as failed.
   Future<void> _failBatchTrailer(
       DeliveryBatch b, BatchDeliveryItem item) async {
+    final l = AppLocalizations.of(context);
     final so = item.trailer?.soNumber ?? '#${item.trailerId}';
-    final reason = await showFailReasonDialog(context, title: 'Mark $so Failed');
+    final reason = await showFailReasonDialog(context, title: l.driverMarkSoFailed(so));
     if (reason == null || reason.isEmpty || !mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
@@ -186,9 +191,9 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
     try {
       await context.read<DeliveriesViewModel>().markFailed(item.id, reason);
       if (mounted) await _load();
-      messenger.showSnackBar(SnackBar(content: Text('$so marked failed.')));
+      messenger.showSnackBar(SnackBar(content: Text(l.driverSoMarkedFailed(so))));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(l.commonFailed('$e'))));
     } finally {
       if (mounted) setState(() => _busyBatchId = null);
     }
@@ -198,7 +203,9 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
     final ok = await openDeliveryInMaps(d);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No destination address for this delivery.')),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context).deliveryDetailNoAddress)),
       );
     }
   }
@@ -207,7 +214,8 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
     final ok = await textDeliveryCustomer(d);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No phone number on file for this customer.')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context).deliveryDetailNoPhone)),
       );
     }
   }
@@ -215,6 +223,7 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
   Future<void> _complete(Delivery d) async {
     final result = await showCompleteDeliveryDialog(context, d);
     if (result == null || !mounted) return;
+    final l = AppLocalizations.of(context);
 
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busyDeliveryId = d.id);
@@ -225,11 +234,11 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
           );
       if (mounted) await _load();
       messenger.showSnackBar(
-        SnackBar(content: Text('${d.soNumber} marked delivered.')),
+        SnackBar(content: Text(l.driverTrailerDelivered(d.soNumber))),
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to complete delivery: $e')),
+        SnackBar(content: Text(l.deliveryDetailCompleteFail('$e'))),
       );
     } finally {
       if (mounted) setState(() => _busyDeliveryId = null);
@@ -237,8 +246,9 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
   }
 
   Future<void> _markFailed(Delivery d) async {
+    final l = AppLocalizations.of(context);
     final reason =
-        await showFailReasonDialog(context, title: 'Mark Delivery Failed');
+        await showFailReasonDialog(context, title: l.deliveryDetailMarkFailedTitle);
 
     if (!mounted) return;
     if (reason == null || reason.isEmpty) return;
@@ -250,7 +260,7 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
       if (mounted) await _load();
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Failed to mark failed: $e')),
+        SnackBar(content: Text(l.deliveryDetailMarkFailedError('$e'))),
       );
     } finally {
       if (mounted) setState(() => _busyDeliveryId = null);
@@ -306,7 +316,7 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
             children: [
               Expanded(
                 child: _StatTile(
-                  label: 'Completed Today',
+                  label: AppLocalizations.of(context).driverCompletedToday,
                   value: completedToday,
                   icon: Icons.today_outlined,
                   color: AppColors.success,
@@ -315,7 +325,7 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
               const SizedBox(width: 10),
               Expanded(
                 child: _StatTile(
-                  label: 'Completed This Week',
+                  label: AppLocalizations.of(context).dashStatCompletedThisWeek,
                   value: completedWeek,
                   icon: Icons.date_range_outlined,
                   color: AppColors.navy,
@@ -328,12 +338,13 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
             segments: [
               ButtonSegment(
                 value: false,
-                label: Text('Active ($activeCount)'),
+                label: Text('${AppLocalizations.of(context).statusActive} ($activeCount)'),
                 icon: const Icon(Icons.local_shipping_outlined, size: 18),
               ),
               ButtonSegment(
                 value: true,
-                label: Text('Completed (${completed.length})'),
+                label: Text(
+                    '${AppLocalizations.of(context).deliveryListTabCompleted} (${completed.length})'),
                 icon: const Icon(Icons.history, size: 18),
               ),
             ],
@@ -343,16 +354,17 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
           ),
           const SizedBox(height: 14),
           if (_showCompleted && shown.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 64),
-              child: Center(child: Text('No completed deliveries yet.')),
+            Padding(
+              padding: const EdgeInsets.only(top: 64),
+              child: Center(
+                  child: Text(AppLocalizations.of(context).deliveryListEmpty)),
             )
           else if (!_showCompleted && activeEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 64),
+            Padding(
+              padding: const EdgeInsets.only(top: 64),
               child: Center(
                 child: Text(
-                  'No active deliveries assigned to you.\nPull down to refresh.',
+                  AppLocalizations.of(context).deliveryListEmpty,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -451,10 +463,11 @@ class _CompletedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final d = delivery;
     final date = d.deliveredAt != null
         ? DateFormat('MMM d, yyyy').format(d.deliveredAt!.toLocal())
-        : 'Unknown date';
+        : l.stockInventoryUnknownDate;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -495,7 +508,7 @@ class _CompletedCard extends StatelessWidget {
                     const Icon(Icons.event_available_outlined,
                         size: 15, color: AppColors.disabled),
                     const SizedBox(width: 4),
-                    Text('Delivered $date',
+                    Text(l.driverDeliveredOn(date),
                         style: const TextStyle(fontSize: 13)),
                   ],
                 ),
@@ -580,7 +593,7 @@ class _DeliveryCard extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: busy ? null : onOpenMaps,
                         icon: const Icon(Icons.map_outlined, size: 18),
-                        label: const Text('Maps'),
+                        label: Text(AppLocalizations.of(context).deliveryDetailOpenMaps),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -588,7 +601,7 @@ class _DeliveryCard extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: busy || !hasPhone ? null : onTextCustomer,
                         icon: const Icon(Icons.sms_outlined, size: 18),
-                        label: const Text('Text'),
+                        label: Text(AppLocalizations.of(context).deliveryDetailTextCustomer),
                       ),
                     ),
                   ],
@@ -636,13 +649,13 @@ class _OutcomeRow extends StatelessWidget {
         FilledButton.icon(
           onPressed: busy ? null : onComplete,
           icon: spinner ?? const Icon(Icons.task_alt_outlined),
-          label: const Text('Complete Delivery'),
+          label: Text(AppLocalizations.of(context).deliveryDetailCompleteAction),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: busy ? null : onMarkFailed,
           icon: const Icon(Icons.report_gmailerrorred_outlined),
-          label: const Text('Mark Failed'),
+          label: Text(AppLocalizations.of(context).deliveryDetailMarkFailed),
         ),
       ],
     );
@@ -702,7 +715,9 @@ class _BatchCard extends StatelessWidget {
                   ),
                 ),
                 Chip(
-                  label: Text('${deliveries.length} trailers'),
+                  label: Text(
+                      AppLocalizations.of(context)
+                          .deliveryDetailTrailerCount(deliveries.length)),
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -735,14 +750,14 @@ class _BatchCard extends StatelessWidget {
                           if (v == 'complete') onCompleteTrailer(d);
                           if (v == 'fail') onFailTrailer(d);
                         },
-                        itemBuilder: (_) => const [
+                        itemBuilder: (_) => [
                           PopupMenuItem(
                             value: 'complete',
-                            child: Text('Mark delivered'),
+                            child: Text(AppLocalizations.of(context).driverMarkDelivered),
                           ),
                           PopupMenuItem(
                             value: 'fail',
-                            child: Text('Mark failed'),
+                            child: Text(AppLocalizations.of(context).deliveryDetailMarkFailed),
                           ),
                         ],
                       )
@@ -766,7 +781,7 @@ class _BatchCard extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.task_alt_outlined),
-                label: const Text('Complete Batch'),
+                label: Text(AppLocalizations.of(context).deliveryDetailCompleteBatchTitle),
               ),
             ),
           ],

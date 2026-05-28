@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/validation/validators.dart';
 import '../../../data/models/customer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CustomerFormScreen extends StatefulWidget {
   final Customer? existing;
@@ -61,9 +62,12 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existing == null ? 'Create Customer' : 'Edit Customer'),
+        title: Text(widget.existing == null
+            ? l.customerFormCreateTitle
+            : l.customerFormEditTitle),
       ),
       body: Form(
         key: _form,
@@ -74,9 +78,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             children: [
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Name *',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormName,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) =>
                   Validators.required(v, fieldName: 'a customer name'),
@@ -84,35 +88,35 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             const SizedBox(height: 10),
             TextFormField(
               controller: _company,
-              decoration: const InputDecoration(
-                labelText: 'Company',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormCompany,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _type,
-              decoration: const InputDecoration(
-                labelText: 'Customer Type',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormType,
+                border: const OutlineInputBorder(),
               ),
-              items: const [
+              items: [
                 DropdownMenuItem(
-                    value: CustomerType.endUser, child: Text('End User')),
+                    value: CustomerType.endUser, child: Text(l.customerTypeEndUser)),
                 DropdownMenuItem(
-                    value: CustomerType.dealer, child: Text('Dealer')),
+                    value: CustomerType.dealer, child: Text(l.customerTypeDealer)),
                 DropdownMenuItem(
                     value: CustomerType.stockLocation,
-                    child: Text('Stock Location')),
+                    child: Text(l.customerTypeStockLocation)),
               ],
               onChanged: (v) => setState(() => _type = v ?? CustomerType.endUser),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormPhone,
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
               validator: Validators.optionalPhone,
@@ -120,9 +124,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
             const SizedBox(height: 10),
             TextFormField(
               controller: _email,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormEmail,
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
               validator: Validators.optionalEmail,
@@ -132,9 +136,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
               controller: _billingAddress,
               minLines: 2,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Billing Address',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormBilling,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),
@@ -142,9 +146,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
               controller: _deliveryAddress,
               minLines: 2,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Delivery Address',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormDelivery,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),
@@ -152,7 +156,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
               value: _smsOptOut,
               onChanged: (v) => setState(() => _smsOptOut = v ?? false),
               controlAffinity: ListTileControlAffinity.leading,
-              title: const Text('SMS Opt-out'),
+              title: Text(l.customerFormSmsOptOut),
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 6),
@@ -160,9 +164,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
               controller: _notes,
               minLines: 3,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l.customerFormNotes,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
@@ -176,7 +180,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                           strokeWidth: 2, color: AppColors.white),
                     )
                   : const Icon(Icons.save_outlined),
-              label: Text(widget.existing == null ? 'Create Customer' : 'Save Changes'),
+              label: Text(widget.existing == null
+                  ? l.customerFormCreateTitle
+                  : l.customerFormSaveChanges),
             ),
           ],
           ),
@@ -186,6 +192,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
     if (!_form.currentState!.validate()) return;
 
     setState(() => _saving = true);
@@ -213,7 +220,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save customer: $e')),
+        SnackBar(content: Text(l.customerFormSaveFail('$e'))),
       );
     } finally {
       if (mounted) {

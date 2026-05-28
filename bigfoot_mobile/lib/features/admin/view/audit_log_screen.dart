@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
 class AuditLogScreen extends StatefulWidget {
@@ -56,7 +57,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       setState(() {
         _items = const [];
         _totalPages = 1;
-        _error = 'Failed to load audit log: $e';
+        _error = AppLocalizations.of(context).auditLogLoadFail('$e');
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -65,8 +66,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Audit Log')),
+      appBar: AppBar(title: Text(l.auditLogTitle)),
       body: Column(
         children: [
           Padding(
@@ -76,21 +78,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 Expanded(
                   child: DropdownButtonFormField<String?>(
                     value: _entityType,
-                    decoration: const InputDecoration(
-                      labelText: 'Entity Type',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: l.adminAuditEntityType,
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                     // Values must match what the audit-log interceptor stores
                     // — see audit-log.interceptor.ts (path → entity_type).
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('All')),
-                      DropdownMenuItem(value: 'trailer', child: Text('Trailer')),
-                      DropdownMenuItem(value: 'step', child: Text('Production Step')),
-                      DropdownMenuItem(value: 'qc_inspection', child: Text('QC Inspection')),
-                      DropdownMenuItem(value: 'delivery', child: Text('Delivery')),
-                      DropdownMenuItem(value: 'payroll', child: Text('Payroll')),
-                      DropdownMenuItem(value: 'user', child: Text('User')),
+                    items: [
+                      DropdownMenuItem(value: null, child: Text(l.customersFilterAll)),
+                      DropdownMenuItem(value: 'trailer', child: Text(l.adminAuditEntityTrailer)),
+                      DropdownMenuItem(value: 'step', child: Text(l.adminAuditEntityStep)),
+                      DropdownMenuItem(value: 'qc_inspection', child: Text(l.adminAuditEntityQcInspection)),
+                      DropdownMenuItem(value: 'delivery', child: Text(l.adminAuditEntityDelivery)),
+                      DropdownMenuItem(value: 'payroll', child: Text(l.adminAuditEntityPayroll)),
+                      DropdownMenuItem(value: 'user', child: Text(l.adminAuditEntityUser)),
                     ],
                     onChanged: (v) {
                       setState(() {
@@ -106,9 +108,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                   child: TextField(
                     controller: _userId,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'User ID',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: l.adminAuditUserIdLabel,
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                     onSubmitted: (_) {
@@ -139,7 +141,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                       const SizedBox(height: 12),
                       Text(_error!, textAlign: TextAlign.center),
                       const SizedBox(height: 12),
-                      OutlinedButton(onPressed: _load, child: const Text('Retry')),
+                      OutlinedButton(onPressed: _load, child: Text(l.commonRetry)),
                     ],
                   ),
                 ),
@@ -151,19 +153,19 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 onRefresh: _load,
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
-                  children: const [
-                    Icon(Icons.history, size: 48, color: AppColors.disabled),
-                    SizedBox(height: 12),
+                  children: [
+                    const Icon(Icons.history, size: 48, color: AppColors.disabled),
+                    const SizedBox(height: 12),
                     Text(
-                      'No audit log entries match these filters.',
+                      l.adminAuditEmptyMessage,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.disabled),
+                      style: const TextStyle(color: AppColors.disabled),
                     ),
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
                     Text(
-                      'Pull down to refresh.',
+                      l.adminPullToRefresh,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.disabled, fontSize: 12),
+                      style: const TextStyle(color: AppColors.disabled, fontSize: 12),
                     ),
                   ],
                 ),
@@ -184,13 +186,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
                         title: Text('${x.action.toUpperCase()} ${x.entityType}#${x.entityId}'),
                         subtitle: Text(
-                          '${x.userName ?? 'Unknown'} • ${x.createdAt?.toLocal().toString() ?? '-'}',
+                          '${x.userName ?? l.commonUnknown} • ${x.createdAt?.toLocal().toString() ?? '-'}',
                         ),
                         childrenPadding: const EdgeInsets.all(12),
                         children: [
-                          _jsonBlock('Old Values', x.oldValues),
+                          _jsonBlock(l.adminAuditOldValues, x.oldValues),
                           const SizedBox(height: 8),
-                          _jsonBlock('New Values', x.newValues),
+                          _jsonBlock(l.adminAuditNewValues, x.newValues),
                         ],
                       ),
                     );
@@ -210,11 +212,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                           _load();
                         }
                       : null,
-                  child: const Text('Prev'),
+                  child: Text(l.customersPrev),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('Page $_page / $_totalPages'),
+                  child: Text(l.customersPageOf(_page, _totalPages)),
                 ),
                 OutlinedButton(
                   onPressed: _page < _totalPages
@@ -223,7 +225,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                           _load();
                         }
                       : null,
-                  child: const Text('Next'),
+                  child: Text(l.customersNext),
                 ),
               ],
             ),
@@ -247,7 +249,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           SelectableText(
-            map == null ? 'None' : const JsonEncoder.withIndent('  ').convert(map),
+            map == null
+                ? AppLocalizations.of(context).commonNone
+                : const JsonEncoder.withIndent('  ').convert(map),
             style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
           ),
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -45,7 +46,7 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load stock inventory: $e';
+        _error = AppLocalizations.of(context).stockInventoryLoadFail('$e');
         _loading = false;
       });
     }
@@ -54,7 +55,7 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Stock Inventory')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).stockInventoryTitle)),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _buildBody(),
@@ -82,7 +83,7 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
                   FilledButton.icon(
                     onPressed: _load,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    label: Text(AppLocalizations.of(context).commonRetry),
                   ),
                 ],
               ),
@@ -93,11 +94,11 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
     }
     if (_groups.isEmpty) {
       return ListView(
-        children: const [
-          SizedBox(height: 140),
+        children: [
+          const SizedBox(height: 140),
           Center(
             child: Text(
-              'No trailers in stock at any yard.\nPull down to refresh.',
+              AppLocalizations.of(context).stockInventoryEmptyBody,
               textAlign: TextAlign.center,
             ),
           ),
@@ -188,10 +189,11 @@ class _StockTrailerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = trailer;
     final date = t.deliveredAt != null
         ? DateFormat('MMM d, yyyy').format(t.deliveredAt!.toLocal())
-        : 'Unknown date';
+        : l.stockInventoryUnknownDate;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -236,11 +238,13 @@ class _StockTrailerCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
                 _InfoRow(
-                    icon: Icons.event_outlined, label: 'Delivered', value: date),
+                    icon: Icons.event_outlined,
+                    label: l.stockInventoryDelivered,
+                    value: date),
                 if ((t.deliveredBy ?? '').isNotEmpty)
                   _InfoRow(
                     icon: Icons.person_outline,
-                    label: 'Delivered by',
+                    label: l.stockInventoryDeliveredBy,
                     value: t.deliveredBy!,
                   ),
               ],

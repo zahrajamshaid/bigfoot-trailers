@@ -8,6 +8,7 @@ import '../../core/camera/camera_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../data/models/storage_upload.dart';
 import '../../domain/repositories/storage_repository.dart';
+import '../../l10n/generated/app_localizations.dart';
 import 'image_viewer_screen.dart';
 
 class PhotoCaptureSnapshot {
@@ -126,13 +127,13 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
               OutlinedButton.icon(
                 onPressed: _busy ? null : _captureFromCamera,
                 icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Camera'),
+                label: Text(AppLocalizations.of(context).photoCaptureTakePhoto),
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _busy ? null : _pickFromGallery,
                 icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('Gallery'),
+                label: Text(AppLocalizations.of(context).photoCaptureFromGallery),
               ),
             ],
           ),

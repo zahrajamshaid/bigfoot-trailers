@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/i18n/locale_cubit.dart';
 import '../../../core/websocket/ws_client.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -37,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return BlocBuilder<AuthViewModel, AuthState>(
       builder: (context, authState) {
         final user = authState is Authenticated ? authState.user : null;
@@ -72,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user?.name ?? 'Unknown',
+                              user?.name ?? l.commonUnknown,
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
@@ -115,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
 
             // ── Connection status ─────────────────────────────────────────
-            _SectionHeader(title: 'CONNECTION'),
+            _SectionHeader(title: l.settingsConnectionSection),
             StreamBuilder<WsConnectionState>(
               stream: context.read<AuthViewModel>().state is Authenticated
                   ? null
@@ -124,8 +127,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 return _SettingsTile(
                   icon: Icons.wifi,
                   iconColor: AppColors.success,
-                  title: 'WebSocket Status',
-                  subtitle: 'Real-time connection',
+                  title: l.settingsWebSocketStatus,
+                  subtitle: l.settingsWebSocketSubtitle,
                   trailing: Container(
                     width: 10,
                     height: 10,
@@ -140,13 +143,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 8),
 
+            // ── Language ──────────────────────────────────────────────────
+            _SectionHeader(title: l.settingsLanguageSection),
+            BlocBuilder<LocaleCubit, Locale>(
+              builder: (context, locale) {
+                final isSpanish = locale.languageCode == 'es';
+                return _SettingsTile(
+                  icon: Icons.language,
+                  iconColor: AppColors.navy,
+                  title: l.settingsLanguageTitle,
+                  subtitle: isSpanish
+                      ? l.settingsLanguageSpanish
+                      : l.settingsLanguageEnglish,
+                  trailing: Switch.adaptive(
+                    value: isSpanish,
+                    activeColor: AppColors.amber,
+                    onChanged: (_) =>
+                        context.read<LocaleCubit>().toggle(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 8),
+
             // ── Security ──────────────────────────────────────────────────
-            _SectionHeader(title: 'SECURITY'),
+            _SectionHeader(title: l.settingsSecuritySection),
             _SettingsTile(
               icon: Icons.pin_outlined,
               iconColor: AppColors.navy,
-              title: 'Require PIN on App Open',
-              subtitle: _pinEnabled ? 'PIN lock is enabled' : 'No PIN required',
+              title: l.settingsPinTitle,
+              subtitle:
+                  _pinEnabled ? l.settingsPinEnabled : l.settingsPinDisabled,
               trailing: Switch.adaptive(
                 value: _pinEnabled,
                 activeColor: AppColors.amber,
@@ -157,17 +185,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
 
             // ── About ─────────────────────────────────────────────────────
-            _SectionHeader(title: 'ABOUT'),
+            _SectionHeader(title: l.settingsAboutSection),
             _SettingsTile(
               icon: Icons.info_outline,
               iconColor: AppColors.navy,
-              title: 'App Version',
+              title: l.settingsAppVersion,
               subtitle: 'v1.0.0 (build 1)',
             ),
             _SettingsTile(
               icon: Icons.api,
               iconColor: AppColors.navy,
-              title: 'API Version',
+              title: l.settingsApiVersion,
               subtitle: 'v1.3',
             ),
 
@@ -179,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: OutlinedButton.icon(
                 onPressed: () => _confirmLogout(context),
                 icon: const Icon(Icons.logout, size: 20),
-                label: const Text('Sign Out'),
+                label: Text(l.settingsSignOut),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error),
@@ -199,21 +227,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
+    final l = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text(
-            'Are you sure you want to sign out? You will need to sign in again.'),
+        title: Text(l.settingsSignOutConfirmTitle),
+        content: Text(l.settingsSignOutConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Sign Out'),
+            child: Text(l.settingsSignOut),
           ),
         ],
       ),

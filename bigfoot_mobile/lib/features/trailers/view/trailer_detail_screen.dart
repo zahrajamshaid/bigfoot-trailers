@@ -10,6 +10,7 @@ import '../../../data/models/user.dart';
 import '../../../domain/repositories/production_repository.dart';
 import '../../../domain/repositories/storage_repository.dart';
 import '../../../domain/repositories/trailer_repository.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../trailers/viewmodel/trailer_detail_viewmodel.dart';
 import '../../../core/router/route_names.dart';
@@ -41,18 +42,21 @@ class _TrailerDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final canViewStagePhotos = _canViewStagePhotos(context);
 
     return BlocBuilder<TrailerDetailViewModel, TrailerDetailState>(
       builder: (context, state) {
         return switch (state) {
           TrailerDetailInitial() || TrailerDetailLoading() => Scaffold(
-              appBar: AppBar(title: Text('Trailer #$trailerId')),
+              appBar:
+                  AppBar(title: Text(l.trailerDetailTitleFallback(trailerId))),
               body: const Center(
                   child: CircularProgressIndicator(color: AppColors.amber)),
             ),
           TrailerDetailError(message: final msg) => Scaffold(
-              appBar: AppBar(title: Text('Trailer #$trailerId')),
+              appBar:
+                  AppBar(title: Text(l.trailerDetailTitleFallback(trailerId))),
               body: SingleChildScrollView(
                 child: Center(
                   child: Column(
@@ -64,7 +68,7 @@ class _TrailerDetailBody extends StatelessWidget {
                       const SizedBox(height: 12),
                       OutlinedButton(
                         onPressed: () => context.read<TrailerDetailViewModel>().load(),
-                        child: const Text('Retry'),
+                        child: Text(l.commonRetry),
                       ),
                     ],
                   ),
@@ -95,14 +99,14 @@ class _TrailerDetailBody extends StatelessWidget {
                       onSelected: (v) => _onAction(context, v, trailer),
                       itemBuilder: (_) => [
                         if (_canEditTrailer(context))
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'edit',
                             child: Row(
                               children: [
-                                Icon(Icons.edit_outlined,
+                                const Icon(Icons.edit_outlined,
                                     size: 20, color: AppColors.navy),
-                                SizedBox(width: 8),
-                                Text('Edit Trailer'),
+                                const SizedBox(width: 8),
+                                Text(l.trailerDetailMenuEdit),
                               ],
                             ),
                           ),
@@ -120,64 +124,67 @@ class _TrailerDetailBody extends StatelessWidget {
                                     : AppColors.warning,
                               ),
                               const SizedBox(width: 8),
-                              Text(trailer.isHot ? 'Remove Hot' : 'Mark Hot'),
+                              Text(trailer.isHot
+                                  ? l.trailerDetailMenuRemoveHot
+                                  : l.trailerDetailMenuMarkHot),
                             ],
                           ),
                         ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'priority',
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.low_priority,
                                 size: 20,
                                 color: AppColors.warning,
                               ),
-                              SizedBox(width: 8),
-                              Text('Set Priority'),
+                              const SizedBox(width: 8),
+                              Text(l.trailerDetailMenuSetPriority),
                             ],
                           ),
                         ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'addon',
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.add_circle_outline,
                                 size: 20,
                                 color: AppColors.success,
                               ),
-                              SizedBox(width: 8),
-                              Text('Add Addon'),
+                              const SizedBox(width: 8),
+                              Text(l.trailerDetailMenuAddAddon),
                             ],
                           ),
                         ),
                         if (trailer.qbSoPdfStorageKey != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'pdf',
                             child: Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.picture_as_pdf_outlined,
                                   size: 20,
                                   color: AppColors.error,
                                 ),
-                                SizedBox(width: 8),
-                                Text('View QB PDF'),
+                                const SizedBox(width: 8),
+                                Text(l.trailerDetailMenuViewPdf),
                               ],
                             ),
                           ),
                         if (_canDeleteTrailer(context)) ...[
                           const PopupMenuDivider(),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'delete',
                             child: Row(
                               children: [
-                                Icon(Icons.delete_outline,
+                                const Icon(Icons.delete_outline,
                                     size: 20, color: AppColors.error),
-                                SizedBox(width: 8),
-                                Text('Delete Trailer',
-                                    style: TextStyle(color: AppColors.error)),
+                                const SizedBox(width: 8),
+                                Text(l.trailerDetailMenuDelete,
+                                    style: const TextStyle(
+                                        color: AppColors.error)),
                               ],
                             ),
                           ),
@@ -186,7 +193,7 @@ class _TrailerDetailBody extends StatelessWidget {
                     ),
                   ],
                   bottom: TabBar(
-                    tabs: _buildTabs(canViewStagePhotos),
+                    tabs: _buildTabs(context, canViewStagePhotos),
                     indicatorColor: AppColors.amber,
                     labelColor: AppColors.white,
                     unselectedLabelColor: Colors.white60,
@@ -208,12 +215,14 @@ class _TrailerDetailBody extends StatelessWidget {
     );
   }
 
-  static List<Widget> _buildTabs(bool canViewStagePhotos) {
+  static List<Widget> _buildTabs(
+      BuildContext context, bool canViewStagePhotos) {
+    final l = AppLocalizations.of(context);
     return [
-      const Tab(text: 'Info'),
-      const Tab(text: 'Workflow'),
-      const Tab(text: 'History'),
-      if (canViewStagePhotos) const Tab(text: 'Photos'),
+      Tab(text: l.trailerDetailTabInfo),
+      Tab(text: l.trailerDetailTabWorkflow),
+      Tab(text: l.trailerDetailTabHistory),
+      if (canViewStagePhotos) Tab(text: l.trailerDetailTabPhotos),
     ];
   }
 
@@ -290,24 +299,21 @@ class _TrailerDetailBody extends StatelessWidget {
   }
 
   Future<void> _confirmAndDelete(BuildContext context, dynamic trailer) async {
+    final l = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete trailer?'),
-        content: Text(
-          'This permanently deletes ${trailer.soNumber} and ALL related '
-          'records — production steps, QC inspections, deliveries, photos, '
-          'addons, and history.\n\nThis cannot be undone.',
-        ),
+        title: Text(l.trailerDetailDeleteTitle),
+        content: Text(l.trailerDetailDeleteBody(trailer.soNumber as String)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(l.trailerDetailDeleteConfirm),
           ),
         ],
       ),
@@ -323,7 +329,7 @@ class _TrailerDetailBody extends StatelessWidget {
       if (!context.mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('${trailer.soNumber} deleted'),
+          content: Text(l.trailerDetailDeleted(trailer.soNumber as String)),
           backgroundColor: AppColors.success,
         ),
       );
@@ -332,7 +338,7 @@ class _TrailerDetailBody extends StatelessWidget {
       if (!context.mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Delete failed: ${e.displayMessage}'),
+          content: Text(l.trailerDetailDeleteFailed(e.displayMessage)),
           backgroundColor: AppColors.error,
         ),
       );
@@ -340,7 +346,7 @@ class _TrailerDetailBody extends StatelessWidget {
       if (!context.mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Delete failed: $e'),
+          content: Text(l.trailerDetailDeleteFailed('$e')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -348,23 +354,24 @@ class _TrailerDetailBody extends StatelessWidget {
   }
 
   void _showPriorityDialog(BuildContext context, TrailerDetailViewModel cubit) {
+    final l = AppLocalizations.of(context);
     final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Set Priority'),
+        title: Text(l.trailerDetailPriorityTitle),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Priority number',
-            hintText: '1 = highest',
+          decoration: InputDecoration(
+            labelText: l.trailerDetailPriorityLabel,
+            hintText: l.trailerDetailPriorityHint,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           TextButton(
             onPressed: () {
@@ -374,7 +381,7 @@ class _TrailerDetailBody extends StatelessWidget {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Set'),
+            child: Text(l.trailerDetailPrioritySet),
           ),
         ],
       ),
@@ -382,30 +389,33 @@ class _TrailerDetailBody extends StatelessWidget {
   }
 
   void _showAddonDialog(BuildContext context, TrailerDetailViewModel cubit) {
+    final l = AppLocalizations.of(context);
     final nameController = TextEditingController();
     final notesController = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Addon'),
+        title: Text(l.trailerDetailAddonTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Addon name *'),
+              decoration:
+                  InputDecoration(labelText: l.trailerDetailAddonName),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: notesController,
-              decoration: const InputDecoration(labelText: 'Notes'),
+              decoration:
+                  InputDecoration(labelText: l.trailerDetailAddonNotes),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           TextButton(
             onPressed: () {
@@ -419,7 +429,7 @@ class _TrailerDetailBody extends StatelessWidget {
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Add'),
+            child: Text(l.trailerDetailAddonAdd),
           ),
         ],
       ),
@@ -452,6 +462,7 @@ class _InfoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final t = trailer;
     final active = _activeStep;
     final hasNotes = t.optionsNotes != null && t.optionsNotes!.isNotEmpty;
@@ -476,7 +487,9 @@ class _InfoTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t.trailerModel?.displayName ?? 'Unknown Model',
+                      Text(
+                          t.trailerModel?.displayName ??
+                              l.trailerDetailUnknownModel,
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w600)),
                       if (t.trailerModel?.series != null)
@@ -511,13 +524,19 @@ class _InfoTab extends StatelessWidget {
             child: Column(
               children: [
                 _DetailRow(
-                    'Customer',
+                    l.trailerDetailFieldCustomer,
                     t.customer?.name ??
                         t.soldToName ??
-                        (t.isStockBuild ? 'Stock Build' : 'None')),
-                _DetailRow('Color', t.color ?? '-'),
-                _DetailRow('Size', t.size ?? '-'),
-                _DetailRow('Priority', t.globalPriority < 9999 ? '#${t.globalPriority}' : 'Default'),
+                        (t.isStockBuild
+                            ? l.trailersStockBuild
+                            : l.trailerDetailNoCustomer)),
+                _DetailRow(l.trailerDetailFieldColor, t.color ?? '-'),
+                _DetailRow(l.trailerDetailFieldSize, t.size ?? '-'),
+                _DetailRow(
+                    l.trailerDetailFieldPriority,
+                    t.globalPriority < 9999
+                        ? l.trailerDetailPriorityBadge(t.globalPriority as int)
+                        : l.trailerDetailPriorityDefault),
                 if (t.qbSoPdfStorageKey != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -530,7 +549,7 @@ class _InfoTab extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.picture_as_pdf_outlined),
-                      label: const Text('Open QB PDF'),
+                      label: Text(l.trailerDetailOpenPdf),
                     ),
                   ),
               ],
@@ -543,7 +562,7 @@ class _InfoTab extends StatelessWidget {
         if (hasNotes) ...[
           const SizedBox(height: 8),
           _NoteCard(
-            label: 'Options / Notes',
+            label: l.trailerDetailNotesLabel,
             icon: Icons.notes_outlined,
             value: t.optionsNotes as String,
           ),
@@ -551,7 +570,7 @@ class _InfoTab extends StatelessWidget {
         if (hasSpecial) ...[
           const SizedBox(height: 8),
           _NoteCard(
-            label: 'Special Note',
+            label: l.trailerDetailSpecialLabel,
             icon: Icons.sticky_note_2_outlined,
             value: t.specialNote as String,
             accent: AppColors.amber,
@@ -567,8 +586,8 @@ class _InfoTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Addons',
-                      style: TextStyle(
+                  Text(l.trailerDetailAddonsTitle,
+                      style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.navy)),
@@ -631,6 +650,7 @@ class _SaleStatusSection extends StatelessWidget {
     String status, {
     String? soldToName,
   }) async {
+    final l = AppLocalizations.of(context);
     final cubit = context.read<TrailerDetailViewModel>();
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -638,9 +658,9 @@ class _SaleStatusSection extends StatelessWidget {
       messenger.showSnackBar(
         SnackBar(
           content: Text(switch (status) {
-            'sold' => 'Trailer marked as sold',
-            'sale_pending' => 'Trailer marked as sale pending',
-            _ => 'Trailer marked as available',
+            'sold' => l.trailerDetailMarkedSold,
+            'sale_pending' => l.trailerDetailMarkedSalePending,
+            _ => l.trailerDetailMarkedAvailable,
           }),
           backgroundColor: AppColors.success,
         ),
@@ -648,14 +668,14 @@ class _SaleStatusSection extends StatelessWidget {
     } on ApiException catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Update failed: ${e.displayMessage}'),
+          content: Text(l.trailerDetailUpdateFailed(e.displayMessage)),
           backgroundColor: AppColors.error,
         ),
       );
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Update failed: $e'),
+          content: Text(l.trailerDetailUpdateFailed('$e')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -676,13 +696,22 @@ class _SaleStatusSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final status = _effectiveStatus;
     final canManage = _canManage(context);
 
     final (bannerColor, bannerIcon, bannerLabel) = switch (status) {
-      'sold' => (AppColors.success, Icons.sell, 'SOLD'),
-      'sale_pending' => (AppColors.warning, Icons.pending_actions, 'SALE PENDING'),
-      _ => (AppColors.disabled, Icons.inventory_2_outlined, 'AVAILABLE'),
+      'sold' => (AppColors.success, Icons.sell, l.trailerDetailBannerSold),
+      'sale_pending' => (
+          AppColors.warning,
+          Icons.pending_actions,
+          l.trailerDetailBannerSalePending
+        ),
+      _ => (
+          AppColors.disabled,
+          Icons.inventory_2_outlined,
+          l.trailerDetailBannerAvailable
+        ),
     };
 
     final subtitle = switch (status) {
@@ -691,11 +720,11 @@ class _SaleStatusSection extends StatelessWidget {
               ? trailer.customer.name as String?
               : trailer.soldToName as String?;
           return (buyer != null && buyer.trim().isNotEmpty)
-              ? 'Sold to $buyer'
-              : 'Marked sold';
+              ? l.trailerDetailSoldTo(buyer)
+              : l.trailerDetailMarkedSoldShort;
         }(),
-      'sale_pending' => 'A sale is in progress for this trailer',
-      _ => 'Not yet sold — available for a customer',
+      'sale_pending' => l.trailerDetailSalePendingDesc,
+      _ => l.trailerDetailAvailableDesc,
     };
 
     // Actions only apply to stock / no-customer trailers. A customer trailer
@@ -759,8 +788,9 @@ class _SaleStatusSection extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: () => _setStatus(context, 'available'),
                         icon: const Icon(Icons.undo, size: 16),
-                        label: Text(
-                            status == 'sold' ? 'Mark Available' : 'Available'),
+                        label: Text(status == 'sold'
+                            ? l.trailerDetailMarkAvailable
+                            : l.trailerDetailAvailable),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.disabled,
                           side: BorderSide(
@@ -773,7 +803,7 @@ class _SaleStatusSection extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: () => _setStatus(context, 'sale_pending'),
                         icon: const Icon(Icons.pending_actions, size: 16),
-                        label: const Text('Sale Pending'),
+                        label: Text(l.trailerDetailSalePending),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.warning,
                           side: BorderSide(
@@ -787,7 +817,7 @@ class _SaleStatusSection extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: () => _markSold(context),
                         icon: const Icon(Icons.sell, size: 16),
-                        label: const Text('Sold'),
+                        label: Text(l.trailerDetailSold),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.success,
                         ),
@@ -828,7 +858,8 @@ class _MarkSoldDialogState extends State<_MarkSoldDialog> {
   void _submit() {
     final name = _controller.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = "Enter the buyer's name");
+      setState(() =>
+          _error = AppLocalizations.of(context).trailerDetailMarkSoldBuyerRequired);
       return;
     }
     Navigator.of(context).pop(name);
@@ -836,16 +867,17 @@ class _MarkSoldDialogState extends State<_MarkSoldDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text('Mark ${widget.soNumber} as sold'),
+      title: Text(l.trailerDetailMarkSoldTitle(widget.soNumber)),
       content: TextField(
         controller: _controller,
         autofocus: true,
         textCapitalization: TextCapitalization.words,
         textInputAction: TextInputAction.done,
         decoration: InputDecoration(
-          labelText: 'Buyer name *',
-          hintText: 'Who bought this trailer?',
+          labelText: l.trailerDetailMarkSoldBuyerLabel,
+          hintText: l.trailerDetailMarkSoldBuyerHint,
           errorText: _error,
           prefixIcon: const Icon(Icons.person_outline),
         ),
@@ -857,12 +889,12 @@ class _MarkSoldDialogState extends State<_MarkSoldDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l.commonCancel),
         ),
         FilledButton.icon(
           onPressed: _submit,
           icon: const Icon(Icons.sell, size: 16),
-          label: const Text('Mark Sold'),
+          label: Text(l.trailerDetailMarkSoldButton),
           style: FilledButton.styleFrom(backgroundColor: AppColors.success),
         ),
       ],
@@ -884,26 +916,27 @@ class _CurrentlyInCard extends StatelessWidget {
     required this.locationLine,
   });
 
-  String _fallbackFromStatus() {
+  String _fallbackFromStatus(AppLocalizations l) {
     switch (trailerStatus) {
       case 'ready_for_delivery':
-        return 'Ready for delivery';
+        return l.trailerDetailStatusReadyForDelivery;
       case 'in_transit':
-        return 'In transit';
+        return l.trailerDetailStatusInTransit;
       case 'delivered':
-        return 'Delivered';
+        return l.trailerDetailStatusDelivered;
       case 'on_hold':
-        return 'On hold';
+        return l.trailerDetailStatusOnHold;
       case 'pending_production':
-        return 'Pending production';
+        return l.trailerDetailStatusPendingProduction;
       default:
-        return 'Workflow complete';
+        return l.trailerDetailStatusWorkflowComplete;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final deptText = activeStepDeptName ?? _fallbackFromStatus();
+    final l = AppLocalizations.of(context);
+    final deptText = activeStepDeptName ?? _fallbackFromStatus(l);
     return Card(
       elevation: 0,
       color: AppColors.navy.withValues(alpha: 0.05),
@@ -918,14 +951,14 @@ class _CurrentlyInCard extends StatelessWidget {
           children: [
             _IconRow(
               icon: Icons.precision_manufacturing_outlined,
-              label: 'Department',
+              label: l.trailerDetailDepartmentLabel,
               value: deptText,
               valueWeight: FontWeight.w700,
             ),
             const SizedBox(height: 12),
             _IconRow(
               icon: Icons.location_on_outlined,
-              label: 'Location',
+              label: l.trailerDetailLocationLabel,
               value: locationLine,
             ),
           ],
@@ -1075,7 +1108,8 @@ class _WorkflowTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (steps.isEmpty) {
-      return const Center(child: Text('No workflow steps'));
+      return Center(
+          child: Text(AppLocalizations.of(context).trailerDetailNoSteps));
     }
 
     final canManage = _canManageWorkflow(context);
@@ -1115,9 +1149,11 @@ class _StepTile extends StatelessWidget {
   });
 
   Future<void> _confirmAndJump(BuildContext context) async {
+    final l = AppLocalizations.of(context);
     final s = step;
-    final deptName =
-        s.departmentName ?? s.departmentCode ?? 'Step ${s.stepOrder}';
+    final deptName = s.departmentName ??
+        s.departmentCode ??
+        l.trailerDetailStepLabel(s.stepOrder as int);
     final cubit = context.read<TrailerDetailViewModel>();
     final messenger = ScaffoldMessenger.of(context);
 
@@ -1125,27 +1161,22 @@ class _StepTile extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Move trailer to step ${s.stepOrder}?'),
+        title: Text(l.trailerDetailJumpTitle(s.stepOrder as int)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This places the trailer at "$deptName" as the current active '
-              'step.\n\n'
-              '• Earlier steps will be marked complete (no points awarded for '
-              'any that weren\'t already done).\n'
-              '• Later steps will be reset to waiting.\n'
-              '• Each rolled-back step is recorded in the history tab.',
+              l.trailerDetailJumpBody(deptName as String),
               style: const TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: reasonCtrl,
               maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'Reason (optional)',
-                hintText: 'e.g. wrong step tapped earlier',
+              decoration: InputDecoration(
+                labelText: l.trailerDetailJumpReasonLabel,
+                hintText: l.trailerDetailJumpReasonHint,
                 counterText: '',
               ),
             ),
@@ -1154,11 +1185,11 @@ class _StepTile extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Move Here'),
+            child: Text(l.trailerDetailJumpConfirm),
           ),
         ],
       ),
@@ -1172,21 +1203,21 @@ class _StepTile extends StatelessWidget {
       );
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Trailer moved to "$deptName"'),
+          content: Text(l.trailerDetailJumpedTo(deptName as String)),
           backgroundColor: AppColors.success,
         ),
       );
     } on ApiException catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Move failed: ${e.displayMessage}'),
+          content: Text(l.trailerDetailJumpFailed(e.displayMessage)),
           backgroundColor: AppColors.error,
         ),
       );
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Move failed: $e'),
+          content: Text(l.trailerDetailJumpFailed('$e')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -1195,11 +1226,14 @@ class _StepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final s = step;
     final isActive = s.status == 'active';
     final isComplete = s.status == 'complete';
     final isRework = s.isRework == true;
-    final deptName = s.departmentName ?? s.departmentCode ?? 'Step ${s.stepOrder}';
+    final deptName = s.departmentName ??
+        s.departmentCode ??
+        l.trailerDetailStepLabel(s.stepOrder as int);
 
     final (icon, iconColor, bgColor) = isComplete
         ? (Icons.check_circle, AppColors.success, AppColors.success.withValues(alpha: 0.1))
@@ -1278,7 +1312,7 @@ class _StepTile extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'REWORK x${s.reworkCount}',
+                            l.trailerDetailReworkBadge(s.reworkCount as int),
                             style: const TextStyle(
                               color: AppColors.warning,
                               fontSize: 10,
@@ -1292,14 +1326,16 @@ class _StepTile extends StatelessWidget {
                   if (isComplete && s.completedAt != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      'Completed ${DateFormat.yMMMd().add_jm().format(s.completedAt!)}',
+                      l.trailerDetailCompletedOn(
+                          DateFormat.yMMMd().add_jm().format(s.completedAt!)),
                       style: const TextStyle(fontSize: 11, color: AppColors.disabled),
                     ),
                   ],
                   if (isComplete && s.pointsAwarded != null && s.pointsAwarded! > 0) ...[
                     const SizedBox(height: 2),
                     Text(
-                      '+${s.pointsAwarded!.toStringAsFixed(1)} pts',
+                      l.trailerDetailPointsAwarded(
+                          s.pointsAwarded!.toStringAsFixed(1)),
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppColors.amber,
@@ -1320,9 +1356,9 @@ class _StepTile extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Text(
-                          'Currently active',
-                          style: TextStyle(
+                        Text(
+                          l.trailerDetailCurrentlyActive,
+                          style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.statusInProduction,
                             fontWeight: FontWeight.w500,
@@ -1344,7 +1380,9 @@ class _StepTile extends StatelessWidget {
                           size: 16,
                         ),
                         label: Text(
-                          isComplete ? 'Move trailer back here' : 'Move trailer here',
+                          isComplete
+                              ? l.trailerDetailMoveBackHere
+                              : l.trailerDetailMoveHere,
                           style: const TextStyle(fontSize: 12),
                         ),
                         style: OutlinedButton.styleFrom(
@@ -1378,7 +1416,8 @@ class _HistoryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (history.isEmpty) {
-      return const Center(child: Text('No history yet'));
+      return Center(
+          child: Text(AppLocalizations.of(context).trailerDetailNoHistory));
     }
 
     return ListView.separated(
@@ -1465,7 +1504,8 @@ class _StagePhotosTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (stagePhotos.isEmpty) {
-      return const Center(child: Text('No stage photos available'));
+      return Center(
+          child: Text(AppLocalizations.of(context).trailerDetailNoPhotos));
     }
 
     return ListView.separated(

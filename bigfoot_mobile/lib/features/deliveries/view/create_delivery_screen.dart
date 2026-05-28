@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/stock_location_chips.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
 
@@ -78,7 +79,8 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _loadError = 'Failed to load delivery form data: $e';
+        _loadError =
+            AppLocalizations.of(context).createDeliveryLoadFail('$e');
       });
     }
   }
@@ -97,10 +99,11 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final data = _formData;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_batchMode ? 'Create Batch Delivery' : 'Create Delivery'),
+        title: Text(_batchMode ? l.batchScreenNewBatch : l.createDeliveryTitle),
       ),
       body: data == null
           ? _loadError != null
@@ -118,7 +121,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
                         FilledButton.icon(
                           onPressed: _load,
                           icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
+                          label: Text(l.commonRetry),
                         ),
                       ],
                     ),
@@ -136,16 +139,16 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
                     // selected-state checkmark so the row never overflows on
                     // narrow screens or with large text scaling.
                     showSelectedIcon: false,
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: false,
-                        label: Text('Single'),
-                        icon: Icon(Icons.local_shipping_outlined, size: 18),
+                        label: Text(l.createDeliverySingleMode),
+                        icon: const Icon(Icons.local_shipping_outlined, size: 18),
                       ),
                       ButtonSegment(
                         value: true,
-                        label: Text('Batch'),
-                        icon: Icon(Icons.inventory_2_outlined, size: 18),
+                        label: Text(l.createDeliveryBatchMode),
+                        icon: const Icon(Icons.inventory_2_outlined, size: 18),
                       ),
                     ],
                     selected: {_batchMode},
@@ -173,10 +176,10 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
                                 ? Icons.task_alt_outlined
                                 : Icons.local_shipping_outlined),
                     label: Text(_batchMode
-                        ? 'Create Batch'
+                        ? l.createDeliveryCreateBatch
                         : _isFactoryPickup
-                            ? 'Record Pickup'
-                            : 'Create Delivery'),
+                            ? l.createDeliveryRecordPickup
+                            : l.createDeliveryTitle),
                   ),
                 ],
               ),
@@ -188,15 +191,16 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
   // SINGLE DELIVERY
   // ===========================================================================
   List<Widget> _singleFields(DeliveryFormData data) {
+    final l = AppLocalizations.of(context);
     return [
       DropdownButtonFormField<int>(
         value: _trailerId,
         isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Ready Trailer',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: l.createDeliveryReadyTrailer,
+          border: const OutlineInputBorder(),
         ),
-        validator: (v) => v == null ? 'Trailer is required' : null,
+        validator: (v) => v == null ? l.createDeliveryTrailerRequired : null,
         items: data.trailers.map((t) {
           final model =
               (t['trailerModel'] as Map<String, dynamic>?)?['displayName'] ??
@@ -215,16 +219,16 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
         onChanged: (v) => setState(() => _trailerId = v),
       ),
       const SizedBox(height: 12),
-      const Text('Delivery Type', style: TextStyle(fontWeight: FontWeight.w600)),
+      Text(l.deliveryListFilterType, style: const TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          _typeChip('factory_pickup', 'Factory Pickup'),
-          _typeChip('single_pull', 'Single Pull'),
-          _typeChip('stack_to_dealer', 'Stack to Dealer'),
-          _typeChip('stack_to_location', 'Stack to Location'),
+          _typeChip('factory_pickup', l.deliveryListFilterFactoryPickup),
+          _typeChip('single_pull', l.deliveryListFilterSinglePull),
+          _typeChip('stack_to_dealer', l.deliveryListFilterStackToDealer),
+          _typeChip('stack_to_location', l.deliveryListFilterStackToLocation),
         ],
       ),
       const SizedBox(height: 12),
@@ -238,29 +242,28 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
             color: AppColors.background,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Text(
-            'Recorded as picked up immediately — the customer collects the '
-            'trailer at the factory.',
-            style: TextStyle(fontSize: 12, color: AppColors.disabled),
+          child: Text(
+            l.createDeliveryFactoryPickupHelper,
+            style: const TextStyle(fontSize: 12, color: AppColors.disabled),
           ),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _pickedUpByCtrl,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Picked up by (optional)',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l.createDeliveryPickedUpBy,
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _amountCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Amount Collected (optional)',
+          decoration: InputDecoration(
+            labelText: l.createDeliveryAmountCollected,
             prefixText: r'$ ',
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
@@ -270,13 +273,13 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
         DropdownButtonFormField<int>(
           value: _driverId,
           isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Assign Driver',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l.createDeliveryAssignDriver,
+            border: const OutlineInputBorder(),
           ),
           items: [
-            const DropdownMenuItem<int>(
-                value: null, child: Text('Unassigned')),
+            DropdownMenuItem<int>(
+                value: null, child: Text(l.deliveryDetailUnassigned)),
             ...data.drivers.map(
               (d) => DropdownMenuItem<int>(
                 value: d.id,
@@ -288,15 +291,14 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
         ),
         const SizedBox(height: 12),
         StockLocationChips(
-          labelText: 'Destination Location',
+          labelText: l.createDeliveryDestinationLocation,
           selectedLocationId: _destinationLocationId,
           enabled: !_submitting,
-          onChanged: (l) => setState(() {
-            _destinationLocationId = l.id;
+          onChanged: (loc) => setState(() {
+            _destinationLocationId = loc.id;
             _addressCtrl.clear();
           }),
-          helperText:
-              'Pick a yard, or leave unselected and enter a custom address below.',
+          helperText: l.createDeliveryYardHelper,
         ),
         if (_destinationLocationId != null) ...[
           const SizedBox(height: 8),
@@ -307,7 +309,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
                   ? null
                   : () => setState(() => _destinationLocationId = null),
               icon: const Icon(Icons.close, size: 16),
-              label: const Text('Clear yard, use custom address'),
+              label: Text(l.createDeliveryClearYardAddress),
             ),
           ),
         ],
@@ -315,9 +317,9 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
         TextFormField(
           controller: _addressCtrl,
           enabled: _destinationLocationId == null,
-          decoration: const InputDecoration(
-            labelText: 'Custom Destination Address',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l.createDeliveryCustomAddress,
+            border: const OutlineInputBorder(),
           ),
           maxLines: 2,
         ),
@@ -325,10 +327,10 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
         TextFormField(
           controller: _phoneCtrl,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Contact Phone (optional)',
-            helperText: 'The driver texts this number',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l.createDeliveryContactPhone,
+            helperText: l.createDeliveryDriverTextsHelper,
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 12),
@@ -337,10 +339,10 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
       TextFormField(
         controller: _balanceCtrl,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(
-          labelText: 'Balance Due',
+        decoration: InputDecoration(
+          labelText: l.createDeliveryBalanceDue,
           prefixText: r'$ ',
-          border: OutlineInputBorder(),
+          border: const OutlineInputBorder(),
         ),
       ),
       const SizedBox(height: 12),
@@ -351,19 +353,19 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
         DropdownButtonFormField<int>(
           value: _batchId,
           isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Add to Existing Batch (optional)',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l.createDeliveryAddToBatch,
+            border: const OutlineInputBorder(),
           ),
           items: [
-            const DropdownMenuItem<int>(value: null, child: Text('No batch')),
+            DropdownMenuItem<int>(value: null, child: Text(l.createDeliveryNoBatch)),
             ...data.batches
                 .where((b) => b.status == 'building' || b.status == 'scheduled')
                 .map(
                   (b) => DropdownMenuItem<int>(
                     value: b.id,
                     child: Text(
-                      '${b.batchNumber} (${b.status})',
+                      l.createDeliveryBatchEntry(b.batchNumber, b.status),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -389,39 +391,40 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
   // BATCH DELIVERY
   // ===========================================================================
   List<Widget> _batchFields(DeliveryFormData data) {
+    final l = AppLocalizations.of(context);
     return [
       TextFormField(
         controller: _batchNumberCtrl,
         enabled: !_submitting,
-        decoration: const InputDecoration(
-          labelText: 'Batch Number',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: l.createDeliveryBatchNumber,
+          border: const OutlineInputBorder(),
         ),
         validator: (v) => (v == null || v.trim().isEmpty)
-            ? 'Batch number is required'
+            ? l.createDeliveryBatchNumberRequired
             : null,
       ),
       const SizedBox(height: 12),
-      const Text('Batch Type', style: TextStyle(fontWeight: FontWeight.w600)),
+      Text(l.createDeliveryBatchType, style: const TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          _batchTypeChip('dealer', 'Dealer'),
-          _batchTypeChip('bf_location', 'Bigfoot Location'),
+          _batchTypeChip('dealer', l.createDeliveryBatchTypeDealer),
+          _batchTypeChip('bf_location', l.createDeliveryBatchTypeBfLocation),
         ],
       ),
       const SizedBox(height: 12),
       DropdownButtonFormField<int>(
         value: _batchDriverId,
         isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Assign Driver',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: l.createDeliveryAssignDriver,
+          border: const OutlineInputBorder(),
         ),
         items: [
-          const DropdownMenuItem<int>(value: null, child: Text('Unassigned')),
+          DropdownMenuItem<int>(value: null, child: Text(l.deliveryDetailUnassigned)),
           ...data.drivers.map(
             (d) => DropdownMenuItem<int>(value: d.id, child: Text(d.name)),
           ),
@@ -430,15 +433,14 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
       ),
       const SizedBox(height: 12),
       StockLocationChips(
-        labelText: 'Destination Location',
+        labelText: l.createDeliveryDestinationLocation,
         selectedLocationId: _batchDestinationLocationId,
         enabled: !_submitting,
-        onChanged: (l) => setState(() {
-          _batchDestinationLocationId = l.id;
+        onChanged: (loc) => setState(() {
+          _batchDestinationLocationId = loc.id;
           _batchDestNameCtrl.clear();
         }),
-        helperText:
-            'Pick a yard, or leave unselected and enter a destination name below.',
+        helperText: l.createDeliveryBatchYardHelper,
       ),
       if (_batchDestinationLocationId != null) ...[
         const SizedBox(height: 8),
@@ -449,7 +451,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
                 ? null
                 : () => setState(() => _batchDestinationLocationId = null),
             icon: const Icon(Icons.close, size: 16),
-            label: const Text('Clear yard, use custom name'),
+            label: Text(l.createDeliveryClearYardName),
           ),
         ),
       ],
@@ -457,14 +459,14 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
       TextFormField(
         controller: _batchDestNameCtrl,
         enabled: _batchDestinationLocationId == null && !_submitting,
-        decoration: const InputDecoration(
-          labelText: 'Destination Name (for dealers)',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          labelText: l.createDeliveryDestinationName,
+          border: const OutlineInputBorder(),
         ),
       ),
       const SizedBox(height: 16),
       Text(
-        'Trailers  (${_selectedTrailerIds.length} selected)',
+        l.createDeliveryTrailersSelected(_selectedTrailerIds.length),
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       const SizedBox(height: 6),
@@ -498,10 +500,11 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
   // ===========================================================================
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final l = AppLocalizations.of(context);
 
     if (_batchMode && _selectedTrailerIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one trailer for the batch.')),
+        SnackBar(content: Text(l.createDeliverySelectTrailer)),
       );
       return;
     }
@@ -547,8 +550,8 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(e.toString().contains('DELIVERY_NOT_DISPATCHABLE')
-              ? 'A selected trailer is not ready for delivery'
-              : 'Failed to create: $e'),
+              ? l.createDeliveryNotReady
+              : l.createDeliveryCreateFail('$e')),
         ),
       );
     } finally {
@@ -573,6 +576,7 @@ class _BatchTrailerPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final border = Border.all(color: Theme.of(context).dividerColor);
 
     if (trailers.isEmpty) {
@@ -580,9 +584,9 @@ class _BatchTrailerPicker extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
             border: border, borderRadius: BorderRadius.circular(8)),
-        child: const Text(
-          'No ready-for-delivery trailers available.',
-          style: TextStyle(fontSize: 13),
+        child: Text(
+          l.createDeliveryNoReadyTrailers,
+          style: const TextStyle(fontSize: 13),
         ),
       );
     }
@@ -613,7 +617,7 @@ class _BatchTrailerPicker extends StatelessWidget {
               ),
               subtitle: loc == null
                   ? null
-                  : Text('Stocked at $loc',
+                  : Text(l.createDeliveryStockedAt(loc),
                       style: const TextStyle(fontSize: 12)),
               value: selected.contains(id),
               onChanged:

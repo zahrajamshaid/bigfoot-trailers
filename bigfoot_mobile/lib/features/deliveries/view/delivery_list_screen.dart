@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/delivery.dart';
 import '../../../data/models/user.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -103,6 +104,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return BlocBuilder<AuthViewModel, AuthState>(
       builder: (context, authState) {
         final user = authState is Authenticated ? authState.user : null;
@@ -125,7 +127,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                         if (mounted) _reload();
                       },
                       icon: const Icon(Icons.inventory_2_outlined),
-                      label: const Text('Batches'),
+                      label: Text(l.deliveryListFabBatches),
                     ),
                     const SizedBox(height: 12),
                     FloatingActionButton.extended(
@@ -135,7 +137,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                         if (mounted) _reload();
                       },
                       icon: const Icon(Icons.add),
-                      label: const Text('Create Delivery'),
+                      label: Text(l.deliveryListFabCreate),
                     ),
                   ],
                 )
@@ -150,10 +152,10 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                   labelColor: AppColors.white,
                   unselectedLabelColor:
                       AppColors.white.withValues(alpha: 0.7),
-                  tabs: const [
-                    Tab(text: 'Scheduled'),
-                    Tab(text: 'Completed'),
-                    Tab(text: 'Failed'),
+                  tabs: [
+                    Tab(text: l.deliveryListTabScheduled),
+                    Tab(text: l.deliveryListTabCompleted),
+                    Tab(text: l.deliveryListTabFailed),
                   ],
                 ),
               ),
@@ -216,7 +218,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                               const SizedBox(height: 12),
                               OutlinedButton(
                                 onPressed: _reload,
-                                child: const Text('Retry'),
+                                child: Text(l.commonRetry),
                               ),
                             ],
                           ),
@@ -225,7 +227,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                     }
                     if (state is DeliveriesLoaded) {
                       if (state.deliveries.isEmpty) {
-                        return const Center(child: Text('No deliveries found'));
+                        return Center(child: Text(l.deliveryListEmpty));
                       }
                       // Deliveries that share a batch are shown as one card so
                       // it's clear which trailers travel together.
@@ -288,6 +290,7 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       child: Wrap(
@@ -296,24 +299,24 @@ class _FilterBar extends StatelessWidget {
         children: [
           DropdownButton<String?>(
             value: selectedType,
-            hint: const Text('Delivery Type'),
-            items: const [
-              DropdownMenuItem(value: null, child: Text('All Types')),
+            hint: Text(l.deliveryListFilterType),
+            items: [
+              DropdownMenuItem(value: null, child: Text(l.deliveryListFilterAllTypes)),
               DropdownMenuItem(
                 value: 'factory_pickup',
-                child: Text('Factory Pickup'),
+                child: Text(l.deliveryListFilterFactoryPickup),
               ),
               DropdownMenuItem(
                 value: 'single_pull',
-                child: Text('Single Pull'),
+                child: Text(l.deliveryListFilterSinglePull),
               ),
               DropdownMenuItem(
                 value: 'stack_to_dealer',
-                child: Text('Stack to Dealer'),
+                child: Text(l.deliveryListFilterStackToDealer),
               ),
               DropdownMenuItem(
                 value: 'stack_to_location',
-                child: Text('Stack to Location'),
+                child: Text(l.deliveryListFilterStackToLocation),
               ),
             ],
             onChanged: onTypeChanged,
@@ -324,10 +327,10 @@ class _FilterBar extends StatelessWidget {
               child: TextFormField(
                 initialValue: selectedDriverId?.toString(),
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Driver ID',
+                decoration: InputDecoration(
+                  labelText: l.deliveryListFilterDriverId,
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 onFieldSubmitted: (v) => onDriverChanged(int.tryParse(v)),
               ),
@@ -337,14 +340,14 @@ class _FilterBar extends StatelessWidget {
             icon: const Icon(Icons.date_range),
             label: Text(
               range == null
-                  ? 'Date Range'
+                  ? l.deliveryListFilterDateRange
                   : '${range!.start.toIso8601String().split('T').first} - ${range!.end.toIso8601String().split('T').first}',
             ),
           ),
           if (onClearDates != null)
             TextButton(
               onPressed: onClearDates,
-              child: const Text('Clear Dates'),
+              child: Text(l.deliveryListFilterClearDates),
             ),
         ],
       ),
@@ -383,7 +386,8 @@ class _BatchGroupCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Batch delivery — ${deliveries.length} trailers',
+                    AppLocalizations.of(context)
+                        .deliveryListBatchTitle(deliveries.length),
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.navy,
@@ -472,9 +476,11 @@ class _DeliveryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text('${delivery.modelName} • ${delivery.customerName}'),
             const SizedBox(height: 4),
-            Text('Destination: ${delivery.destinationLabel}'),
+            Text(AppLocalizations.of(context)
+                .deliveryListDestination(delivery.destinationLabel)),
             const SizedBox(height: 4),
-            Text('Driver: ${delivery.driverName}'),
+            Text(AppLocalizations.of(context)
+                .deliveryListDriverLabel(delivery.driverName)),
           ],
         ),
       ),

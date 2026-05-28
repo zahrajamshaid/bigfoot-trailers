@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
 class WorkflowViewerScreen extends StatefulWidget {
@@ -38,7 +39,7 @@ class _WorkflowViewerScreenState extends State<WorkflowViewerScreen> {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Workflow Templates'),
+          title: Text(AppLocalizations.of(context).adminNavWorkflowTemplates),
           bottom: TabBar(
             isScrollable: true,
             labelColor: AppColors.white,
@@ -96,8 +97,8 @@ class _WorkflowViewerScreenState extends State<WorkflowViewerScreen> {
                 child: Text('${t.departmentCode} - ${t.departmentName}'),
               ),
               if (t.isQcStep)
-                const Chip(
-                  label: Text('QC'),
+                Chip(
+                  label: Text(AppLocalizations.of(context).deptTypeQc),
                   backgroundColor: Colors.greenAccent,
                 ),
             ],
