@@ -173,6 +173,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPinDisabled => 'No PIN required';
 
   @override
+  String get settingsPinSetTitle => 'Set a 4-digit PIN';
+
+  @override
+  String get settingsPinSetSubtitle =>
+      'You\'ll be asked for this PIN every time you open the app.';
+
+  @override
+  String get settingsPinConfirmTitle => 'Confirm PIN';
+
+  @override
+  String get settingsPinConfirmSubtitle => 'Re-enter your PIN to confirm.';
+
+  @override
+  String get settingsPinMismatch => 'PINs don\'t match. Try again.';
+
+  @override
+  String get settingsPinDisableTitle => 'Disable PIN lock';
+
+  @override
+  String get settingsPinDisableSubtitle =>
+      'Enter your current PIN to turn lock off.';
+
+  @override
+  String get settingsPinCancel => 'Cancel';
+
+  @override
   String get settingsAppVersion => 'App Version';
 
   @override
@@ -214,6 +240,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authPinIncorrect => 'Incorrect PIN';
+
+  @override
+  String get authPinSignOut => 'Sign out instead';
 
   @override
   String get authSplashTagline => 'Built to haul. Ready to move.';

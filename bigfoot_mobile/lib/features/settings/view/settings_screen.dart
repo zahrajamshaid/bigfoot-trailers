@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/i18n/locale_cubit.dart';
+import '../../../core/security/pin_storage.dart';
 import '../../../core/websocket/ws_client.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
@@ -16,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final PinStorage _pinStorage = PinStorage();
   bool _pinEnabled = false;
 
   @override
@@ -25,16 +27,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadPinSetting() async {
-    final prefs = await SharedPreferences.getInstance();
+    final enabled = await _pinStorage.isEnabled();
     if (mounted) {
-      setState(() => _pinEnabled = prefs.getBool('pin_lock_enabled') ?? false);
+      setState(() => _pinEnabled = enabled);
     }
   }
 
   Future<void> _togglePin(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('pin_lock_enabled', value);
-    if (mounted) setState(() => _pinEnabled = value);
+    if (value) {
+      await _enablePinFlow();
+    } else {
+      await _disablePinFlow();
+    }
+  }
+
+  Future<void> _enablePinFlow() async {
+    final l = AppLocalizations.of(context);
+    // Step 1: collect new PIN.
+    final pin = await _promptForPin(
+      title: l.settingsPinSetTitle,
+      subtitle: l.settingsPinSetSubtitle,
+    );
+    if (pin == null) return;
+
+    if (!mounted) return;
+    // Step 2: confirm by re-entering.
+    final confirm = await _promptForPin(
+      title: l.settingsPinConfirmTitle,
+      subtitle: l.settingsPinConfirmSubtitle,
+    );
+    if (confirm == null) return;
+
+    if (pin != confirm) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(l.settingsPinMismatch)),
+        );
+      return;
+    }
+
+    await _pinStorage.setPin(pin);
+    if (mounted) setState(() => _pinEnabled = true);
+  }
+
+  Future<void> _disablePinFlow() async {
+    final l = AppLocalizations.of(context);
+    final pin = await _promptForPin(
+      title: l.settingsPinDisableTitle,
+      subtitle: l.settingsPinDisableSubtitle,
+    );
+    if (pin == null) return;
+    final ok = await _pinStorage.verify(pin);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(l.authPinIncorrect)));
+      return;
+    }
+    await _pinStorage.disable();
+    if (mounted) setState(() => _pinEnabled = false);
+  }
+
+  Future<String?> _promptForPin({
+    required String title,
+    required String subtitle,
+  }) {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _PinPromptDialog(title: title, subtitle: subtitle),
+    );
   }
 
   @override
@@ -250,6 +315,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await context.read<AuthViewModel>().logout();
       if (context.mounted) context.go('/login');
     }
+  }
+}
+
+// ── PIN prompt dialog ────────────────────────────────────────────────────────
+
+/// Modal dialog that collects exactly 4 digits and pops with the entered
+/// string, or null if the user cancels.
+class _PinPromptDialog extends StatefulWidget {
+  final String title;
+  final String subtitle;
+
+  const _PinPromptDialog({required this.title, required this.subtitle});
+
+  @override
+  State<_PinPromptDialog> createState() => _PinPromptDialogState();
+}
+
+class _PinPromptDialogState extends State<_PinPromptDialog> {
+  final _controller = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    if (value.length == 4) {
+      Navigator.of(context).pop(value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.subtitle, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            focusNode: _focus,
+            keyboardType: TextInputType.number,
+            obscureText: true,
+            maxLength: 4,
+            autofocus: true,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 28, letterSpacing: 16),
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(4),
+            ],
+            decoration: const InputDecoration(
+              counterText: '',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: _onChanged,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.settingsPinCancel),
+        ),
+      ],
+    );
   }
 }
 

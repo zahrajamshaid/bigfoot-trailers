@@ -422,6 +422,54 @@ abstract class AppLocalizations {
   /// **'No PIN required'**
   String get settingsPinDisabled;
 
+  /// No description provided for @settingsPinSetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a 4-digit PIN'**
+  String get settingsPinSetTitle;
+
+  /// No description provided for @settingsPinSetSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll be asked for this PIN every time you open the app.'**
+  String get settingsPinSetSubtitle;
+
+  /// No description provided for @settingsPinConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm PIN'**
+  String get settingsPinConfirmTitle;
+
+  /// No description provided for @settingsPinConfirmSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enter your PIN to confirm.'**
+  String get settingsPinConfirmSubtitle;
+
+  /// No description provided for @settingsPinMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'PINs don\'t match. Try again.'**
+  String get settingsPinMismatch;
+
+  /// No description provided for @settingsPinDisableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable PIN lock'**
+  String get settingsPinDisableTitle;
+
+  /// No description provided for @settingsPinDisableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current PIN to turn lock off.'**
+  String get settingsPinDisableSubtitle;
+
+  /// No description provided for @settingsPinCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get settingsPinCancel;
+
   /// No description provided for @settingsAppVersion.
   ///
   /// In en, this message translates to:
@@ -505,6 +553,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Incorrect PIN'**
   String get authPinIncorrect;
+
+  /// No description provided for @authPinSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out instead'**
+  String get authPinSignOut;
 
   /// No description provided for @authSplashTagline.
   ///

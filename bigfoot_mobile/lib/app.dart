@@ -11,8 +11,10 @@ import 'core/i18n/locale_cubit.dart';
 import 'core/network/dio_client.dart';
 import 'core/router/app_router.dart';
 import 'core/security/mobile_security.dart';
+import 'core/security/pin_storage.dart';
 import 'core/websocket/realtime_cubits.dart';
 import 'core/websocket/ws_client.dart';
+import 'features/auth/view/pin_lock_screen.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'data/models/app_notification.dart';
 import 'di/service_locator.dart';
@@ -57,6 +59,14 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
   late final StreamSubscription<AuthState> _authSub;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   bool _securityBlocked = false;
+
+  // ── PIN lock state ─────────────────────────────────────────────────────
+  // Re-evaluated on auth changes + every lifecycle resume. When [_pinEnabled]
+  // is true and [_pinLocked] is true, the MaterialApp.router builder swaps
+  // the navigator for a full-screen [PinLockScreen] gate.
+  final PinStorage _pinStorage = PinStorage();
+  bool _pinEnabled = false;
+  bool _pinLocked = false;
 
   bool get _isAuthenticated => _authViewModel.state is Authenticated;
 
@@ -132,8 +142,24 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
         _notificationsViewModel.initializePush(onOpenPayload: _handlePushOpen);
         _notificationsViewModel.registerPushToken();
         _notificationsViewModel.loadHistory();
+        // Lock the app immediately on a fresh auth — both for restored
+        // sessions (cold start) and brand-new logins. The gate disappears
+        // if the user has not enabled PIN lock in settings.
+        // _pinEnabled is preloaded in initState so this is synchronous.
+        if (_pinEnabled && !_pinLocked) {
+          setState(() => _pinLocked = true);
+        }
+        // Re-check the flag in case settings changed since startup.
+        _refreshPinLock(lockIfEnabled: true);
+      } else {
+        // Signed-out users don't need to face the PIN gate.
+        if (_pinLocked) setState(() => _pinLocked = false);
       }
     });
+
+    // Preload PIN-enabled flag so the gate is ready by the time auth
+    // restoration finishes (avoids a flash of the dashboard).
+    _refreshPinLock(lockIfEnabled: false);
 
     WidgetsBinding.instance.addObserver(this);
     _connectivitySub = Connectivity().onConnectivityChanged.listen(
@@ -150,7 +176,45 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _kickWsIfStale();
+      // Re-lock the app every time it comes back from the background. Reads
+      // the latest enabled flag in case the user toggled it during the same
+      // session (rare, but cheap to handle).
+      if (_isAuthenticated) {
+        _refreshPinLock(lockIfEnabled: true);
+      }
     }
+  }
+
+  /// Loads the current PIN-enabled flag and optionally engages the lock.
+  /// When [lockIfEnabled] is true and PIN lock is on, the gate is shown.
+  Future<void> _refreshPinLock({required bool lockIfEnabled}) async {
+    final enabled = await _pinStorage.isEnabled();
+    if (!mounted) return;
+    setState(() {
+      _pinEnabled = enabled;
+      if (lockIfEnabled && enabled) _pinLocked = true;
+    });
+  }
+
+  void _onPinSuccess() {
+    if (!mounted) return;
+    setState(() => _pinLocked = false);
+  }
+
+  Future<void> _onPinSignOut() async {
+    // Escape hatch when the user forgot their PIN. Wipes the stored hash so
+    // they can set up a new PIN on their next session (otherwise re-logging
+    // in on the same device would just land them on the same broken gate).
+    // The auth listener clears [_pinLocked] once Unauthenticated arrives.
+    await _pinStorage.disable();
+    if (!mounted) return;
+    setState(() {
+      _pinEnabled = false;
+      _pinLocked = false;
+    });
+    await _authViewModel.logout();
+    if (!mounted) return;
+    _appRouter.router.go('/login');
   }
 
   Future<void> _initializeSecurityGuards() async {
@@ -339,6 +403,17 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
               // overflow. 1.3 still gives a meaningful accessibility boost.
               builder: (context, child) {
                 final mq = MediaQuery.of(context);
+                // PIN gate: when locked, render the lock screen above the
+                // navigator. Keeping the navigator mounted underneath means
+                // the user lands back where they were once they unlock.
+                Widget content = child ?? const SizedBox.shrink();
+                if (_isAuthenticated && _pinEnabled && _pinLocked) {
+                  content = PinLockScreen(
+                    pinStorage: _pinStorage,
+                    onSuccess: _onPinSuccess,
+                    onSignOut: _onPinSignOut,
+                  );
+                }
                 return MediaQuery(
                   data: mq.copyWith(
                     textScaler: mq.textScaler.clamp(
@@ -346,7 +421,7 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
                       maxScaleFactor: 1.3,
                     ),
                   ),
-                  child: child ?? const SizedBox.shrink(),
+                  child: content,
                 );
               },
             ),

@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/security/pin_storage.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
 
-/// PIN entry screen — UI scaffold only, no real crypto.
-/// Shown when user re-opens the app with "Require PIN" enabled.
+/// PIN entry screen shown as a full-screen gate when "Require PIN" is enabled.
+///
+/// Verifies the entered 4-digit PIN against the salted SHA-256 hash held in
+/// [PinStorage]. On match, calls [onSuccess]. A "Sign out" escape hatch is
+/// rendered at the bottom so a user who forgot their PIN isn't stuck — the
+/// only other recovery would be a reinstall.
 class PinLockScreen extends StatefulWidget {
   final VoidCallback onSuccess;
+  final VoidCallback? onSignOut;
+  final PinStorage pinStorage;
 
-  const PinLockScreen({super.key, required this.onSuccess});
+  const PinLockScreen({
+    super.key,
+    required this.onSuccess,
+    required this.pinStorage,
+    this.onSignOut,
+  });
 
   @override
   State<PinLockScreen> createState() => _PinLockScreenState();
@@ -19,9 +31,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
   static const _pinLength = 4;
   String _entered = '';
   bool _error = false;
+  bool _verifying = false;
 
   void _onDigit(int digit) {
-    if (_entered.length >= _pinLength) return;
+    if (_verifying || _entered.length >= _pinLength) return;
 
     setState(() {
       _entered += digit.toString();
@@ -34,18 +47,28 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   void _onBackspace() {
-    if (_entered.isEmpty) return;
+    if (_verifying || _entered.isEmpty) return;
     setState(() {
       _entered = _entered.substring(0, _entered.length - 1);
       _error = false;
     });
   }
 
-  void _verifyPin() {
-    // Scaffold only — accept any 4-digit PIN for now
-    // In production, compare against hashed PIN in secure storage
-    HapticFeedback.lightImpact();
-    widget.onSuccess();
+  Future<void> _verifyPin() async {
+    setState(() => _verifying = true);
+    final ok = await widget.pinStorage.verify(_entered);
+    if (!mounted) return;
+    if (ok) {
+      HapticFeedback.lightImpact();
+      widget.onSuccess();
+      return;
+    }
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _error = true;
+      _entered = '';
+      _verifying = false;
+    });
   }
 
   @override
@@ -130,9 +153,11 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
                       SizedBox(height: compact ? 24 : 32),
 
-                      // Numpad
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                      // Numpad — sized to a max width so it stays compact on
+                      // tablets while still giving narrow phones every spare
+                      // pixel for horizontal spacing between buttons.
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 320),
                         child: Column(
                           children: [
                             for (int row = 0; row < 4; row++)
@@ -165,6 +190,18 @@ class _PinLockScreenState extends State<PinLockScreen> {
                           ],
                         ),
                       ),
+
+                      if (widget.onSignOut != null) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: _verifying ? null : widget.onSignOut,
+                          style: TextButton.styleFrom(
+                            foregroundColor:
+                                AppColors.white.withValues(alpha: 0.7),
+                          ),
+                          child: Text(l.authPinSignOut),
+                        ),
+                      ],
                     ],
                   ),
                 ),
