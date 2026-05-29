@@ -72,12 +72,12 @@ class _AppShellState extends State<AppShell> {
             // get both. The drawer is the source of truth when there are >5 tabs.
             final useDrawer = !useRail && tabs.length > 1;
             final useBottom = !useRail && tabs.length > 1;
-            // Material 3 NavigationBar is spec'd for 3-5 destinations. Past 5
-            // it overflows visually on a phone (icons collide, hit targets
-            // shrink) and was the cause of "can't switch tabs on iPhone".
-            // Drawer remains the full source of truth — anything past 5 is
-            // still reachable from there.
-            final bottomTabs = tabs.length > 5 ? tabs.take(5).toList() : tabs;
+            // Owner/admin requested that all drawer items be available in the
+            // phone bottom bar. Keep truncation for other roles.
+            final showAllBottomTabs = user?.role == UserRole.owner;
+            final bottomTabs = showAllBottomTabs
+                ? tabs
+                : (tabs.length > 5 ? tabs.take(5).toList() : tabs);
 
             // Wrap routed content in a centred max-width container on tablet+
             // so forms/lists don't stretch ugly across wide screens. On phones
