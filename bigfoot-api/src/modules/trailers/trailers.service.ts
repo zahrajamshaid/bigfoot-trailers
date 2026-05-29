@@ -640,6 +640,13 @@ export class TrailersService {
       await tx.qcPhoto.deleteMany({ where: { trailerId } });
       // QcInspection has cascading children (qc_inspection_items, qc_step_*)
       await tx.qcInspection.deleteMany({ where: { trailerId } });
+      // StepReversal FK to ProductionStep historically had no cascade — so a
+      // single reversed step was enough to 500 the entire delete. Schema is
+      // fixed (onDelete: Cascade) but until that migration is everywhere we
+      // wipe these explicitly first.
+      await tx.stepReversal.deleteMany({
+        where: { productionStep: { trailerId } },
+      });
       // ProductionStep has cascading qc inspections too — by now those are gone
       await tx.productionStep.deleteMany({ where: { trailerId } });
       // Addons cascade automatically (FK onDelete: Cascade)

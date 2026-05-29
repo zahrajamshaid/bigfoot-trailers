@@ -449,7 +449,7 @@ model StepReversal {
   reversedAt       DateTime @default(now()) @map("reversed_at") @db.Timestamptz
 
   // Relations
-  productionStep ProductionStep @relation(fields: [productionStepId], references: [id])
+  productionStep ProductionStep @relation(fields: [productionStepId], references: [id], onDelete: Cascade)
   reversedByUser User           @relation(fields: [reversedByUserId], references: [id])
 
   @@map("step_reversals")
