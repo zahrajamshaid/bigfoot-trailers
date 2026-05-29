@@ -17,6 +17,21 @@
 #     -f docker-compose.prod.yml up -d
 ###############################################################################
 
+###############################################################################
+# Log rotation — applied to every service.
+#
+# Docker's default json-file driver does NOT rotate; container log files at
+# /var/lib/docker/containers/<id>/*-json.log grow unbounded and were eating
+# droplet disk. With these settings each container caps at 5 × 10 MB = 50 MB
+# and rotates automatically. Total stack ceiling is ~150 MB across the three
+# services even on a busy day.
+###############################################################################
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
 services:
   # ---- Caddy: TLS termination + reverse proxy --------------------------------
   caddy:
@@ -36,6 +51,7 @@ services:
       - api
     networks:
       - bigfoot
+    logging: *default-logging
 
   # ---- API: NestJS image pulled from GHCR by CI ------------------------------
   # Image is built and pushed by .github/workflows/api-deploy.yml.
@@ -77,6 +93,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    logging: *default-logging
 
   # ---- Redis: BullMQ queue + cache (internal only) ---------------------------
   redis:
@@ -92,6 +109,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
 networks:
   bigfoot:

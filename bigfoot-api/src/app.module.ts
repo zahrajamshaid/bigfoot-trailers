@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -55,6 +56,10 @@ import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
         limit: parseInt(process.env['THROTTLE_LIMIT'] || '100', 10),
       },
     ]),
+
+    // ---- Scheduled tasks (cron) ----
+    // Powers the daily audit_log + sms_log pruning job in AdminModule.
+    ScheduleModule.forRoot(),
 
     // ---- Infrastructure ----
     PrismaModule,
