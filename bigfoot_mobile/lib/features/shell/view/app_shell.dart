@@ -507,6 +507,12 @@ class _AppShellState extends State<AppShell> {
       case UserRole.sales:
         return [
           _NavTab(
+            '/dashboard',
+            l.navDashboard,
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
+          _NavTab(
             '/trailers',
             l.navTrailers,
             Icons.local_shipping_outlined,
