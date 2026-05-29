@@ -13,6 +13,18 @@ abstract final class AppTheme {
           surface: AppColors.surface,
         ),
         scaffoldBackgroundColor: AppColors.background,
+        // Pin page transitions per platform so iOS gets the native
+        // slide-from-right (+ edge-swipe-back) and Android keeps the
+        // Material 3 zoom. The Material 3 default sometimes lands the
+        // ZoomPageTransitionsBuilder on iOS too, which reads as glitchy
+        // against iPhone HIG.
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+          },
+        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: AppColors.navy,
           foregroundColor: AppColors.white,

@@ -82,7 +82,7 @@ class _AppShellState extends State<AppShell> {
             // Wrap routed content in a centred max-width container on tablet+
             // so forms/lists don't stretch ugly across wide screens. On phones
             // (compact width) maxContentWidth is infinity — no visual change.
-            final routedChild = r.isCompact
+            final innerChild = r.isCompact
                 ? widget.child
                 : Center(
                     child: ConstrainedBox(
@@ -90,6 +90,27 @@ class _AppShellState extends State<AppShell> {
                       child: widget.child,
                     ),
                   );
+
+            // Cross-fade between shell tabs. GoRouter's ShellRoute hot-swaps
+            // the child with no animation by default — on iOS especially
+            // that hard cut reads as a stutter. Keying on the matched
+            // location triggers AnimatedSwitcher every time the route
+            // changes; same-route rebuilds (e.g. state updates) keep the
+            // same key and don't animate.
+            final routeKey = GoRouterState.of(context).matchedLocation;
+            final routedChild = AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+              child: KeyedSubtree(
+                key: ValueKey(routeKey),
+                child: innerChild,
+              ),
+            );
 
             final body = Column(
               children: [
