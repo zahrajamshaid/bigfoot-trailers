@@ -72,12 +72,12 @@ class _AppShellState extends State<AppShell> {
             // get both. The drawer is the source of truth when there are >5 tabs.
             final useDrawer = !useRail && tabs.length > 1;
             final useBottom = !useRail && tabs.length > 1;
-            // Owner/admin requested that all drawer items be available in the
-            // phone bottom bar. Keep truncation for other roles.
-            final showAllBottomTabs = user?.role == UserRole.owner;
-            final bottomTabs = showAllBottomTabs
-                ? tabs
-                : (tabs.length > 5 ? tabs.take(5).toList() : tabs);
+            // Material 3 NavigationBar is spec'd for 3-5 destinations. Past 5
+            // it overflows visually on a phone (icons collide, hit targets
+            // shrink) and was the cause of "can't switch tabs on iPhone".
+            // Drawer remains the full source of truth — anything past 5 is
+            // still reachable from there.
+            final bottomTabs = tabs.length > 5 ? tabs.take(5).toList() : tabs;
 
             // Wrap routed content in a centred max-width container on tablet+
             // so forms/lists don't stretch ugly across wide screens. On phones
@@ -112,21 +112,45 @@ class _AppShellState extends State<AppShell> {
                     ? _NavDrawer(tabs: tabs, currentIndex: currentIndex)
                     : null,
                 appBar: AppBar(
+                  // Explicit leading: when the shell has a drawer (always on
+                  // phone/tablet with >1 tab), force the hamburger button so
+                  // it's never hidden by AppBar's auto-imply logic deciding
+                  // to show a back arrow instead.
+                  leading: useDrawer
+                      ? Builder(
+                          builder: (ctx) => IconButton(
+                            icon: const Icon(Icons.menu),
+                            onPressed: () => Scaffold.of(ctx).openDrawer(),
+                          ),
+                        )
+                      : null,
                   titleSpacing: 12,
                   title: Row(
                     children: [
-                      const BrandLogoAvatar(
-                        size: 32,
-                        padding: EdgeInsets.all(0.1),
+                      // Tappable brand logo — anywhere in the shell, tap to
+                      // return to the dashboard. Fixes the "no way back to
+                      // homepage" complaint without relying on the iOS swipe
+                      // gesture or finding the right back chevron.
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => context.go('/dashboard'),
+                        child: const BrandLogoAvatar(
+                          size: 32,
+                          padding: EdgeInsets.all(0.1),
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Flexible(
-                        child: Text(
-                          r.isCompact ? l.appTitleShort : l.appTitle,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => context.go('/dashboard'),
+                          child: Text(
+                            r.isCompact ? l.appTitleShort : l.appTitle,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
