@@ -518,7 +518,17 @@ class _AppShellState extends State<AppShell> {
         // they see the orders that haven't started building yet and can plan
         // parts ordering. Trailer list + detail already gate create/edit/
         // delete behind owner/production_manager — purchasing is read-only.
+        //
+        // Dashboard is included so the hamburger + bottom-nav render (both
+        // require tabs.length > 1), giving an obvious "back to home"
+        // affordance on iOS where there's no system back button.
         return [
+          _NavTab(
+            '/dashboard',
+            l.navDashboard,
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
           _NavTab(
             '/trailers?status=pending_production',
             l.navTrailers,
