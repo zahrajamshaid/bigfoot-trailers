@@ -15,6 +15,7 @@ const mockUser: SafeUser = {
   phone: '+1234567890',
   role: 'worker',
   primaryDepartmentId: 1,
+  extraDepartmentIds: [],
   primaryLocationId: 1,
   pushToken: null,
   isActive: true,
@@ -29,6 +30,7 @@ const ownerPayload: JwtPayload = {
   email: 'owner@bigfoot.com',
   role: 'owner',
   departmentId: null,
+  extraDepartmentIds: [],
   iat: 0,
   exp: 0,
 };
@@ -38,6 +40,7 @@ const workerPayload: JwtPayload = {
   email: 'worker@bigfoot.com',
   role: 'worker',
   departmentId: 1,
+  extraDepartmentIds: [],
   iat: 0,
   exp: 0,
 };

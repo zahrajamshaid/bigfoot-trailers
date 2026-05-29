@@ -30,6 +30,7 @@ describe('MessagesController', () => {
       email: 'worker@test.com',
       role: 'worker',
       departmentId: 1,
+      extraDepartmentIds: [],
       iat: 0,
       exp: 0,
     };

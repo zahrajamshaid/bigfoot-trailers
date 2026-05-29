@@ -368,6 +368,12 @@ model User {
   passwordHash        String    @map("password_hash") @db.VarChar(255)
   role                UserRole
   primaryDepartmentId Int?      @map("primary_department_id")
+  /// Additional departments this user can view queues for (beyond their
+  /// primaryDepartmentId). Used for "master" accounts that span multiple
+  /// physical departments — e.g. a paint-master who covers PAINT_A + PAINT_B,
+  /// or a wire/hydraulics master covering WIRE + HYDRAULICS. Plain Int[],
+  /// not FK-enforced (paint booths aren't going to be deleted).
+  extraDepartmentIds  Int[]     @default([]) @map("extra_department_ids")
   primaryLocationId   Int?      @map("primary_location_id")
   pushToken           String?   @map("push_token")
   isActive            Boolean   @default(true) @map("is_active")

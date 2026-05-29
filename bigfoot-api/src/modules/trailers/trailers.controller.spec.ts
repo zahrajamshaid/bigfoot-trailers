@@ -22,6 +22,7 @@ const ownerPayload: JwtPayload = {
   email: 'owner@bigfoot.com',
   role: 'owner',
   departmentId: null,
+  extraDepartmentIds: [],
   iat: 0,
   exp: 0,
 };

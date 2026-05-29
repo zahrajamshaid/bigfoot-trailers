@@ -12,6 +12,7 @@ interface JwtTokenPayload {
   email: string;
   role: string;
   departmentId: number | null;
+  extraDepartmentIds?: number[];
   iat: number;
   exp: number;
 }
@@ -57,6 +58,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       email: payload.email,
       role: payload.role,
       departmentId: payload.departmentId,
+      extraDepartmentIds: payload.extraDepartmentIds ?? [],
       iat: payload.iat,
       exp: payload.exp,
     };

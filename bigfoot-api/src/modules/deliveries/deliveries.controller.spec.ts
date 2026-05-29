@@ -54,6 +54,7 @@ describe('DeliveriesController', () => {
       email: 'tm@test.com',
       role: 'transport_manager',
       departmentId: null,
+      extraDepartmentIds: [],
       iat: 0,
       exp: 0,
     };
@@ -121,6 +122,7 @@ describe('DeliveriesController', () => {
       email: 'tm@test.com',
       role: 'transport_manager',
       departmentId: null,
+      extraDepartmentIds: [],
       iat: 0,
       exp: 0,
     };
@@ -136,6 +138,7 @@ describe('DeliveriesController', () => {
       email: 'tm@test.com',
       role: 'transport_manager',
       departmentId: null,
+      extraDepartmentIds: [],
       iat: 0,
       exp: 0,
     };

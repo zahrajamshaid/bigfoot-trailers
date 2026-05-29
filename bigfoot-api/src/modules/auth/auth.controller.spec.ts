@@ -65,6 +65,7 @@ describe('AuthController', () => {
         email: 'admin@bigfoottrailers.com',
         role: 'owner',
         departmentId: null,
+        extraDepartmentIds: [],
         iat: 0,
         exp: 0,
       };

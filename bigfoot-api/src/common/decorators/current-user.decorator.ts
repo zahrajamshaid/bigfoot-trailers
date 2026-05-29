@@ -10,6 +10,13 @@ export interface JwtPayload {
   email: string;
   role: string;
   departmentId: number | null;
+  /**
+   * Additional department IDs this user can view queues for, on top of
+   * `departmentId` (their primary). Empty array for normal accounts; only
+   * populated for "master" accounts like paint-master (PAINT_A + PAINT_B)
+   * or wire/hyd master (WIRE + HYDRAULICS).
+   */
+  extraDepartmentIds: number[];
   iat: number;
   exp: number;
 }

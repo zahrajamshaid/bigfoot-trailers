@@ -17,6 +17,7 @@ const mockUser = {
   passwordHash: '', // set in beforeEach
   role: 'owner',
   primaryDepartmentId: null,
+  extraDepartmentIds: [] as number[],
   isActive: true,
 };
 
@@ -121,6 +122,7 @@ describe('AuthService', () => {
           email: 'admin@bigfoottrailers.com',
           role: 'owner',
           departmentId: null,
+          extraDepartmentIds: [],
         }),
       );
 

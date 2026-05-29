@@ -15,6 +15,7 @@ function createMockContext(userRole?: string): ExecutionContext {
               email: 'test@test.com',
               role: userRole,
               departmentId: null,
+              extraDepartmentIds: [],
               iat: 0,
               exp: 0,
             }

@@ -67,6 +67,7 @@ describe('QcController', () => {
       email: 'test@test.com',
       role: 'qc_inspector',
       departmentId: null,
+      extraDepartmentIds: [],
       iat: 0,
       exp: 0,
     };

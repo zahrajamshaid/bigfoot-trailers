@@ -44,6 +44,7 @@ describe('PayrollController', () => {
     const dto = {
       trailerModelId: 1,
       departmentId: 1,
+      extraDepartmentIds: [],
       points: 3.5,
       effectiveFrom: '2026-01-01',
     };
@@ -106,6 +107,7 @@ describe('PayrollController', () => {
       email: 'owner@test.com',
       role: 'owner',
       departmentId: null,
+      extraDepartmentIds: [],
       iat: 0,
       exp: 0,
     };

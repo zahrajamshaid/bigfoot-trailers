@@ -12,6 +12,7 @@ export interface AccessTokenPayload {
   email: string;
   role: string;
   departmentId: number | null;
+  extraDepartmentIds: number[];
 }
 
 /** Shape returned to the client on successful login / refresh. */
@@ -51,6 +52,7 @@ export class AuthService {
         passwordHash: true,
         role: true,
         primaryDepartmentId: true,
+        extraDepartmentIds: true,
         isActive: true,
       },
     });
@@ -76,6 +78,7 @@ export class AuthService {
       email: user.email!,
       role: user.role,
       departmentId: user.primaryDepartmentId,
+      extraDepartmentIds: user.extraDepartmentIds,
     });
   }
 
@@ -96,6 +99,7 @@ export class AuthService {
             email: true,
             role: true,
             primaryDepartmentId: true,
+            extraDepartmentIds: true,
             isActive: true,
           },
         },
@@ -139,6 +143,7 @@ export class AuthService {
       email: storedToken.user.email!,
       role: storedToken.user.role,
       departmentId: storedToken.user.primaryDepartmentId,
+      extraDepartmentIds: storedToken.user.extraDepartmentIds,
     });
   }
 

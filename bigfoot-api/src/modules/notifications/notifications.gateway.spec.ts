@@ -51,6 +51,7 @@ describe('NotificationsGateway', () => {
         sub: 10,
         role: 'production_manager',
         departmentId: 3,
+        extraDepartmentIds: [],
       });
 
       const mockClient = {
@@ -112,6 +113,7 @@ describe('NotificationsGateway', () => {
         sub: 5,
         role: 'worker',
         departmentId: 1,
+        extraDepartmentIds: [],
       });
 
       const mockClient = {
@@ -135,6 +137,7 @@ describe('NotificationsGateway', () => {
         sub: 7,
         role: 'worker',
         departmentId: 2,
+        extraDepartmentIds: [],
       });
 
       const mockClient = {
@@ -156,6 +159,7 @@ describe('NotificationsGateway', () => {
         sub: 8,
         role: 'owner',
         departmentId: null,
+        extraDepartmentIds: [],
       });
 
       const mockClient = {

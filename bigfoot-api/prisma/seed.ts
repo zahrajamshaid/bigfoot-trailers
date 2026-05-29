@@ -1231,6 +1231,69 @@ async function main() {
   }
   console.log(`✅ Department users seeded: ${deptUserData.length} (password: ${DEV_PASSWORD})`);
 
+  // ─── DEPARTMENT-MASTER USERS — span multiple physical departments ─────────
+  // Fallback accounts when paint booth (or wire/hydraulics) routing needs to
+  // be overridden manually. Same UI as a normal worker but with the queue
+  // department selector pre-scoped to their two departments. Workers in
+  // either booth/dept can log in with these credentials and pick whichever
+  // queue is theirs.
+  //
+  // Same password as the other dev accounts: Dev1234!
+  const masterUserData: {
+    email: string;
+    fullName: string;
+    primaryCode: string;
+    extraCodes: string[];
+  }[] = [
+    {
+      email: 'paint-master@bigfoot.dev',
+      fullName: 'Paint Master (Booth A+B)',
+      primaryCode: 'PAINT_A',
+      extraCodes: ['PAINT_B'],
+    },
+    {
+      email: 'wire-hyd-master@bigfoot.dev',
+      fullName: 'Wire / Hydraulics Master',
+      primaryCode: 'WIRE',
+      extraCodes: ['HYDRAULICS'],
+    },
+  ];
+
+  for (const u of masterUserData) {
+    const primary = departments[u.primaryCode];
+    if (!primary) {
+      throw new Error(`Primary dept not found for master seed: ${u.primaryCode}`);
+    }
+    const extraIds = u.extraCodes.map((c) => {
+      const d = departments[c];
+      if (!d) throw new Error(`Extra dept not found for master seed: ${c}`);
+      return d.id;
+    });
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        passwordHash,
+        fullName: u.fullName,
+        role: UserRole.worker,
+        primaryLocationId: factory.id,
+        primaryDepartmentId: primary.id,
+        extraDepartmentIds: extraIds,
+        isActive: true,
+      },
+      create: {
+        email: u.email,
+        fullName: u.fullName,
+        passwordHash,
+        role: UserRole.worker,
+        primaryLocationId: factory.id,
+        primaryDepartmentId: primary.id,
+        extraDepartmentIds: extraIds,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`✅ Department-master users seeded: ${masterUserData.length} (password: ${DEV_PASSWORD})`);
+
   console.log('\n🎉 Seed complete!');
 }
 

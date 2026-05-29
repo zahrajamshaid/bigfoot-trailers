@@ -17,6 +17,7 @@ const USER_SELECT = {
   phone: true,
   role: true,
   primaryDepartmentId: true,
+  extraDepartmentIds: true,
   primaryLocationId: true,
   pushToken: true,
   isActive: true,
