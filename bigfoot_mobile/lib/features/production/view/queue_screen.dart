@@ -208,12 +208,12 @@ class _LoadedQueue extends StatelessWidget {
                         // regardless of position. Managers continue to drill
                         // through to the trailer detail.
                         onTap: isManager
-                            ? () => context.go('/trailers/${item.trailerId}')
+                            ? () => context.push('/trailers/${item.trailerId}')
                             : () => _showCompleteDialog(context, item),
                         // A small info button is exposed for workers who
                         // still need to open the trailer detail.
                         onOpenDetail: () =>
-                            context.go('/trailers/${item.trailerId}'),
+                            context.push('/trailers/${item.trailerId}'),
                         onLongPress: () => _showReverseDialog(context, item),
                       );
                     },

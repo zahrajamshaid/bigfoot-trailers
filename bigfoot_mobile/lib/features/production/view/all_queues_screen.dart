@@ -225,7 +225,7 @@ class _AllQueuesScreenState extends State<AllQueuesScreen>
                         return _AllQueueCard(
                           key: ValueKey(item.stepId),
                           item: item,
-                          onTap: () => context.go('/trailers/${item.trailerId}'),
+                          onTap: () => context.push('/trailers/${item.trailerId}'),
                         );
                       },
                     ),

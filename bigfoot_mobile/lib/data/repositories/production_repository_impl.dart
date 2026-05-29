@@ -43,8 +43,13 @@ class ProductionRepositoryImpl implements ProductionRepository {
   @override
   Future<List<Department>> getDepartments() async {
     try {
+      // /production/departments is open to any authenticated user.
+      // /admin/departments returns identical data but is gated to owner +
+      // production_manager — using it broke multi-dept worker accounts
+      // (paint-master, wire-hyd-master) by 403'ing them and yielding an
+      // empty list, which silently hid the dept-selector dropdown.
       final response = await _api.get<List<dynamic>>(
-        ApiEndpoints.adminDepartments,
+        ApiEndpoints.productionDepartments,
         fromJson: (d) => d as List<dynamic>,
       );
       return (response.data ?? [])

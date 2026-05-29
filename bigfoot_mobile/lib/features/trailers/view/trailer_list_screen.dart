@@ -274,7 +274,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
                                 }
                                 return _TrailerCard(
                                   trailer: trailers[trailerIndex],
-                                  onTap: () => context.go(
+                                  onTap: () => context.push(
                                       '/trailers/${trailers[trailerIndex].id}'),
                                 );
                               },
@@ -288,7 +288,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
       ),
       floatingActionButton: canCreate
           ? FloatingActionButton(
-              onPressed: () => context.go('/trailers/create'),
+              onPressed: () => context.push('/trailers/create'),
               child: const Icon(Icons.add),
             )
           : null,
