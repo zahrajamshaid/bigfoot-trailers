@@ -38,6 +38,7 @@ class QueueScreen extends StatelessWidget {
           cubit.load(
             deptId,
             isManager: isManager,
+            allowedDepartmentIds: user.allDepartmentIds,
             stalledOnly: initialStalledOnly,
           );
         }
@@ -76,6 +77,7 @@ class _QueueView extends StatelessWidget {
               context.read<ProductionViewModel>().load(
                 deptId,
                 isManager: isManager,
+                allowedDepartmentIds: user?.allDepartmentIds ?? const <int>[],
               );
             },
           );
@@ -121,8 +123,10 @@ class _LoadedQueue extends StatelessWidget {
 
     return Column(
       children: [
-        // Manager department selector
-        if (isManager && state.departments.isNotEmpty)
+        // Department selector — shown for managers (all depts) and for
+        // "master" worker accounts whose extraDepartmentIds give them more
+        // than one queue to choose from. Hidden for single-dept workers.
+        if (state.departments.length > 1)
           _DepartmentSelector(
             departments: state.departments,
             selectedId: state.departmentId,

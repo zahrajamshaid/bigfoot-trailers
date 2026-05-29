@@ -24,6 +24,11 @@ class User extends Equatable {
   final String role;
   @JsonKey(name: 'primaryDepartmentId')
   final int? departmentId;
+  /// Additional department IDs this user can view queues for, beyond their
+  /// primary [departmentId]. Empty for normal accounts; populated for
+  /// "master" accounts (e.g. paint-master covers PAINT_A + PAINT_B).
+  @JsonKey(defaultValue: <int>[])
+  final List<int> extraDepartmentIds;
   @JsonKey(name: 'primaryLocationId')
   final int? locationId;
   final bool? isActive;
@@ -35,6 +40,7 @@ class User extends Equatable {
     required this.name,
     required this.role,
     this.departmentId,
+    this.extraDepartmentIds = const <int>[],
     this.locationId,
     this.isActive,
     this.createdAt,
@@ -58,6 +64,20 @@ class User extends Equatable {
   bool get isQcInspector =>
       role == UserRole.qcInspector || isManager;
 
+  /// True for accounts that span multiple departments — i.e. master accounts
+  /// like paint-master or wire-hyd-master. Triggers the queue dept selector
+  /// even for non-managers so the user can switch between their assigned
+  /// departments.
+  bool get isMultiDept => extraDepartmentIds.isNotEmpty;
+
+  /// All department IDs this user is allowed to view queues for, in order
+  /// (primary first, then extras). Used by the queue screen to scope the
+  /// dept selector for non-manager multi-dept accounts.
+  List<int> get allDepartmentIds => [
+        if (departmentId != null) departmentId!,
+        ...extraDepartmentIds,
+      ];
+
   @override
-  List<Object?> get props => [id, email, name, role];
+  List<Object?> get props => [id, email, name, role, departmentId, extraDepartmentIds];
 }

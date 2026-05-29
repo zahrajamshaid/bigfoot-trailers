@@ -92,12 +92,21 @@ class AuthRepositoryImpl implements AuthRepository {
       return null;
     }
 
+    List<int> asIntList(dynamic v) {
+      if (v is List) {
+        return v.map(asInt).whereType<int>().toList(growable: false);
+      }
+      return const <int>[];
+    }
+
     return User(
       id: asInt(map['sub']) ?? 0,
       email: map['email'] as String? ?? '',
       name: (map['name'] ?? map['fullName'] ?? '').toString(),
       role: map['role'] as String? ?? 'worker',
       departmentId: asInt(map['departmentId'] ?? map['department_id']),
+      extraDepartmentIds:
+          asIntList(map['extraDepartmentIds'] ?? map['extra_department_ids']),
       locationId: asInt(map['locationId'] ?? map['location_id']),
     );
   }

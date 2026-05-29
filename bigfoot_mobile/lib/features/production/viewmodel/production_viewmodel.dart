@@ -109,12 +109,21 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
     int? departmentId, {
     bool isManager = false,
     bool stalledOnly = false,
+    List<int> allowedDepartmentIds = const <int>[],
   }) async {
     emit(const ProductionQueueLoading());
     try {
+      // Fetch the full department catalog whenever there's a choice to be made:
+      // managers can switch to anything; multi-dept "master" workers can switch
+      // between their primary + extras. Normal single-dept workers don't need
+      // it and we skip the round-trip.
+      final hasMultipleAllowed = allowedDepartmentIds.length > 1;
       List<Department> departments = [];
-      if (isManager) {
-        departments = await _repository.getDepartments();
+      if (isManager || hasMultipleAllowed) {
+        final all = await _repository.getDepartments();
+        departments = isManager
+            ? all
+            : all.where((d) => allowedDepartmentIds.contains(d.id)).toList();
       }
 
       int? resolvedDepartmentId = departmentId;
