@@ -210,6 +210,13 @@ async function main() {
   // ─── WORKFLOW TEMPLATES (48 rows — 12 per series) ─────────────────────────
   // Each series has 6 production steps + 6 QC checkpoints = 12 total
   // On QC fail, inspector selects ANY department — routing is dynamic
+  //
+  // Paint booth routing (handled in WorkflowGeneratorService at trailer creation):
+  //   - gooseneck_dump → always PAINT_B (the template value below is used as-is)
+  //   - xp / yeti / deck_over → at creation, the booth with the smaller
+  //     active+waiting queue wins (PAINT_A on a tie). The PAINT_A value
+  //     below is just a placeholder so the step exists — the actual
+  //     departmentId is overridden by the service before insert.
 
   const workflowData: { series: TrailerSeries; deptCode: string; stepOrder: number }[] = [
     // XP Series: XP_JIG → QC_1 → XP_FIN → QC_2 → PAINT_PREP → QC_3 → PAINT_A → QC_4 → WIRE → QC_5 → WOOD → FINAL_QC

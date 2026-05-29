@@ -6,27 +6,27 @@ import { PrismaService } from '../../prisma/prisma.service';
 // ---------------------------------------------------------------------------
 // Department fixture — maps code to a stable test id
 // ---------------------------------------------------------------------------
-const DEPT: Record<string, { id: number; isQcStep: boolean }> = {
-  XP_JIG: { id: 1, isQcStep: false },
-  XP_FIN: { id: 2, isQcStep: false },
-  YETI_JIG: { id: 3, isQcStep: false },
-  YETI_FIN: { id: 4, isQcStep: false },
-  DO_JIG: { id: 5, isQcStep: false },
-  DO_FIN: { id: 6, isQcStep: false },
-  GN_WELD: { id: 7, isQcStep: false },
-  GN_FIN: { id: 8, isQcStep: false },
-  PAINT_PREP: { id: 9, isQcStep: false },
-  PAINT_A: { id: 10, isQcStep: false },
-  PAINT_B: { id: 11, isQcStep: false },
-  HYDRAULICS: { id: 12, isQcStep: false },
-  WIRE: { id: 13, isQcStep: false },
-  WOOD: { id: 14, isQcStep: false },
-  QC_1: { id: 15, isQcStep: true },
-  QC_2: { id: 16, isQcStep: true },
-  QC_3: { id: 17, isQcStep: true },
-  QC_4: { id: 18, isQcStep: true },
-  QC_5: { id: 19, isQcStep: true },
-  FINAL_QC: { id: 20, isQcStep: true },
+const DEPT: Record<string, { id: number; code: string; isQcStep: boolean }> = {
+  XP_JIG: { id: 1, code: 'XP_JIG', isQcStep: false },
+  XP_FIN: { id: 2, code: 'XP_FIN', isQcStep: false },
+  YETI_JIG: { id: 3, code: 'YETI_JIG', isQcStep: false },
+  YETI_FIN: { id: 4, code: 'YETI_FIN', isQcStep: false },
+  DO_JIG: { id: 5, code: 'DO_JIG', isQcStep: false },
+  DO_FIN: { id: 6, code: 'DO_FIN', isQcStep: false },
+  GN_WELD: { id: 7, code: 'GN_WELD', isQcStep: false },
+  GN_FIN: { id: 8, code: 'GN_FIN', isQcStep: false },
+  PAINT_PREP: { id: 9, code: 'PAINT_PREP', isQcStep: false },
+  PAINT_A: { id: 10, code: 'PAINT_A', isQcStep: false },
+  PAINT_B: { id: 11, code: 'PAINT_B', isQcStep: false },
+  HYDRAULICS: { id: 12, code: 'HYDRAULICS', isQcStep: false },
+  WIRE: { id: 13, code: 'WIRE', isQcStep: false },
+  WOOD: { id: 14, code: 'WOOD', isQcStep: false },
+  QC_1: { id: 15, code: 'QC_1', isQcStep: true },
+  QC_2: { id: 16, code: 'QC_2', isQcStep: true },
+  QC_3: { id: 17, code: 'QC_3', isQcStep: true },
+  QC_4: { id: 18, code: 'QC_4', isQcStep: true },
+  QC_5: { id: 19, code: 'QC_5', isQcStep: true },
+  FINAL_QC: { id: 20, code: 'FINAL_QC', isQcStep: true },
 };
 
 // ---------------------------------------------------------------------------
@@ -108,6 +108,10 @@ function buildTemplateRows(series: string) {
 let createdSteps: any[] = [];
 let stepIdCounter = 100;
 
+/** Default queue depths used when a test doesn't override them. */
+let paintAQueueDepth = 0;
+let paintBQueueDepth = 0;
+
 const mockTx = {
   workflowTemplate: {
     findMany: jest.fn(),
@@ -117,6 +121,24 @@ const mockTx = {
       const id = BigInt(stepIdCounter++);
       createdSteps.push({ id, ...data });
       return Promise.resolve({ id });
+    }),
+    count: jest.fn().mockImplementation(({ where }: any) => {
+      if (where?.departmentId === DEPT.PAINT_A.id) {
+        return Promise.resolve(paintAQueueDepth);
+      }
+      if (where?.departmentId === DEPT.PAINT_B.id) {
+        return Promise.resolve(paintBQueueDepth);
+      }
+      return Promise.resolve(0);
+    }),
+  },
+  department: {
+    findMany: jest.fn().mockImplementation(({ where }: any) => {
+      const codes: string[] = where?.code?.in ?? [];
+      const matched = codes
+        .filter((c) => c in DEPT)
+        .map((c) => ({ id: DEPT[c].id, code: c }));
+      return Promise.resolve(matched);
     }),
   },
 };
@@ -144,6 +166,8 @@ describe('WorkflowGeneratorService', () => {
     jest.clearAllMocks();
     createdSteps = [];
     stepIdCounter = 100;
+    paintAQueueDepth = 0;
+    paintBQueueDepth = 0;
   });
 
   // =========================================================================
@@ -395,6 +419,101 @@ describe('WorkflowGeneratorService', () => {
       await expect(
         service.generateSteps(BigInt(1), 'xp' as any, mockTx as any),
       ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+    });
+  });
+
+  // =========================================================================
+  // Paint booth load-balancing (XP / Yeti / Deck Over)
+  // =========================================================================
+  describe('paint booth load-balancing', () => {
+    const NON_GN_SERIES = ['xp', 'yeti', 'deck_over'] as const;
+
+    it.each(NON_GN_SERIES)(
+      '%s: routes to PAINT_B when its queue is lighter',
+      async (series) => {
+        mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows(series));
+        paintAQueueDepth = 5;
+        paintBQueueDepth = 2;
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any);
+
+        const paintStep = createdSteps[6]; // step_order 7
+        expect(paintStep.departmentId).toBe(DEPT.PAINT_B.id);
+      },
+    );
+
+    it.each(NON_GN_SERIES)(
+      '%s: routes to PAINT_A when its queue is lighter',
+      async (series) => {
+        mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows(series));
+        paintAQueueDepth = 1;
+        paintBQueueDepth = 4;
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any);
+
+        const paintStep = createdSteps[6];
+        expect(paintStep.departmentId).toBe(DEPT.PAINT_A.id);
+      },
+    );
+
+    it.each(NON_GN_SERIES)(
+      '%s: ties go to PAINT_A',
+      async (series) => {
+        mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows(series));
+        paintAQueueDepth = 3;
+        paintBQueueDepth = 3;
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any);
+
+        const paintStep = createdSteps[6];
+        expect(paintStep.departmentId).toBe(DEPT.PAINT_A.id);
+      },
+    );
+
+    it('gooseneck_dump always uses PAINT_B regardless of queue depth', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(
+        buildTemplateRows('gooseneck_dump'),
+      );
+      // Set PAINT_B as the heavier queue — load balancer would normally
+      // pick PAINT_A, but GN/Dump must skip the picker.
+      paintAQueueDepth = 0;
+      paintBQueueDepth = 100;
+
+      await service.generateSteps(
+        BigInt(1),
+        'gooseneck_dump' as any,
+        mockTx as any,
+      );
+
+      const paintStep = createdSteps[6];
+      expect(paintStep.departmentId).toBe(DEPT.PAINT_B.id);
+      // And the picker is never invoked for GN/Dump
+      expect(mockTx.department.findMany).not.toHaveBeenCalled();
+      expect(mockTx.productionStep.count).not.toHaveBeenCalled();
+    });
+
+    it('throws BAD_REQUEST if both PAINT_A and PAINT_B departments are missing', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('xp'));
+      mockTx.department.findMany.mockResolvedValueOnce([]);
+
+      await expect(
+        service.generateSteps(BigInt(1), 'xp' as any, mockTx as any),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+    });
+
+    it('falls back to the only available booth when one is missing', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('xp'));
+      // Only PAINT_B is present in the departments table.
+      mockTx.department.findMany.mockResolvedValueOnce([
+        { id: DEPT.PAINT_B.id, code: 'PAINT_B' },
+      ]);
+      paintAQueueDepth = 0;
+      paintBQueueDepth = 50;
+
+      await service.generateSteps(BigInt(1), 'xp' as any, mockTx as any);
+
+      const paintStep = createdSteps[6];
+      expect(paintStep.departmentId).toBe(DEPT.PAINT_B.id);
     });
   });
 });
