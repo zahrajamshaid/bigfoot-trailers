@@ -23,6 +23,7 @@ on:
           - seed-test-trailers    # 6 test trailers for batch-delivery testing
           - seed-open-mul         # 25 open-stock packing-slip trailers (PDFs uploaded if DO_SPACES_* set)
           - seed-open-mul-restock # normalize the open-mul 25 into Mulberry stock inventory (clears notes, status=delivered)
+          - backfill-stuck-stock-status # one-shot: fix trailers stuck in ready_for_delivery after a sold → available revert
 
 concurrency:
   group: db-seed-prod
