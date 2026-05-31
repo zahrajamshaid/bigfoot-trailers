@@ -21,6 +21,7 @@ on:
           - seed                  # base: locations, models, depts, users
           - seed-trailer-catalog  # extra trailer models + ready-for-delivery trailers
           - seed-test-trailers    # 6 test trailers for batch-delivery testing
+          - seed-open-mul         # 25 open-stock packing-slip trailers (PDFs uploaded if DO_SPACES_* set)
 
 concurrency:
   group: db-seed-prod
