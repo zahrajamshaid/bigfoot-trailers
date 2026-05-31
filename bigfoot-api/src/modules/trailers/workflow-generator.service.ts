@@ -7,7 +7,8 @@ export interface GeneratedStepsSummary {
   trailerId: bigint;
   series: TrailerSeries;
   totalSteps: number;
-  firstActiveStepId: bigint;
+  // Null for inventory-only models — no production steps, nothing to start.
+  firstActiveStepId: bigint | null;
 }
 
 const PAINT_A_CODE = 'PAINT_A';
@@ -116,9 +117,7 @@ export class WorkflowGeneratorService {
    * back to the other booth; if both are missing it throws — that's a seed
    * misconfiguration the caller should hear about.
    */
-  private async pickLighterPaintBooth(
-    tx: Prisma.TransactionClient,
-  ): Promise<number> {
+  private async pickLighterPaintBooth(tx: Prisma.TransactionClient): Promise<number> {
     const booths = await tx.department.findMany({
       where: { code: { in: [PAINT_A_CODE, PAINT_B_CODE] } },
       select: { id: true, code: true },

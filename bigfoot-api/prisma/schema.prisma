@@ -21,6 +21,10 @@ enum TrailerSeries {
   yeti
   deck_over
   gooseneck_dump
+  // Inventory-only models (Triple Crown, Enclosed, Misc). Trailers in this
+  // series skip workflow_template lookup and are created straight in
+  // ready_for_delivery — they're tracked for stock but not built on a line.
+  inventory
 
   @@map("trailer_series_enum")
 }

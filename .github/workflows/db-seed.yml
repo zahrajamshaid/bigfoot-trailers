@@ -24,6 +24,7 @@ on:
           - seed-open-mul         # 25 open-stock packing-slip trailers (PDFs uploaded if DO_SPACES_* set)
           - seed-open-mul-restock # normalize the open-mul 25 into Mulberry stock inventory (clears notes, status=delivered)
           - backfill-stuck-stock-status # one-shot: fix trailers stuck in ready_for_delivery after a sold → available revert
+          - seed-inventory-models-and-sales # 3 inventory-only models (Triple Crown / Enclosed / Misc) + 2 sales logins (TAL / ATL)
 
 concurrency:
   group: db-seed-prod

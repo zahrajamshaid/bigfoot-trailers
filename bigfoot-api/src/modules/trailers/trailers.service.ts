@@ -240,7 +240,13 @@ export class TrailersService {
       currentLocationId = stockLocation.id;
     }
 
+    // Inventory-only models (Triple Crown, Enclosed, Misc) are tracked for
+    // stock but not built on a line — no workflow_template, no production
+    // steps, so the trailer is born already ready_for_delivery.
+    const isInventoryOnly = model.series === 'inventory';
+
     // Atomic transaction: create trailer + generate all 12 workflow steps
+    // (skipped for inventory-only models).
     const result = await this.prisma.$transaction(async (tx) => {
       const trailer = await tx.trailer.create({
         data: {
@@ -255,7 +261,9 @@ export class TrailersService {
           specialNote: dto.specialNote ?? null,
           isStockBuild: dto.isStockBuild ?? false,
           qbSoId: dto.qbSoId ?? null,
-          status: TrailerStatus.pending_production,
+          status: isInventoryOnly
+            ? TrailerStatus.ready_for_delivery
+            : TrailerStatus.pending_production,
           soldToName: dto.soldToName?.trim() || null,
           // A trailer created against a customer (record or free-text name)
           // is, by definition, sold.
@@ -267,11 +275,14 @@ export class TrailersService {
         select: TRAILER_DETAIL_SELECT,
       });
 
-      const stepsSummary = await this.workflowGenerator.generateSteps(
-        trailer.id,
-        model.series,
-        tx,
-      );
+      const stepsSummary = isInventoryOnly
+        ? {
+            trailerId: trailer.id,
+            series: model.series,
+            totalSteps: 0,
+            firstActiveStepId: null,
+          }
+        : await this.workflowGenerator.generateSteps(trailer.id, model.series, tx);
 
       return { trailer, stepsSummary };
     });
