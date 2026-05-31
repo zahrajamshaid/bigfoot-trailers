@@ -25,6 +25,7 @@ on:
           - seed-open-mul-restock # normalize the open-mul 25 into Mulberry stock inventory (clears notes, status=delivered)
           - backfill-stuck-stock-status # one-shot: fix trailers stuck in ready_for_delivery after a sold → available revert
           - seed-inventory-models-and-sales # 3 inventory-only models (Triple Crown / Enclosed / Misc) + 2 sales logins (TAL / ATL)
+          - seed-open-stock       # 93 multi-location open-stock trailers (MUL/JAX/ATL/TAL/TAP) — extends seed-open-mul to all 5 yards
 
 concurrency:
   group: db-seed-prod
