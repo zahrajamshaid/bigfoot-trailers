@@ -1,0 +1,710 @@
+[
+  {
+    "bucket": "delivery-dealer-tropic",
+    "kind": "dealer",
+    "locationCode": null,
+    "dealerName": "Tropic Trailers",
+    "file": "6664.pdf",
+    "soNumber": "6664",
+    "pdfModelCode": "18TLT22",
+    "shipTo": "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA",
+    "shipToLines": [
+      "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers",
+      "FL 33905 USA"
+    ],
+    "date": "04/22/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Tropic Trailers 9451 Workmen Way NEED 26 RESALE CERT Fort Myers, FL 33905 Ship to Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA Sales Order details Sales Order no.: 6664 Date: 04/22/2026 SERVICE DESCRIPTION QTY 18TLT22 TYPE/MODEL: 18TLT22 LENGTH:16? TILT DECK 6' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,500LBS F"
+  },
+  {
+    "bucket": "delivery-dealer-tropic",
+    "kind": "dealer",
+    "locationCode": null,
+    "dealerName": "Tropic Trailers",
+    "file": "6718.pdf",
+    "soNumber": "6718",
+    "pdfModelCode": "15ET22YETI",
+    "shipTo": "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA",
+    "shipToLines": [
+      "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers",
+      "FL 33905 USA"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "22",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Tropic Trailers 9451 Workmen Way NEED 26 RESALE CERT Fort Myers, FL 33905 Ship to Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA Sales Order details Sales Order no.: 6718 Date: 05/05/2026 SERVICE DESCRIPTION QTY 15ET22YETI TYPE/MODEL: 15ET22 LENGTH:22' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8? STRUCTURAL I "
+  },
+  {
+    "bucket": "delivery-dealer-tropic",
+    "kind": "dealer",
+    "locationCode": null,
+    "dealerName": "Tropic Trailers",
+    "file": "6724.pdf",
+    "soNumber": "6724",
+    "pdfModelCode": "15ET20TLT",
+    "shipTo": "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA",
+    "shipToLines": [
+      "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers",
+      "FL 33905 USA"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Tropic Trailers 9451 Workmen Way NEED 26 RESALE CERT Fort Myers, FL 33905 Ship to Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA Sales Order details Sales Order no.: 6724 Date: 05/05/2026 SERVICE DESCRIPTION QTY 15ET20TLT TYPE/MODEL: 15TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS"
+  },
+  {
+    "bucket": "delivery-dealer-tropic",
+    "kind": "dealer",
+    "locationCode": null,
+    "dealerName": "Tropic Trailers",
+    "file": "6748.pdf",
+    "soNumber": "6748",
+    "pdfModelCode": "14ET16XP",
+    "shipTo": "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA",
+    "shipToLines": [
+      "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers",
+      "FL 33905 USA"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Tropic Trailers 9451 Workmen Way NEED 26 RESALE CERT Fort Myers, FL 33905 Ship to Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA Sales Order details Sales Order no.: 6748 Date: 05/11/2026 SERVICE DESCRIPTION QTY 14ET16XP TYPE/MODEL: 14ET16 LENGTH:16' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6? CHANNEL LOWER F"
+  },
+  {
+    "bucket": "delivery-stack-to-atl",
+    "kind": "stack",
+    "locationCode": "ATLANTA",
+    "dealerName": null,
+    "file": "6702.pdf",
+    "soNumber": "6702",
+    "pdfModelCode": "21ET24YETI",
+    "shipTo": "CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA, GA 30180",
+    "shipToLines": [
+      "CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA",
+      "GA 30180"
+    ],
+    "date": "04/30/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA, GA 30180 Ship to CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA, GA 30180 Sales Order details Sales Order no.: 6702 Date: 04/30/2026 SERVICE DESCRIPTION QTY 21ET24YETI BIGFOOT TRAILERS TOP SERIES FLATBED EQUIPMENT TRAILER --- GVWR 21,000LB, LOAD CAPACITY APPROX 17,0"
+  },
+  {
+    "bucket": "delivery-stack-to-atl",
+    "kind": "stack",
+    "locationCode": "ATLANTA",
+    "dealerName": null,
+    "file": "6704.pdf",
+    "soNumber": "6704",
+    "pdfModelCode": "15ET20TLT",
+    "shipTo": "WINGHAM ENTERPRISES",
+    "shipToLines": [
+      "WINGHAM ENTERPRISES"
+    ],
+    "date": "05/01/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to WINGHAM ENTERPRISES Ship to WINGHAM ENTERPRISES Sales Order details Sales Order no.: 6704 Date: 05/01/2026 SERVICE DESCRIPTION QTY 15ET20TLT TYPE/MODEL: 15TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8? STRUCTURAL I BEAM ? INTAGRATED TOUNGE 3? STRUCTURAL CHANNEL CROSSMEMBERS DEXTER AXLES: 7K TORSION"
+  },
+  {
+    "bucket": "delivery-stack-to-atl",
+    "kind": "stack",
+    "locationCode": "ATLANTA",
+    "dealerName": null,
+    "file": "6726.pdf",
+    "soNumber": "6726",
+    "pdfModelCode": "22DO25",
+    "shipTo": "KIRK KIRKPATRIC MARIETTA",
+    "shipToLines": [
+      "KIRK KIRKPATRIC MARIETTA"
+    ],
+    "date": "04/17/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to KIRK KIRKPATRIC KIRK KIRKPATRICK KIRKPATRICK'S TURF & LANDSCAPE MGT Ship to KIRK KIRKPATRIC MARIETTA Sales Order details Sales Order no.: 6726 Date: 04/17/2026 SERVICE DESCRIPTION QTY 22DO25 30' TOTAL - 25' FLAT DECK PLUS 5' DOVETAIL SINGLE WHEEL 10K AXLES Bigfoot Trailers Premium 21,000LB GVWR Deck Over Wheels Equipment Trailer Meant to Carry Approximately 16500LB --- Special In"
+  },
+  {
+    "bucket": "delivery-stack-to-atl",
+    "kind": "stack",
+    "locationCode": "ATLANTA",
+    "dealerName": null,
+    "file": "6756.pdf",
+    "soNumber": "6756",
+    "pdfModelCode": "15TET24TLT",
+    "shipTo": "DAVID BUCHANAN DAVID BUCHANAN",
+    "shipToLines": [
+      "DAVID BUCHANAN DAVID BUCHANAN"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to DAVID BUCHANAN DAVID BUCHANAN 489 ETHRIDGE MILL RD MILNER, GA 30257 Ship to DAVID BUCHANAN DAVID BUCHANAN Sales Order details Sales Order no.: 6756 Date: 05/11/2026 SERVICE DESCRIPTION QTY 15TET24TLT TYPE/MODEL: 15TLT24 LENGTH:16' TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8\" STRUCTURAL I BEAM - INTAGRATED TOUNGE "
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6677.pdf",
+    "soNumber": "6677",
+    "pdfModelCode": "14ET24XP",
+    "shipTo": "A Open Stock Tallahassee",
+    "shipToLines": [
+      "A Open Stock Tallahassee"
+    ],
+    "date": "04/24/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Tallahassee Ship to A Open Stock Tallahassee Sales Order details Sales Order no.: 6677 Date: 04/24/2026 SERVICE DESCRIPTION QTY 14ET24XP TYPE/MODEL: 14ET24 LENGTH:24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6? CHANNEL LOWER FRAME, 6? UPPER FRAME 3? STRUCTURAL CHANNEL CROSSMEMBERS DEXTER AXLES: 7K SLIPPER SPRING TIRES: 235"
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6733.pdf",
+    "soNumber": "6733",
+    "pdfModelCode": "10DO24",
+    "shipTo": "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES",
+    "shipToLines": [
+      "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Ship to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Sales Order details Sales Order no.: 6733 Date: 05/05/2026 SERVICE DESCRIPTION QTY 10DO24 ALL FLAT NO RAMPS TYPE/MODEL:10DO24 LENGTH:24' DECK WIDTH: 8.5' GVWR: 9,999 RECOMMENDED PAYLOAD:7500LBS FRAME:6\" CHANNEL LOWER FRAME 6\" UPPER FRAME. 3\" STRUCTURAL CROSSMEMEBER DEXT"
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6734.pdf",
+    "soNumber": "6734",
+    "pdfModelCode": "10DO24",
+    "shipTo": "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES",
+    "shipToLines": [
+      "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Ship to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Sales Order details Sales Order no.: 6734 Date: 05/05/2026 SERVICE DESCRIPTION QTY 10DO24 ALL FLAT NO RAMPS TYPE/MODEL:10DO24 LENGTH:24' DECK WIDTH: 8.5' GVWR: 9,999 RECOMMENDED PAYLOAD:7500LBS FRAME:6\" CHANNEL LOWER FRAME 6\" UPPER FRAME. 3\" STRUCTURAL CROSSMEMEBER DEXT"
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6735.pdf",
+    "soNumber": "6735",
+    "pdfModelCode": "10DO24",
+    "shipTo": "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES",
+    "shipToLines": [
+      "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Ship to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Sales Order details Sales Order no.: 6735 Date: 05/05/2026 SERVICE DESCRIPTION QTY 10DO24 ALL FLAT NO RAMPS TYPE/MODEL:10DO24 LENGTH:24' DECK WIDTH: 8.5' GVWR: 9,999 RECOMMENDED PAYLOAD:7500LBS FRAME:6\" CHANNEL LOWER FRAME 6\" UPPER FRAME. 3\" STRUCTURAL CROSSMEMEBER DEXT"
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6736.pdf",
+    "soNumber": "6736",
+    "pdfModelCode": "10DO24",
+    "shipTo": "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES",
+    "shipToLines": [
+      "VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Ship to VIRGINA STEEL SPECIALTIES VIRGINA STEEL SPECIALTIES Sales Order details Sales Order no.: 6736 Date: 05/05/2026 SERVICE DESCRIPTION QTY 10DO24 ALL FLAT NO RAMPS TYPE/MODEL:10DO24 LENGTH:24' DECK WIDTH: 8.5' GVWR: 9,999 RECOMMENDED PAYLOAD:7500LBS FRAME:6\" CHANNEL LOWER FRAME 6\" UPPER FRAME. 3\" STRUCTURAL CROSSMEMEBER DEXT"
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6738.pdf",
+    "soNumber": "6738",
+    "pdfModelCode": "17ET20XP",
+    "shipTo": "OPEN STOCK KENNY",
+    "shipToLines": [
+      "OPEN STOCK KENNY"
+    ],
+    "date": "05/08/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to OPEN STOCK KENNY Ship to OPEN STOCK KENNY Sales Order details Sales Order no.: 6738 Date: 05/08/2026 SERVICE DESCRIPTION QTY 17ET20XP TYPE/MODEL: 17ET20 LENGTH: 20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,500LBS RECOMMENDED PAYLOAD: 14,000LBS FRAME: 8? STRUCTURAL CHANNEL LOWER FRAME ? 8? UPPER FRAME 3? STRUCTURAL CHANNEL CROSSMEMBERS DEXTER AXLES: 8K SLIPPER SPRING AXLES TIRES: "
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6740.pdf",
+    "soNumber": "6740",
+    "pdfModelCode": "15TET24TLT",
+    "shipTo": "OPEN STOCK KENNY",
+    "shipToLines": [
+      "OPEN STOCK KENNY"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to OPEN STOCK KENNY Ship to OPEN STOCK KENNY Sales Order details Sales Order no.: 6740 Date: 05/11/2026 SERVICE DESCRIPTION QTY 15TET24TLT TYPE/MODEL: 15TLT24 LENGTH:16? TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8? STRUCTURAL I BEAM ? INTAGRATED TOUNGE 3? STRUCTURAL CHANNEL CROSSMEMBERS DEXTER AXLES: 7K TORSION-TORF"
+  },
+  {
+    "bucket": "delivery-stack-to-va",
+    "kind": "stack",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6759.pdf",
+    "soNumber": "6759",
+    "pdfModelCode": "14ET20XP",
+    "shipTo": "Rick or Annette Sovastion Rick or Annette Sovastion 1711 Grafton Rd Morgantown, WV 26508",
+    "shipToLines": [
+      "Rick or Annette Sovastion Rick or Annette Sovastion 1711 Grafton Rd Morgantown",
+      "WV 26508"
+    ],
+    "date": "04/27/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Rick or Annette Sovastion Rick or Annette Sovastion 1711 Grafton Rd Morgantown, WV 26508 Ship to Rick or Annette Sovastion Rick or Annette Sovastion 1711 Grafton Rd Morgantown, WV 26508 Sales Order details Sales Order no.: 6759 Date: 04/27/2026 SERVICE DESCRIPTION QTY 14ET20XP Built As XPT TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED P"
+  },
+  {
+    "bucket": "sold-pending-pickup-jax",
+    "kind": "sold_pending",
+    "locationCode": "JACKSONVILLE",
+    "dealerName": null,
+    "file": "6506.pdf",
+    "soNumber": "6506",
+    "pdfModelCode": "70CH24",
+    "shipTo": "FRANK THOMAS",
+    "shipToLines": [
+      "FRANK THOMAS"
+    ],
+    "date": "03/02/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to FRANK THOMAS FRANK THOMAS 40 LOBLOLLY DR CRAWFORDVILLE, FL 32327 Ship to FRANK THOMAS Shipping info Ship date: 03/02/2026 Sales Order details Sales Order no.: 6506 Date: 03/02/2026 SERVICE DESCRIPTION QTY 70CH24 Bigfoot Trailers Premium 7,000LB GVWR Equipment Trailer Meant to Carry Approximately 5,200LB --- 3500lb Axles With Self Adjust Brakes on all Wheels - -- 205-75R15 Radial "
+  },
+  {
+    "bucket": "sold-pending-pickup-jax",
+    "kind": "sold_pending",
+    "locationCode": "JACKSONVILLE",
+    "dealerName": null,
+    "file": "6596.pdf",
+    "soNumber": "6596",
+    "pdfModelCode": "18ET24TLT",
+    "shipTo": "North Florida Equipment Rental LLC (deal) North Florida Equipment Rental LLC 9080 S County Road 231 Lake Butler, FL 32054",
+    "shipToLines": [
+      "North Florida Equipment Rental LLC (deal) North Florida Equipment Rental LLC 9080 S County Road 231 Lake Butler",
+      "FL 32054"
+    ],
+    "date": "04/02/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to North Florida Equipment Rental LLC (deal) 9080 S County Road 231 Lake Butler, FL 32054 Ship to North Florida Equipment Rental LLC (deal) North Florida Equipment Rental LLC 9080 S County Road 231 Lake Butler, FL 32054 Shipping info Ship date: 04/02/2026 Sales Order details Sales Order no.: 6596 Date: 04/02/2026 SERVICE DESCRIPTION QTY 18ET24TLT TYPE/MODEL: 18TLT24LENGTH:16? TILT D"
+  },
+  {
+    "bucket": "sold-pending-pickup-jax",
+    "kind": "sold_pending",
+    "locationCode": "JACKSONVILLE",
+    "dealerName": null,
+    "file": "6621.pdf",
+    "soNumber": "6621",
+    "pdfModelCode": "7X16TA2",
+    "shipTo": "HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD, FL 34771",
+    "shipToLines": [
+      "HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD",
+      "FL 34771"
+    ],
+    "date": "04/10/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD, FL 34771 Ship to HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD, FL 34771 Sales Order details Sales Order no.: 6621 Date: 04/10/2026 SERVICE DESCRIPTION QTY 7X16TA2 7X16 WITH 5200 LB AXLES - FLAT NOSE - CHARCOAL GRAY - 7' INTERIOR - REAR RAMP DOOR - SIDE DOOR - INTERIOR LIGHT - 080 EXTERIOR - GALVALUME ROOF - 16 ON CENTE"
+  },
+  {
+    "bucket": "sold-pending-pickup-jax",
+    "kind": "sold_pending",
+    "locationCode": "JACKSONVILLE",
+    "dealerName": null,
+    "file": "6629.pdf",
+    "soNumber": "6629",
+    "pdfModelCode": "18ET24TLT",
+    "shipTo": "RCN FARMS LLC 1115 FRANKE PLACE COURT AGUSTA, GA 30909",
+    "shipToLines": [
+      "RCN FARMS LLC 1115 FRANKE PLACE COURT AGUSTA",
+      "GA 30909"
+    ],
+    "date": "04/14/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to RCN FARMS LLC 1115 FRANKE PLACE COURT AGUSTA, GA 30909 Ship to RCN FARMS LLC 1115 FRANKE PLACE COURT AGUSTA, GA 30909 Sales Order details Sales Order no.: 6629 Date: 04/14/2026 SERVICE DESCRIPTION QTY 18ET24TLT TYPE/MODEL: 18TLT24 LENGTH:16? TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,500LBS FRAME: 8? STRUCTURAL I BEAM ? INTAGRA"
+  },
+  {
+    "bucket": "sold-pending-pickup-jax",
+    "kind": "sold_pending",
+    "locationCode": "JACKSONVILLE",
+    "dealerName": null,
+    "file": "6646.pdf",
+    "soNumber": "6646",
+    "pdfModelCode": "18ET24TLT",
+    "shipTo": "MCDAVID COMMERCIAL SERVICES LLC 22840 NW 75TH AVE ROAD MICANOPY, FL 32667",
+    "shipToLines": [
+      "MCDAVID COMMERCIAL SERVICES LLC 22840 NW 75TH AVE ROAD MICANOPY",
+      "FL 32667"
+    ],
+    "date": "04/17/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to MCDAVID COMMERCIAL SERVICES LLC 22840 NW 75TH AVE ROAD MICANOPY, FL 32667 Ship to MCDAVID COMMERCIAL SERVICES LLC 22840 NW 75TH AVE ROAD MICANOPY, FL 32667 Sales Order details Sales Order no.: 6646 Date: 04/17/2026 SERVICE DESCRIPTION QTY 18ET24TLT TYPE/MODEL: 18TLT24 LENGTH:16? TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,500LBS"
+  },
+  {
+    "bucket": "sold-pending-pickup-jax",
+    "kind": "sold_pending",
+    "locationCode": "JACKSONVILLE",
+    "dealerName": null,
+    "file": "6654.pdf",
+    "soNumber": "6654",
+    "pdfModelCode": "14ET24XP",
+    "shipTo": "North Florida Equipment Rental LLC (deal) North Florida Equipment Rental LLC 9080 S County Road 231 Lake Butler, FL 32054",
+    "shipToLines": [
+      "North Florida Equipment Rental LLC (deal) North Florida Equipment Rental LLC 9080 S County Road 231 Lake Butler",
+      "FL 32054"
+    ],
+    "date": "04/20/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to North Florida Equipment Rental LLC (deal) 9080 S County Road 231 Lake Butler, FL 32054 Ship to North Florida Equipment Rental LLC (deal) North Florida Equipment Rental LLC 9080 S County Road 231 Lake Butler, FL 32054 Sales Order details Sales Order no.: 6654 Date: 04/20/2026 SERVICE DESCRIPTION QTY 14ET24XP TYPE/MODEL: 14ET24 LENGTH:24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,00"
+  },
+  {
+    "bucket": "sold-pending-pickup-jax",
+    "kind": "sold_pending",
+    "locationCode": "JACKSONVILLE",
+    "dealerName": null,
+    "file": "6683.pdf",
+    "soNumber": "6683",
+    "pdfModelCode": "17ET24",
+    "shipTo": "HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD, FL 34771",
+    "shipToLines": [
+      "HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD",
+      "FL 34771"
+    ],
+    "date": "04/27/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD, FL 34771 Ship to HALECOM SOLUTIONS LLC 3204 MISTY MORN CT SAINT CLOUD, FL 34771 Sales Order details Sales Order no.: 6683 Date: 04/27/2026 SERVICE DESCRIPTION QTY 17ET24 TYPE/MODEL: 17ET24 LENGTH: 24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,500LBS RECOMMENDED PAYLOAD: 14,000LBS FRAME: 8? STRUCTURAL CHANNEL LOWER FRAME ? 8? UP"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "5653.pdf",
+    "soNumber": "5653",
+    "pdfModelCode": "15ET20YETI",
+    "shipTo": "Open Stock Mulberry",
+    "shipToLines": [
+      "Open Stock Mulberry"
+    ],
+    "date": "06/26/2025",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Open Stock Mulberry Open Stock Mulberry Ship to Open Stock Mulberry Shipping info Ship date: 06/26/2025 Sales Order details Sales Order no.: 5653 Date: 06/26/2025 SERVICE DESCRIPTION QTY 15ET20YETI HYDRO RAMPS BIGFOOT TRAILERS TOP SERIES FLATBED EQUIPMENT TRAILER --- GVWR 14,700, LOAD CAPACITY APPROX 11,500 LBS. FRAME 8 INCH I-BEAM AXLES 7000 LBS DEXTER PREMIUM TORFLEX TORSION AX"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6215.pdf",
+    "soNumber": "6215",
+    "pdfModelCode": "8X20",
+    "shipTo": "STEPHANIE LASSITER",
+    "shipToLines": [
+      "STEPHANIE LASSITER"
+    ],
+    "date": "12/02/2025",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to STEPHANIE LASSITER STEPHANIE LASSITER 1865 S BROCKSMITH RD FORT PIERCE FL 34945 Ship to STEPHANIE LASSITER Shipping info Ship date: 12/02/2025 Sales Order details Sales Order no.: 6215 Date: 12/02/2025 SERVICE DESCRIPTION QTY Custom Trailer 8X20 GOOSENECK DUMP 40,000LBS RATED GVWR 15K DEXTER AXLES ELECTRIC TARP DUAL HYDRO JACKS DUAL PISTON DUMP LIFT 1 Spare Tire 17.5 Mounted Fron"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6351.pdf",
+    "soNumber": "6351",
+    "pdfModelCode": "26DU20GN",
+    "shipTo": "The Hobbs Construction Group LLC",
+    "shipToLines": [
+      "The Hobbs Construction Group LLC"
+    ],
+    "date": "01/13/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to The Hobbs Construction Group LLC Frank Hobbs Ship to The Hobbs Construction Group LLC Shipping info Ship date: 01/13/2026 Sales Order details Sales Order no.: 6351 Date: 01/13/2026 SERVICE DESCRIPTION QTY 26DU20GN 26,000LBS GVWR ONE PIECE GOOSENECK HEAD 8' X 20' DUMP TRAILER TELESCOPIC THREE PHASE RAM DUAL 12K HYDRO JACKSELECTRIC TARP DUAL TANDEM 12K TORFLEX DEXTER AXLES 3/16 THI"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6402.pdf",
+    "soNumber": "6402",
+    "pdfModelCode": "18ET20TLT",
+    "shipTo": "MATERIAL HANDLING SYSTEMS INC",
+    "shipToLines": [
+      "MATERIAL HANDLING SYSTEMS INC"
+    ],
+    "date": "01/29/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to MATERIAL HANDLING SYSTEMS INC MATERIAL HANDLING SYSTEMS INC. 2741 NE 4th Ave Ship to MATERIAL HANDLING SYSTEMS INC Shipping info Ship date: 01/29/2026 Sales Order details Sales Order no.: 6402 Date: 01/29/2026 SERVICE DESCRIPTION QTY 18ET20TLT GVWR 17,900, LOAD CAPACITY APPROX 14,000 LBS. FRAME 8 INCH I-BEAM TILT DECK WILL ALWAYS BE 16' THEN REMAINIG LENGH IS IN THE STATIONARY DE"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6520.pdf",
+    "soNumber": "6520",
+    "pdfModelCode": "GOOSENECK",
+    "shipTo": "The Hobbs Construction Group LLC",
+    "shipToLines": [
+      "The Hobbs Construction Group LLC"
+    ],
+    "date": "03/11/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to The Hobbs Construction Group LLC THE HOBBS CONSTRUCTION GROUP LLC Ship to The Hobbs Construction Group LLC Shipping info Ship date: 03/11/2026 Sales Order details Sales Order no.: 6520 Date: 03/11/2026 SERVICE DESCRIPTION QTY Custom Trailer GOOSENECK FLAT BED 15K DEXTER AXLES BUILD AT 25' (20'+5') DUAL HYDRO JACKSBEAST RAMPS 1 Spare Tire 17.5 Mounted Front Radial Spare Tire Moun"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6631.pdf",
+    "soNumber": "6631",
+    "pdfModelCode": "14ET20XP",
+    "shipTo": "TECO PEOPLES GAS PEOPLES GAS SYSTEM LAKELAND DIVISION 600 W ROBINSON ST ORLANDO, FL 32802",
+    "shipToLines": [
+      "TECO PEOPLES GAS PEOPLES GAS SYSTEM LAKELAND DIVISION 600 W ROBINSON ST ORLANDO",
+      "FL 32802"
+    ],
+    "date": "01/26/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to TECO PEOPLES GAS PEOPLES GAS SYSTEM LAKELAND DIVISION 600 W ROBINSON ST ORLANDO, FL 32802 Ship to TECO PEOPLES GAS PEOPLES GAS SYSTEM LAKELAND DIVISION 600 W ROBINSON ST ORLANDO, FL 32802 Shipping info Ship date: 02/11/2025 Sales Order details Sales Order no.: 6631 Date: 01/26/2026 SERVICE DESCRIPTION QTY 14ET20XP TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6638.pdf",
+    "soNumber": "6638",
+    "pdfModelCode": "18ET24YETI",
+    "shipTo": "SIGFRIDO PEREZ SIGFRIDO PEREZ 110 N GLENWOOD AVE AVON PARK, FL 33825",
+    "shipToLines": [
+      "SIGFRIDO PEREZ SIGFRIDO PEREZ 110 N GLENWOOD AVE AVON PARK",
+      "FL 33825"
+    ],
+    "date": "04/15/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to SIGFRIDO PEREZ SIGFRIDO PEREZ 110 N GLENWOOD AVE AVON PARK, FL 33825 Ship to SIGFRIDO PEREZ SIGFRIDO PEREZ 110 N GLENWOOD AVE AVON PARK, FL 33825 Sales Order details Sales Order no.: 6638 Date: 04/15/2026 SERVICE DESCRIPTION QTY 18ET24YETI BUILD WITH SLIDE IN RAMPS TYPE/MODEL: 18ET24YETI LENGTH: 24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,500LBS FR"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6640.pdf",
+    "soNumber": "6640",
+    "pdfModelCode": "18ET20YETI",
+    "shipTo": "FANTASTIC GARDENS ARUBA",
+    "shipToLines": [
+      "FANTASTIC GARDENS ARUBA"
+    ],
+    "date": "04/16/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to FANTASTIC GARDENS ARUBA Ship to FANTASTIC GARDENS ARUBA Sales Order details Sales Order no.: 6640 Date: 04/16/2026 SERVICE DESCRIPTION QTY 18ET20YETI TYPE/MODEL: 18ET20YETI LENGTH: 20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,500LBS FRAME: 8? STRUCTURAL I BEAM 3? STRUCTURAL CHANNEL CROSSMEMBERS DEXTER AXLES: 8K SLIPPER SPRING AXLES TIRES: 215/75R17."
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6653.pdf",
+    "soNumber": "6653",
+    "pdfModelCode": "14ET20XP",
+    "shipTo": "Open Stock Mulberry",
+    "shipToLines": [
+      "Open Stock Mulberry"
+    ],
+    "date": "04/20/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Open Stock Mulberry Ship to Open Stock Mulberry Sales Order details Sales Order no.: 6653 Date: 04/20/2026 SERVICE DESCRIPTION QTY 14ET20XP TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6? CHANNEL LOWER FRAME, 6? UPPER FRAME 3? STRUCTURAL CHANNEL CROSSMEMBERS DEXTER AXLES: 7K SLIPPER SPRING TIRES: 235/80R16 STA"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6689.pdf",
+    "soNumber": "6689",
+    "pdfModelCode": "15ET20TLT",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
+    "date": "04/27/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6689 Date: 04/27/2026 SERVICE DESCRIPTION QTY 15ET20TLT TYPE/MODEL: 15TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8? STRUCTURAL I BEAM ? INTAGRATED TOUNGE 3? STRUCTURAL C"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6722.pdf",
+    "soNumber": "6722",
+    "pdfModelCode": "14ET20XP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6722 Date: 05/05/2026 SERVICE DESCRIPTION QTY 14ET20XP TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6? CHANNEL LOWER FRAME, 6? UPPER FRAME 3? STRUCTURAL CHANNEL CROSSMEMBERS DEXTER A"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6725.pdf",
+    "soNumber": "6725",
+    "pdfModelCode": "14ET24XP",
+    "shipTo": "JERRY WABLE 3601 KIAH DR WESLEY CHAPEL, FL 33543",
+    "shipToLines": [
+      "JERRY WABLE 3601 KIAH DR WESLEY CHAPEL",
+      "FL 33543"
+    ],
+    "date": "04/07/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to JERRY WABLE 3601 KIAH DR WESLEY CHAPEL, FL 33543 Ship to JERRY WABLE 3601 KIAH DR WESLEY CHAPEL, FL 33543 Sales Order details Sales Order no.: 6725 Date: 04/07/2026 SERVICE DESCRIPTION QTY 14ET24XP TYPE/MODEL: 14ET24 LENGTH:24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6? CHANNEL LOWER FRAME, 6? UPPER FRAME 3? STRUCTURAL CHANNEL CROSSME"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6753.pdf",
+    "soNumber": "6753",
+    "pdfModelCode": "14ET16XP",
+    "shipTo": "HI-LOW SOLUTIONS, LLC",
+    "shipToLines": [
+      "HI-LOW SOLUTIONS",
+      "LLC"
+    ],
+    "date": "03/17/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to HI-LOW SOLUTIONS, LLC HI-LOW SOLUTIONS, LLC Michael Arnone 477 Mozart Road Ship to HI-LOW SOLUTIONS, LLC Sales Order details Sales Order no.: 6753 Date: 03/17/2026 SERVICE DESCRIPTION QTY 14ET16XP ALL FLAT DRIVE OVER FENDER NO RAMPS NO D RINGS OR STAKE POCKETS Bigfoot Trailers Premium 14,000LB GVWR Equipment Trailer Meant to Carry Approximately 11,000LB --- 7000lb Axles With Self"
+  },
+  {
+    "bucket": "sold-pending-pickup-mul",
+    "kind": "sold_pending",
+    "locationCode": "MULBERRY",
+    "dealerName": null,
+    "file": "6768.pdf",
+    "soNumber": "6768",
+    "pdfModelCode": "10ET24XP",
+    "shipTo": "JAMES E RICH JAMES E RICH 37 DUSTY LN SOPCHOPPY, FL 32358",
+    "shipToLines": [
+      "JAMES E RICH JAMES E RICH 37 DUSTY LN SOPCHOPPY",
+      "FL 32358"
+    ],
+    "date": "05/15/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to JAMES E RICH JAMES E RICH 37 DUSTY LN SOPCHOPPY, FL 32358 Ship to JAMES E RICH JAMES E RICH 37 DUSTY LN SOPCHOPPY, FL 32358 Sales Order details Sales Order no.: 6768 Date: 05/15/2026 SERVICE DESCRIPTION QTY 10ET24XP TYPE/MODEL: 10ET24 LENGTH:24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 9,999 RECOMMENDED PAYLOAD: 7800LBS FRAME: 5? CHANNEL LOWER FRAME, 5? UPPER FRAME 3? STRUCTURAL CHA"
+  },
+  {
+    "bucket": "sold-pending-pickup-va",
+    "kind": "sold_pending",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6555.pdf",
+    "soNumber": "6555",
+    "pdfModelCode": "21ET24TLT",
+    "shipTo": "A Open Stock Jacksonville",
+    "shipToLines": [
+      "A Open Stock Jacksonville"
+    ],
+    "date": "03/19/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Jacksonville A Open Stock Jacksonville Ship to A Open Stock Jacksonville Shipping info Ship date: 03/19/2026 Sales Order details Sales Order no.: 6555 Date: 03/19/2026 SERVICE DESCRIPTION QTY 21ET24TLT BIGFOOT TRAILERS TOP SERIES FLATBED TILT EQUIPMENT TRAILER --- GVWR 21,000, LOAD CAPACITY APPROX 17,000 LBS. FRAME 10 INCH I-BEAM, 16 FOOT 5X5X1/2 INCH SUPER BEAM TILT"
+  },
+  {
+    "bucket": "sold-pending-pickup-va",
+    "kind": "sold_pending",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6558.pdf",
+    "soNumber": "6558",
+    "pdfModelCode": "18TLT22",
+    "shipTo": "PAPA'S SPEED SHOP 300 W BROWNS RD HUNTSVILLE, ONTARIO P1H0H9 CA",
+    "shipToLines": [
+      "PAPA'S SPEED SHOP 300 W BROWNS RD HUNTSVILLE",
+      "ONTARIO P1H0H9 CA"
+    ],
+    "date": "03/20/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to PAPA'S SPEED SHOP 300 W BROWNS RD HUNTSVILLE, ONTARIO P1H0H9 CA Ship to PAPA'S SPEED SHOP 300 W BROWNS RD HUNTSVILLE, ONTARIO P1H0H9 CA Shipping info Ship date: 03/20/2026 Sales Order details Sales Order no.: 6558 Date: 03/20/2026 SERVICE DESCRIPTION QTY 18TLT22 GVWR 17,900, LOAD CAPACITY APPROX 14,000 LBS. FRAME 8 INCH I-BEAM TILT DECK WILL ALWAYS BE 16' THEN REMAINIG LENGH IS I"
+  },
+  {
+    "bucket": "sold-pending-pickup-va",
+    "kind": "sold_pending",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6595.pdf",
+    "soNumber": "6595",
+    "pdfModelCode": "17DO22",
+    "shipTo": "BENSON W PROBST EXCAVATIING",
+    "shipToLines": [
+      "BENSON W PROBST EXCAVATIING"
+    ],
+    "date": "04/02/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to BENSON W PROBST EXCAVATIING BENSON W PROBST EXCAVATIING 916 SHERMAN RD Ship to BENSON W PROBST EXCAVATIING Shipping info Ship date: 04/02/2026 Sales Order details Sales Order no.: 6595 Date: 04/02/2026 SERVICE DESCRIPTION QTY 17DO22 BUILD 16' PLUS 5'Bigfoot Trailers Premium 17,500LB GVWR Deck Over Wheels Equipment Trailer Meant to Carry Approximately 13,500LB --- Special Intense "
+  },
+  {
+    "bucket": "sold-pending-pickup-va",
+    "kind": "sold_pending",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6668.pdf",
+    "soNumber": "6668",
+    "pdfModelCode": "15ET20YETI",
+    "shipTo": "J.P. Paving and Hardscaping 54 Lackawanna Dr Stanhope, NJ 07874",
+    "shipToLines": [
+      "J.P. Paving and Hardscaping 54 Lackawanna Dr Stanhope",
+      "NJ 07874"
+    ],
+    "date": "04/23/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to J.P. Paving and Hardscaping 54 Lackawanna Dr Stanhope, NJ 07874 Ship to J.P. Paving and Hardscaping 54 Lackawanna Dr Stanhope, NJ 07874 Sales Order details Sales Order no.: 6668 Date: 04/23/2026 SERVICE DESCRIPTION QTY 15ET20YETI TYPE/MODEL: 15ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8? STRUCTURAL I BEAM ? INTAGRATED TO"
+  },
+  {
+    "bucket": "sold-pending-pickup-va",
+    "kind": "sold_pending",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6698.pdf",
+    "soNumber": "6698",
+    "pdfModelCode": "14ET14XP",
+    "shipTo": "BODNER FENCE & CONSTRUCTION BODNER FENCE & CONSTRUCTION",
+    "shipToLines": [
+      "BODNER FENCE & CONSTRUCTION BODNER FENCE & CONSTRUCTION"
+    ],
+    "date": "04/29/2026",
+    "lengthFt": "14",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to BODNER FENCE & CONSTRUCTION BODNER FENCE & CONSTRUCTION Ship to BODNER FENCE & CONSTRUCTION BODNER FENCE & CONSTRUCTION Sales Order details Sales Order no.: 6698 Date: 04/29/2026 SERVICE DESCRIPTION QTY 14ET14XP EXTEND TONGUE 12\" LASER (BODNER FENCE) INTO FRONT CAP TYPE/MODEL: 14ET14 LENGTH:14' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: "
+  },
+  {
+    "bucket": "sold-pending-pickup-va",
+    "kind": "sold_pending",
+    "locationCode": "TAPPAHANNOCK",
+    "dealerName": null,
+    "file": "6712.pdf",
+    "soNumber": "6712",
+    "pdfModelCode": "14ET20XP",
+    "shipTo": "TRACY SMITH TRACY SMITH 2795 LYNDHURST RD WAYNESBORO, VA 22980",
+    "shipToLines": [
+      "TRACY SMITH TRACY SMITH 2795 LYNDHURST RD WAYNESBORO",
+      "VA 22980"
+    ],
+    "date": "05/04/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to TRACY SMITH TRACY SMITH 2795 LYNDHURST RD WAYNESBORO, VA 22980 Ship to TRACY SMITH TRACY SMITH 2795 LYNDHURST RD WAYNESBORO, VA 22980 Sales Order details Sales Order no.: 6712 Date: 05/04/2026 SERVICE DESCRIPTION QTY 14ET20XP TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6? CHANNEL LOWER FRAME, 6? UPPER FRAME 3"
+  }
+]

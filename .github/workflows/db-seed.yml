@@ -26,6 +26,7 @@ on:
           - backfill-stuck-stock-status # one-shot: fix trailers stuck in ready_for_delivery after a sold → available revert
           - seed-inventory-models-and-sales # 3 inventory-only models (Triple Crown / Enclosed / Misc) + 2 sales logins (TAL / ATL)
           - seed-open-stock       # 93 multi-location open-stock trailers (MUL/JAX/ATL/TAL/TAP) — extends seed-open-mul to all 5 yards
+          - seed-sold-and-delivery # 43 sold-pending-pickup + scheduled deliveries (factory_pickup / stack_to_location / stack_to_dealer → Tropic Trailers)
 
 concurrency:
   group: db-seed-prod
