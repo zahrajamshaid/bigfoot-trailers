@@ -481,6 +481,21 @@ class _DeliveryCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(AppLocalizations.of(context)
                 .deliveryListDriverLabel(delivery.driverName)),
+            if (delivery.deliveryType == 'factory_pickup' &&
+                delivery.pickedUpByName != null &&
+                delivery.pickedUpByName!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.person_outline,
+                      size: 16, color: AppColors.disabled),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text('Picked up by: ${delivery.pickedUpByName}'),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

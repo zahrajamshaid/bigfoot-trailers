@@ -283,12 +283,17 @@ class _DriverDeliveryListState extends State<DriverDeliveryList> {
       );
     }
 
+    // Batched deliveries are rendered inside their _BatchCard, so exclude
+    // them here to avoid double-showing as standalone _DeliveryCard rows.
     final active = _deliveries
-        .where((d) => d.status != 'delivered' && d.status != 'failed')
+        .where((d) =>
+            d.status != 'delivered' &&
+            d.status != 'failed' &&
+            d.deliveryBatchId == null)
         .toList();
 
     final completed = _deliveries
-        .where((d) => d.status == 'delivered')
+        .where((d) => d.status == 'delivered' && d.deliveryBatchId == null)
         .toList()
       ..sort((a, b) => (b.deliveredAt ?? DateTime(0))
           .compareTo(a.deliveredAt ?? DateTime(0)));
@@ -512,6 +517,24 @@ class _CompletedCard extends StatelessWidget {
                         style: const TextStyle(fontSize: 13)),
                   ],
                 ),
+                if (d.deliveryType == 'factory_pickup' &&
+                    d.pickedUpByName != null &&
+                    d.pickedUpByName!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline,
+                          size: 15, color: AppColors.disabled),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Picked up by: ${d.pickedUpByName}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -585,6 +608,21 @@ class _DeliveryCard extends StatelessWidget {
                     Expanded(child: Text(d.destinationLabel)),
                   ],
                 ),
+                if (d.deliveryType == 'factory_pickup' &&
+                    d.pickedUpByName != null &&
+                    d.pickedUpByName!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline,
+                          size: 16, color: AppColors.disabled),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text('Picked up by: ${d.pickedUpByName}'),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 12),
                 // Navigation + comms
                 Row(
