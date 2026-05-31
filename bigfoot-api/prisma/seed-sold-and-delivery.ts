@@ -350,7 +350,8 @@ async function main(): Promise<void> {
         customerLocked: false,
         optionsNotes: null,
         specialNote: null,
-        ...(r.lengthFt ? { sizeFt: `${r.lengthFt}ft` } : {}),
+        // Store just the number; UI appends "ft" at render.
+      ...(r.lengthFt ? { sizeFt: r.lengthFt } : {}),
       };
       const trailer = await prisma.trailer.upsert({
         where: { soNumber: r.soNumber },
@@ -439,7 +440,8 @@ async function main(): Promise<void> {
         trailerModelId: modelId,
         currentLocationId,
         status: TrailerStatus.ready_for_delivery,
-        ...(r.lengthFt ? { sizeFt: `${r.lengthFt}ft` } : {}),
+        // Store just the number; UI appends "ft" at render.
+      ...(r.lengthFt ? { sizeFt: r.lengthFt } : {}),
       };
       const trailer = await prisma.trailer.upsert({
         where: { soNumber: r.soNumber },
@@ -498,7 +500,8 @@ async function main(): Promise<void> {
         customerId: tropic.id,
         customerLocked: true,
         soldToName: TROPIC_DEALER_NAME,
-        ...(r.lengthFt ? { sizeFt: `${r.lengthFt}ft` } : {}),
+        // Store just the number; UI appends "ft" at render.
+      ...(r.lengthFt ? { sizeFt: r.lengthFt } : {}),
       };
       const trailer = await prisma.trailer.upsert({
         where: { soNumber: r.soNumber },

@@ -133,7 +133,8 @@ function planFromRecord(r: ExtractedRecord): PlannedTrailer {
     isStockBuild,
     stockLocationCode,
     soldToName,
-    sizeFt: r.lengthFt ? `${r.lengthFt}ft` : null,
+    // Store just the number; UI formats with `${size}ft` already.
+    sizeFt: r.lengthFt ?? null,
     optionsNotes: desc.slice(0, 1500),
   };
 }

@@ -262,7 +262,8 @@ async function main(): Promise<void> {
               : TrailerStatus.in_production,
           isStockBuild: true,
           createdByUserId: owner.id,
-          ...(r.lengthFt ? { sizeFt: `${r.lengthFt}ft` } : {}),
+          // Store just the number; UI appends "ft" at render.
+          ...(r.lengthFt ? { sizeFt: r.lengthFt } : {}),
         },
         select: { id: true, soNumber: true },
       });

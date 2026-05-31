@@ -332,7 +332,8 @@ async function main(): Promise<void> {
       soldToName: null,
       optionsNotes: null,
       specialNote: null,
-      ...(r.lengthFt ? { sizeFt: `${r.lengthFt}ft` } : {}),
+      // Store just the number; UI appends "ft" at render.
+      ...(r.lengthFt ? { sizeFt: r.lengthFt } : {}),
     };
 
     const trailer = await prisma.trailer.upsert({
