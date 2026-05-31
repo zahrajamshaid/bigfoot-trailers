@@ -143,6 +143,33 @@ export class TrailersController {
   }
 
   // ---------------------------------------------------------------------------
+  // POST /trailers/:id/mark-completed — sales-facing terminal action.
+  //
+  // Completes the open scheduled / in_transit Delivery (sets deliveredAt) and
+  // flips the trailer to delivered in one transaction. Idempotent — already-
+  // delivered trailers return without changes.
+  // ---------------------------------------------------------------------------
+  @Post(':id/mark-completed')
+  @Roles(UserRole.OWNER, UserRole.SALES, UserRole.PRODUCTION_MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Sales-facing terminal completion — picked up or delivered',
+    description:
+      'Closes the trailer\'s open delivery and marks the trailer delivered. ' +
+      'Same end state regardless of pickup vs delivery intent. Restricted to ' +
+      'owner, sales, and production_manager.',
+  })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Trailer completed (or already was)' })
+  @ApiResponse({ status: 404, description: 'Trailer not found' })
+  async markCompleted(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() requester: JwtPayload,
+  ) {
+    return this.trailersService.markCompleted(BigInt(id), BigInt(requester.sub));
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /trailers/:id/addons
   // ---------------------------------------------------------------------------
   @Post(':id/addons')

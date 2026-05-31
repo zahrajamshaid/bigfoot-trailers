@@ -25,12 +25,22 @@ abstract class TrailerRepository {
 
   /// Set the sale status (`available` / `sale_pending` / `sold`).
   /// Marking `sold` requires a buyer — pass [soldToName] unless the trailer
-  /// already has a customer. Owner / sales / production_manager only.
+  /// already has a customer. When [fulfilmentType] is provided on a sold
+  /// transition, the backend auto-creates a scheduled Delivery (`factory_pickup`
+  /// for `pickup`, `single_pull` or `stack_to_dealer` for `delivery`).
+  /// Owner / sales / production_manager only.
   Future<Trailer> updateSaleStatus(
     int id,
     String saleStatus, {
     String? soldToName,
+    String? fulfilmentType,
+    String? deliveryAddress,
   });
+
+  /// Sales-facing terminal completion — closes the open scheduled delivery
+  /// and flips the trailer to `delivered`. Idempotent; already-delivered
+  /// trailers return without changes.
+  Future<Trailer> markCompleted(int id);
 
   Future<void> addAddon(int trailerId, Map<String, dynamic> data);
 

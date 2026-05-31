@@ -234,13 +234,28 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
 
   /// Change the sale status (`available` / `sale_pending` / `sold`).
   /// Throws on failure so the caller can surface the API error to the user;
-  /// refreshes the detail state on success.
-  Future<void> updateSaleStatus(String saleStatus, {String? soldToName}) async {
+  /// refreshes the detail state on success. When [fulfilmentType] is set on
+  /// a sold transition the backend auto-creates the scheduled Delivery.
+  Future<void> updateSaleStatus(
+    String saleStatus, {
+    String? soldToName,
+    String? fulfilmentType,
+    String? deliveryAddress,
+  }) async {
     await _repository.updateSaleStatus(
       trailerId,
       saleStatus,
       soldToName: soldToName,
+      fulfilmentType: fulfilmentType,
+      deliveryAddress: deliveryAddress,
     );
+    if (!isClosed) await load();
+  }
+
+  /// Terminal completion (sales-facing). Closes the open delivery and flips
+  /// the trailer to delivered. Throws on failure; refreshes on success.
+  Future<void> markCompleted() async {
+    await _repository.markCompleted(trailerId);
     if (!isClosed) await load();
   }
 

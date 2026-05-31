@@ -649,12 +649,19 @@ class _SaleStatusSection extends StatelessWidget {
     BuildContext context,
     String status, {
     String? soldToName,
+    String? fulfilmentType,
+    String? deliveryAddress,
   }) async {
     final l = AppLocalizations.of(context);
     final cubit = context.read<TrailerDetailViewModel>();
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await cubit.updateSaleStatus(status, soldToName: soldToName);
+      await cubit.updateSaleStatus(
+        status,
+        soldToName: soldToName,
+        fulfilmentType: fulfilmentType,
+        deliveryAddress: deliveryAddress,
+      );
       messenger.showSnackBar(
         SnackBar(
           content: Text(switch (status) {
@@ -682,16 +689,84 @@ class _SaleStatusSection extends StatelessWidget {
     }
   }
 
-  /// Mark sold — prompt for the buyer's name (free text) so the sale is
-  /// attributed. Customer records are handled by the GoHighLevel integration,
-  /// so this is intentionally a plain text field rather than a picker.
+  /// Mark sold — prompt for the buyer's name + fulfilment intent. The
+  /// fulfilment choice (pickup vs delivery) drives the backend to auto-create
+  /// the matching scheduled Delivery in the same transaction.
   Future<void> _markSold(BuildContext context) async {
-    final name = await showDialog<String>(
+    final hasCustomer = _hasCustomer;
+    final defaultAddress = hasCustomer
+        ? (trailer.customer.deliveryAddress ?? trailer.customer.billingAddress)
+            as String?
+        : null;
+    final result = await showDialog<_MarkSoldResult>(
       context: context,
-      builder: (_) => _MarkSoldDialog(soNumber: trailer.soNumber as String),
+      builder: (_) => _MarkSoldDialog(
+        soNumber: trailer.soNumber as String,
+        defaultAddress: defaultAddress,
+      ),
     );
-    if (name == null || !context.mounted) return;
-    await _setStatus(context, 'sold', soldToName: name);
+    if (result == null || !context.mounted) return;
+    await _setStatus(
+      context,
+      'sold',
+      soldToName: result.buyerName,
+      fulfilmentType: result.fulfilmentType,
+      deliveryAddress: result.deliveryAddress,
+    );
+  }
+
+  /// Terminal completion — closes the open delivery and flips the trailer to
+  /// delivered. After this it drops out of all active queries.
+  Future<void> _markCompleted(BuildContext context) async {
+    final l = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark completed?'),
+        content: const Text(
+          'Closes the open delivery and moves the trailer to the completed / '
+          'archived queue. This is the final state — it will drop out of '
+          'active inventory and ready-for-delivery lists.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.task_alt_outlined, size: 16),
+            label: const Text('Mark completed'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final cubit = context.read<TrailerDetailViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await cubit.markCompleted();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Trailer marked completed.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } on ApiException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l.trailerDetailUpdateFailed(e.displayMessage)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l.trailerDetailUpdateFailed('$e')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -827,6 +902,25 @@ class _SaleStatusSection extends StatelessWidget {
                 ],
               ),
             ],
+            // Sales-facing terminal completion. Visible to anyone who can
+            // manage when the trailer is sold + sitting ready_for_delivery —
+            // available to both stock (no-customer) and CRM-linked trailers.
+            if (canManage &&
+                status == 'sold' &&
+                (trailer.status as String?) == 'ready_for_delivery') ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _markCompleted(context),
+                  icon: const Icon(Icons.task_alt_outlined, size: 16),
+                  label: const Text('Mark completed (picked up / delivered)'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -834,35 +928,70 @@ class _SaleStatusSection extends StatelessWidget {
   }
 }
 
-/// Plain buyer-name prompt shown by "Mark Sold". Returns the trimmed name,
-/// or null if dismissed. The name is required — submitting empty shows an
-/// inline error rather than closing the dialog.
+/// Payload returned by [_MarkSoldDialog]. Carries the buyer name plus the
+/// fulfilment intent (and a delivery address when fulfilment = delivery) so
+/// the trailer can be sold + a scheduled Delivery created in one API call.
+class _MarkSoldResult {
+  final String buyerName;
+  final String fulfilmentType; // 'pickup' | 'delivery'
+  final String? deliveryAddress;
+
+  const _MarkSoldResult({
+    required this.buyerName,
+    required this.fulfilmentType,
+    this.deliveryAddress,
+  });
+}
+
+/// Buyer + fulfilment prompt shown by "Mark Sold". Sales picks whether the
+/// customer is picking up at the yard or whether we're delivering; the
+/// backend uses that to auto-create the matching scheduled Delivery.
 class _MarkSoldDialog extends StatefulWidget {
   final String soNumber;
-  const _MarkSoldDialog({required this.soNumber});
+  final String? defaultAddress;
+  const _MarkSoldDialog({required this.soNumber, this.defaultAddress});
 
   @override
   State<_MarkSoldDialog> createState() => _MarkSoldDialogState();
 }
 
 class _MarkSoldDialogState extends State<_MarkSoldDialog> {
-  final _controller = TextEditingController();
-  String? _error;
+  final _nameController = TextEditingController();
+  final _addressController = TextEditingController();
+  String _fulfilment = 'pickup';
+  String? _nameError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.defaultAddress != null) {
+      _addressController.text = widget.defaultAddress!;
+    }
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _nameController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
   void _submit() {
-    final name = _controller.text.trim();
+    final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() =>
-          _error = AppLocalizations.of(context).trailerDetailMarkSoldBuyerRequired);
+      setState(() => _nameError =
+          AppLocalizations.of(context).trailerDetailMarkSoldBuyerRequired);
       return;
     }
-    Navigator.of(context).pop(name);
+    final address = _addressController.text.trim();
+    Navigator.of(context).pop(
+      _MarkSoldResult(
+        buyerName: name,
+        fulfilmentType: _fulfilment,
+        deliveryAddress:
+            _fulfilment == 'delivery' && address.isNotEmpty ? address : null,
+      ),
+    );
   }
 
   @override
@@ -870,21 +999,63 @@ class _MarkSoldDialogState extends State<_MarkSoldDialog> {
     final l = AppLocalizations.of(context);
     return AlertDialog(
       title: Text(l.trailerDetailMarkSoldTitle(widget.soNumber)),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        textCapitalization: TextCapitalization.words,
-        textInputAction: TextInputAction.done,
-        decoration: InputDecoration(
-          labelText: l.trailerDetailMarkSoldBuyerLabel,
-          hintText: l.trailerDetailMarkSoldBuyerHint,
-          errorText: _error,
-          prefixIcon: const Icon(Icons.person_outline),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                labelText: l.trailerDetailMarkSoldBuyerLabel,
+                hintText: l.trailerDetailMarkSoldBuyerHint,
+                errorText: _nameError,
+                prefixIcon: const Icon(Icons.person_outline),
+              ),
+              onChanged: (_) {
+                if (_nameError != null) setState(() => _nameError = null);
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text('Fulfilment',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 4),
+            RadioListTile<String>(
+              value: 'pickup',
+              groupValue: _fulfilment,
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Customer pickup'),
+              subtitle: const Text('Buyer collects at our yard'),
+              onChanged: (v) => setState(() => _fulfilment = v ?? 'pickup'),
+            ),
+            RadioListTile<String>(
+              value: 'delivery',
+              groupValue: _fulfilment,
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('We deliver'),
+              subtitle: const Text('Driver hauls it to the buyer'),
+              onChanged: (v) => setState(() => _fulfilment = v ?? 'pickup'),
+            ),
+            if (_fulfilment == 'delivery') ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _addressController,
+                textCapitalization: TextCapitalization.words,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Delivery address (optional)',
+                  hintText: 'Street, city, state, ZIP',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+              ),
+            ],
+          ],
         ),
-        onChanged: (_) {
-          if (_error != null) setState(() => _error = null);
-        },
-        onSubmitted: (_) => _submit(),
       ),
       actions: [
         TextButton(

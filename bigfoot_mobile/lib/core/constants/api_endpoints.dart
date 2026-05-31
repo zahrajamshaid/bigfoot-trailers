@@ -21,6 +21,7 @@ abstract final class ApiEndpoints {
   static String trailerPriority(int id) => '/trailers/$id/priority';
   static String trailerHot(int id) => '/trailers/$id/hot';
   static String trailerSaleStatus(int id) => '/trailers/$id/sale-status';
+  static String trailerMarkCompleted(int id) => '/trailers/$id/mark-completed';
   static String trailerAddons(int id) => '/trailers/$id/addons';
   static String trailerAddon(int trailerId, int addonId) =>
       '/trailers/$trailerId/addons/$addonId';

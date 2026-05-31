@@ -124,13 +124,26 @@ class TrailerRepositoryImpl implements TrailerRepository {
     int id,
     String saleStatus, {
     String? soldToName,
+    String? fulfilmentType,
+    String? deliveryAddress,
   }) async {
     final response = await _api.patch<Map<String, dynamic>>(
       ApiEndpoints.trailerSaleStatus(id),
       data: {
         'saleStatus': saleStatus,
         if (soldToName != null) 'soldToName': soldToName,
+        if (fulfilmentType != null) 'fulfilmentType': fulfilmentType,
+        if (deliveryAddress != null) 'deliveryAddress': deliveryAddress,
       },
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return Trailer.fromJson(response.data!);
+  }
+
+  @override
+  Future<Trailer> markCompleted(int id) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.trailerMarkCompleted(id),
       fromJson: (d) => d as Map<String, dynamic>,
     );
     return Trailer.fromJson(response.data!);

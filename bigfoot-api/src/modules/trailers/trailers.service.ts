@@ -10,8 +10,19 @@ import { CreateAddonDto } from './dto/addon.dto';
 import { SetPriorityDto } from './dto/priority.dto';
 import { ToggleHotDto } from './dto/hot.dto';
 import { UploadQbPdfDto } from './dto/qb-pdf.dto';
-import { UpdateSaleStatusDto, TrailerSaleStatusDto } from './dto/sale-status.dto';
-import { Prisma, TrailerStatus, TrailerSaleStatus, DeliveryStatus } from '@prisma/client';
+import {
+  UpdateSaleStatusDto,
+  TrailerSaleStatusDto,
+  FulfilmentType,
+} from './dto/sale-status.dto';
+import {
+  Prisma,
+  TrailerStatus,
+  TrailerSaleStatus,
+  DeliveryStatus,
+  DeliveryType,
+  CustomerType,
+} from '@prisma/client';
 
 /** Select shape for trailer detail — includes model, customer, location, and current step info. */
 const TRAILER_DETAIL_SELECT = {
@@ -511,7 +522,15 @@ export class TrailersService {
   async updateSaleStatus(id: bigint, dto: UpdateSaleStatusDto) {
     const existing = await this.prisma.trailer.findUnique({
       where: { id },
-      select: { id: true, customerId: true, status: true },
+      select: {
+        id: true,
+        customerId: true,
+        status: true,
+        createdByUserId: true,
+        customer: {
+          select: { id: true, customerType: true, deliveryAddress: true },
+        },
+      },
     });
     if (!existing) {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
@@ -597,10 +616,137 @@ export class TrailersService {
       }
     }
 
-    return this.prisma.trailer.update({
+    // Wrap the trailer update + (optional) auto-Delivery creation in one
+    // transaction so we don't leave a trailer flagged sold without its
+    // matching scheduled Delivery if creation fails.
+    return this.prisma.$transaction(async (tx) => {
+      const trailer = await tx.trailer.update({
+        where: { id },
+        data,
+        select: TRAILER_DETAIL_SELECT,
+      });
+
+      // Only act on the sold transition when sales picked a fulfilment type.
+      // If we just flipped from delivered → ready_for_delivery above, the
+      // trailer is now legitimately a candidate for a scheduled Delivery.
+      if (
+        dto.saleStatus === TrailerSaleStatusDto.SOLD &&
+        dto.fulfilmentType != null
+      ) {
+        // Don't double up: skip when a live (scheduled/in_transit) delivery
+        // already exists. Re-runs / accidental double-clicks stay idempotent.
+        const existingLive = await tx.delivery.findFirst({
+          where: {
+            trailerId: id,
+            status: {
+              in: [DeliveryStatus.scheduled, DeliveryStatus.in_transit],
+            },
+          },
+          select: { id: true },
+        });
+
+        if (!existingLive) {
+          if (dto.fulfilmentType === FulfilmentType.PICKUP) {
+            await tx.delivery.create({
+              data: {
+                trailerId: id,
+                deliveryType: DeliveryType.factory_pickup,
+                status: DeliveryStatus.scheduled,
+                pickedUpByName: soldToName ?? null,
+                createdByUserId: existing.createdByUserId,
+              },
+            });
+          } else {
+            // DELIVERY: dealer → stack_to_dealer; everyone else → single_pull.
+            const isDealer =
+              existing.customer?.customerType === CustomerType.dealer;
+            const address =
+              dto.deliveryAddress?.trim() ||
+              existing.customer?.deliveryAddress ||
+              null;
+            await tx.delivery.create({
+              data: {
+                trailerId: id,
+                deliveryType: isDealer
+                  ? DeliveryType.stack_to_dealer
+                  : DeliveryType.single_pull,
+                status: DeliveryStatus.scheduled,
+                customerDeliveryAddress: address,
+                createdByUserId: existing.createdByUserId,
+              },
+            });
+          }
+        }
+      }
+
+      return trailer;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /trailers/:id/mark-completed — terminal completion (sales-facing)
+  //
+  // Drops the trailer out of every active query in one click. Completes the
+  // open scheduled / in_transit Delivery (sets deliveredAt + delivered) and
+  // flips trailer.status to delivered. No-op when the trailer is already
+  // delivered, so the button is safe to mash.
+  //
+  // When more than one live Delivery exists (shouldn't happen, but defensive)
+  // we complete the most recently created one.
+  // ---------------------------------------------------------------------------
+  async markCompleted(id: bigint, completedByUserId: bigint) {
+    const trailer = await this.prisma.trailer.findUnique({
       where: { id },
-      data,
-      select: TRAILER_DETAIL_SELECT,
+      select: { id: true, status: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    if (trailer.status === TrailerStatus.delivered) {
+      return this.prisma.trailer.findUnique({
+        where: { id },
+        select: TRAILER_DETAIL_SELECT,
+      });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const live = await tx.delivery.findFirst({
+        where: {
+          trailerId: id,
+          status: {
+            in: [DeliveryStatus.scheduled, DeliveryStatus.in_transit],
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+
+      const now = new Date();
+      if (live) {
+        await tx.delivery.update({
+          where: { id: live.id },
+          data: {
+            status: DeliveryStatus.delivered,
+            deliveredAt: now,
+          },
+        });
+      }
+
+      await tx.trailer.update({
+        where: { id },
+        data: { status: TrailerStatus.delivered },
+      });
+
+      // Side note: future-us could record completedByUserId on a Delivery /
+      // audit log column. Right now the field is unused — preserved in the
+      // signature so the API contract is stable when we add the column.
+      void completedByUserId;
+
+      return tx.trailer.findUnique({
+        where: { id },
+        select: TRAILER_DETAIL_SELECT,
+      });
     });
   }
 
