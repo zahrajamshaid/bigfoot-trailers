@@ -275,7 +275,7 @@ async function main(): Promise<void> {
         let queuePosition: number | null = null;
 
         if (t.stepOrder < startStep) {
-          status = ProductionStepStatus.completed;
+          status = ProductionStepStatus.complete;
           becameActiveAt = now;
           completedAt = now;
         } else if (t.stepOrder === startStep) {
