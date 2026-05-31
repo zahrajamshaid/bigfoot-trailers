@@ -42,7 +42,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import {
+  BatchType,
   CustomerType,
+  DeliveryBatchStatus,
   DeliveryStatus,
   DeliveryType,
   TrailerSaleStatus,
@@ -60,6 +62,15 @@ const PDF_ROOT =
 
 const TROPIC_DEALER_NAME = 'Tropic Trailers';
 const TROPIC_DEALER_ADDRESS = '9451 Workmen Way, Fort Myers, FL 33905';
+
+// Stable batchNumbers so re-running this seed reattaches deliveries to the
+// same DeliveryBatch rows instead of creating duplicates.
+const BATCH_NUMBER_BY_DEST_LOCATION_CODE: Record<string, string> = {
+  ATLANTA: 'OPEN-BATCH-ATL',
+  TAPPAHANNOCK: 'OPEN-BATCH-VA',
+};
+const BATCH_NUMBER_TROPIC = 'OPEN-BATCH-TROPIC';
+const DEV_DRIVER_EMAIL = 'driver@bigfoot.dev';
 
 // PDF service code → trailer_model.code. Built from the combined set of
 // codes that appear across the 43 PDFs in this batch.
@@ -558,6 +569,134 @@ async function main(): Promise<void> {
     } catch (e) {
       console.error(`     ✖ PDF upload failed: ${(e as Error).message}`);
     }
+  }
+
+  // ─── 6. Group non-pickup deliveries into batches + assign dev driver ───────
+  // factory_pickup is excluded — those are customer-walks-in events and don't
+  // belong to a truck batch. stack_to_location groups by destination yard;
+  // stack_to_dealer all go into one Tropic batch.
+  console.log('\n📦 Grouping scheduled deliveries into driver batches...');
+
+  const devDriver = await prisma.user.findUnique({
+    where: { email: DEV_DRIVER_EMAIL },
+    select: { id: true, fullName: true },
+  });
+  if (!devDriver) {
+    console.log(
+      `  ⚠ ${DEV_DRIVER_EMAIL} not found — skipping batch assignment.\n`,
+    );
+  } else {
+    let batchesCreated = 0;
+    let batchesReused = 0;
+    let deliveriesAssigned = 0;
+
+    // Helper: upsert a batch by batchNumber + attach the given deliveries.
+    const ensureBatch = async (args: {
+      batchNumber: string;
+      batchType: BatchType;
+      destinationLocationId: number | null;
+      destinationName: string | null;
+      deliveryIds: bigint[];
+    }): Promise<void> => {
+      if (args.deliveryIds.length === 0) return;
+
+      const existing = await prisma.deliveryBatch.findUnique({
+        where: { batchNumber: args.batchNumber },
+        select: { id: true },
+      });
+      const batch = existing
+        ? existing
+        : await prisma.deliveryBatch.create({
+            data: {
+              batchNumber: args.batchNumber,
+              batchType: args.batchType,
+              destinationLocationId: args.destinationLocationId,
+              destinationName: args.destinationName,
+              driverUserId: devDriver.id,
+              status: DeliveryBatchStatus.scheduled,
+              createdByUserId: creator.id,
+            },
+            select: { id: true },
+          });
+      if (existing) batchesReused++;
+      else batchesCreated++;
+
+      // updateMany skips rows already on this batch+driver, so re-runs are
+      // a no-op. We still match on `in: deliveryIds` to scope the write.
+      const result = await prisma.delivery.updateMany({
+        where: {
+          id: { in: args.deliveryIds },
+          OR: [
+            { deliveryBatchId: null },
+            { driverUserId: null },
+          ],
+        },
+        data: {
+          deliveryBatchId: batch.id,
+          driverUserId: devDriver.id,
+        },
+      });
+      deliveriesAssigned += result.count;
+
+      const dest = args.destinationName ?? `loc#${args.destinationLocationId}`;
+      console.log(
+        `  ${existing ? '=' : '+'} batch ${args.batchNumber.padEnd(18)} → ${dest} (${args.deliveryIds.length} deliveries, ${result.count} newly assigned)`,
+      );
+    };
+
+    // Pull the scheduled stack_to_location deliveries we just produced.
+    const stackDeliveries = await prisma.delivery.findMany({
+      where: {
+        deliveryType: DeliveryType.stack_to_location,
+        status: DeliveryStatus.scheduled,
+      },
+      select: { id: true, destinationLocationId: true },
+    });
+    const byDestId = new Map<number, bigint[]>();
+    for (const d of stackDeliveries) {
+      if (d.destinationLocationId == null) continue;
+      const arr = byDestId.get(d.destinationLocationId) ?? [];
+      arr.push(d.id);
+      byDestId.set(d.destinationLocationId, arr);
+    }
+    for (const [destLocationId, ids] of byDestId) {
+      const locEntry = Object.entries(locByCode).find(
+        ([, l]) => l.id === destLocationId,
+      );
+      if (!locEntry) continue;
+      const [code, loc] = locEntry;
+      const batchNumber = BATCH_NUMBER_BY_DEST_LOCATION_CODE[code];
+      if (!batchNumber) continue; // ignore destinations not in our seed set
+      await ensureBatch({
+        batchNumber,
+        batchType: BatchType.bf_location,
+        destinationLocationId: destLocationId,
+        destinationName: loc.name,
+        deliveryIds: ids,
+      });
+    }
+
+    // Pull the scheduled stack_to_dealer deliveries (all Tropic in this batch).
+    const dealerDeliveries = await prisma.delivery.findMany({
+      where: {
+        deliveryType: DeliveryType.stack_to_dealer,
+        status: DeliveryStatus.scheduled,
+      },
+      select: { id: true },
+    });
+    if (dealerDeliveries.length > 0) {
+      await ensureBatch({
+        batchNumber: BATCH_NUMBER_TROPIC,
+        batchType: BatchType.dealer,
+        destinationLocationId: null,
+        destinationName: TROPIC_DEALER_NAME,
+        deliveryIds: dealerDeliveries.map((d) => d.id),
+      });
+    }
+
+    console.log(
+      `✅ Batches: ${batchesCreated} created, ${batchesReused} reused. ${deliveriesAssigned} deliveries assigned to ${devDriver.fullName}.`,
+    );
   }
 
   console.log(
