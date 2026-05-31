@@ -43,6 +43,16 @@ const SALES_USERS = [
 async function main(): Promise<void> {
   console.log('📦 Adding inventory-only models + extra sales logins...\n');
 
+  // ─── 0. Ensure the 'inventory' value exists on the Postgres enum ──────────
+  // api-deploy doesn't run `prisma db push`, so on a freshly-deployed prod
+  // the trailer_series_enum type still lacks our new value. Adding it here
+  // keeps the seed self-sufficient. ALTER TYPE ADD VALUE can't run inside a
+  // transaction; $executeRawUnsafe issues it on its own connection.
+  await prisma.$executeRawUnsafe(
+    `ALTER TYPE trailer_series_enum ADD VALUE IF NOT EXISTS 'inventory';`,
+  );
+  console.log("✅ Enum trailer_series_enum has 'inventory' value\n");
+
   // ─── 1. Inventory-only trailer models ──────────────────────────────────────
   let modelsCreated = 0;
   let modelsExisted = 0;
