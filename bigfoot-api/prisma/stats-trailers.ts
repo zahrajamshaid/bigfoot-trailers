@@ -81,12 +81,13 @@ async function main(): Promise<void> {
   // live deliveries (scheduled / in_transit) that would supersede the
   // landed Delivery. For a quick count we treat trailers as "in stock" if
   // their status is one of: delivered, ready_for_delivery, on_hold.
+  const stockStatuses: TrailerStatus[] = [
+    TrailerStatus.delivered,
+    TrailerStatus.ready_for_delivery,
+    TrailerStatus.on_hold,
+  ];
   const inStock = latestPerTrailer.filter((d) =>
-    [
-      TrailerStatus.delivered,
-      TrailerStatus.ready_for_delivery,
-      TrailerStatus.on_hold,
-    ].includes(d.trailer.status),
+    stockStatuses.includes(d.trailer.status),
   );
 
   // Group by destination location.
