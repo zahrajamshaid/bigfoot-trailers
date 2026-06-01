@@ -33,6 +33,7 @@ on:
           - stats-trailers # read-only: tally trailers across lifecycle / stock yards / series
           - backfill-paint-b-25ft # one-shot: reroute existing ≥25ft trailers from PAINT_A → PAINT_B
           - seed-parts-user # new `parts` role + parts@bigfoot.dev login covering all 4 jig departments
+          - fix-trailer-6770-yeti # one-shot: reroute SO 6770's production steps to YETI departments after model swap
 
 concurrency:
   group: db-seed-prod
