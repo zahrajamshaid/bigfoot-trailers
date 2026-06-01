@@ -526,6 +526,11 @@ class _AppShellState extends State<AppShell> {
           ),
         ];
       case UserRole.sales:
+        // Sales drives the sold + create-delivery + customer-pickup flow,
+        // so they need direct access to the deliveries list. Filtering by
+        // type from inside that screen lets them watch all scheduled
+        // factory pickups (and stack-to-location creates from sales now
+        // mark the trailer as stock-build automatically).
         return [
           _NavTab(
             '/dashboard',
@@ -538,6 +543,12 @@ class _AppShellState extends State<AppShell> {
             l.navTrailers,
             Icons.local_shipping_outlined,
             Icons.local_shipping,
+          ),
+          _NavTab(
+            '/deliveries',
+            l.navDeliveries,
+            Icons.delivery_dining_outlined,
+            Icons.delivery_dining,
           ),
         ];
       case UserRole.purchasing:
