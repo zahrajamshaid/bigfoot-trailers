@@ -608,6 +608,9 @@ class _InfoTab extends StatelessWidget {
                     t.globalPriority < 9999
                         ? l.trailerDetailPriorityBadge(t.globalPriority as int)
                         : l.trailerDetailPriorityDefault),
+                if (t.createdAt != null)
+                  _DetailRow(
+                      'Created', EstClock.dateTime(t.createdAt as DateTime)),
                 if (t.qbSoPdfStorageKey != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
