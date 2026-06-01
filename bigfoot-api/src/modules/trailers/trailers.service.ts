@@ -19,6 +19,7 @@ import {
   Prisma,
   TrailerStatus,
   TrailerSaleStatus,
+  TrailerSeries,
   DeliveryStatus,
   DeliveryType,
   CustomerType,
@@ -351,6 +352,7 @@ export class TrailersService {
         soNumber: true,
         isStockBuild: true,
         currentLocationId: true,
+        trailerModel: { select: { series: true } },
       },
     });
     if (!existing) {
@@ -371,11 +373,15 @@ export class TrailersService {
       }
     }
 
-    // Trailer model — must exist (workflow steps are NOT regenerated on change)
+    // Trailer model — must exist. When the series changes (e.g. swapping
+    // an XP build to a Yeti), we re-route production_steps to match the
+    // new series's workflow_template downstream — see the $transaction at
+    // the bottom of this method.
+    let newSeries: TrailerSeries | null = null;
     if (dto.trailerModelId !== undefined) {
       const model = await this.prisma.trailerModel.findUnique({
         where: { id: dto.trailerModelId },
-        select: { id: true },
+        select: { id: true, series: true },
       });
       if (!model) {
         throw new AppError(
@@ -383,6 +389,7 @@ export class TrailersService {
           `Trailer model with id ${dto.trailerModelId} not found`,
         );
       }
+      newSeries = model.series;
     }
 
     // Customer — null clears, otherwise must exist
@@ -471,11 +478,85 @@ export class TrailersService {
     if (dto.qbSoId !== undefined) data.qbSoId = dto.qbSoId;
     if (dto.status !== undefined) data.status = dto.status as TrailerStatus;
 
-    return this.prisma.trailer.update({
-      where: { id },
-      data,
-      select: TRAILER_DETAIL_SELECT,
+    // Detect a real series change (workflow → workflow with a different
+    // series). Same-series model swaps (e.g. XP_14ET → XP_17K) don't touch
+    // production_steps. Transitions involving the inventory series have no
+    // sensible automatic step mapping — those require a manual fix.
+    const oldSeries = existing.trailerModel.series;
+    const seriesChanged =
+      newSeries !== null &&
+      newSeries !== oldSeries &&
+      oldSeries !== TrailerSeries.inventory &&
+      newSeries !== TrailerSeries.inventory;
+
+    if (!seriesChanged) {
+      return this.prisma.trailer.update({
+        where: { id },
+        data,
+        select: TRAILER_DETAIL_SELECT,
+      });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const trailer = await tx.trailer.update({
+        where: { id },
+        data,
+        select: TRAILER_DETAIL_SELECT,
+      });
+      // newSeries is non-null when seriesChanged is true (see the guard above).
+      await this.reconcileStepsToSeries(tx, id, newSeries!);
+      return trailer;
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Re-route an existing trailer's production_steps to match a new series'
+  // workflow_template. Called after a mid-build model swap (XP → Yeti, etc.)
+  // so the trailer moves into the correct department queues without losing
+  // its step progress.
+  //
+  // For each existing step, we set department_id to the matching template
+  // department by step_order. Paint booth (PAINT_A / PAINT_B) assignments
+  // are preserved — we don't silently move a trailer between booths just
+  // because the template defaults to one.
+  // ---------------------------------------------------------------------------
+  private async reconcileStepsToSeries(
+    tx: Prisma.TransactionClient,
+    trailerId: bigint,
+    series: TrailerSeries,
+  ): Promise<void> {
+    const PAINT_CODES = new Set(['PAINT_A', 'PAINT_B']);
+    const templates = await tx.workflowTemplate.findMany({
+      where: { series },
+      orderBy: { stepOrder: 'asc' },
+      include: { department: { select: { id: true, code: true } } },
+    });
+    if (templates.length !== 12) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Expected 12 workflow templates for series "${series}", found ${templates.length}`,
+      );
+    }
+    const steps = await tx.productionStep.findMany({
+      where: { trailerId },
+      orderBy: { stepOrder: 'asc' },
+      include: { department: { select: { id: true, code: true } } },
+    });
+
+    for (const s of steps) {
+      const t = templates.find((x) => x.stepOrder === s.stepOrder);
+      if (!t) continue;
+      // Preserve paint A/B assignment: only the booth swap function should
+      // ever move a step between paint booths.
+      const oldIsPaint = PAINT_CODES.has(s.department.code);
+      const newIsPaint = PAINT_CODES.has(t.department.code);
+      if (oldIsPaint && newIsPaint) continue;
+      if (s.department.id === t.department.id) continue;
+      await tx.productionStep.update({
+        where: { id: s.id },
+        data: { departmentId: t.department.id },
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------
