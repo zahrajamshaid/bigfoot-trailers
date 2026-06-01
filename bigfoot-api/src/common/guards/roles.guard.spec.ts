@@ -71,9 +71,9 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(context)).toBe(false);
   });
 
-  it('should work correctly for all 9 roles', () => {
+  it('should work correctly for all 10 roles', () => {
     const allRoles = Object.values(UserRole);
-    expect(allRoles).toHaveLength(9);
+    expect(allRoles).toHaveLength(10);
 
     for (const role of allRoles) {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([role]);
