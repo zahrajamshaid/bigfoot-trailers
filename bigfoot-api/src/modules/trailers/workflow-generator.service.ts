@@ -14,6 +14,21 @@ export interface GeneratedStepsSummary {
 const PAINT_A_CODE = 'PAINT_A';
 const PAINT_B_CODE = 'PAINT_B';
 
+// PAINT_A is the smaller booth — only fits trailers under this length.
+// Anything at or above goes to PAINT_B regardless of queue balance.
+const PAINT_A_MAX_FT = 25;
+
+// trailer.sizeFt is a free-form string (we backfilled out the trailing "ft"
+// suffix). Parse it tolerantly: pull the first integer/decimal we see; if
+// nothing parses, return null and let queue-balance pick.
+function parseSizeFt(sizeFt: string | null | undefined): number | null {
+  if (!sizeFt) return null;
+  const m = String(sizeFt).match(/(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
 @Injectable()
 export class WorkflowGeneratorService {
   constructor(private readonly prisma: PrismaService) {}
@@ -35,6 +50,7 @@ export class WorkflowGeneratorService {
     trailerId: bigint,
     series: TrailerSeries,
     tx: Prisma.TransactionClient,
+    sizeFt?: string | null,
   ): Promise<GeneratedStepsSummary> {
     // Fetch the ordered workflow templates for this series
     const templates = await tx.workflowTemplate.findMany({
@@ -57,13 +73,21 @@ export class WorkflowGeneratorService {
       );
     }
 
-    // For non-GN/Dump series, resolve which paint booth this trailer should
-    // go to based on current queue depth. Resolved once per trailer so all
-    // production_steps land in the same booth.
-    const paintBoothDeptId =
-      series === TrailerSeries.gooseneck_dump
-        ? null
+    // Paint booth routing:
+    //   gn_dump → always PAINT_B (template default, no override)
+    //   length ≥ PAINT_A_MAX_FT → force PAINT_B (PAINT_A is physically smaller)
+    //   otherwise → queue-balance pick between A and B
+    // Resolved once per trailer so every paint step lands in the same booth.
+    const lengthFt = parseSizeFt(sizeFt);
+    const forcePaintB =
+      lengthFt !== null && lengthFt >= PAINT_A_MAX_FT;
+
+    let paintBoothDeptId: number | null = null;
+    if (series !== TrailerSeries.gooseneck_dump) {
+      paintBoothDeptId = forcePaintB
+        ? await this.resolvePaintBoothId(tx, PAINT_B_CODE)
         : await this.pickLighterPaintBooth(tx);
+    }
 
     const now = new Date();
     let firstActiveStepId: bigint | null = null;
@@ -117,6 +141,29 @@ export class WorkflowGeneratorService {
    * back to the other booth; if both are missing it throws — that's a seed
    * misconfiguration the caller should hear about.
    */
+  // Returns the requested booth's department id. Falls back to the other
+  // booth if the requested one is missing (seed-misconfiguration tolerance —
+  // matches the pickLighterPaintBooth behaviour).
+  private async resolvePaintBoothId(
+    tx: Prisma.TransactionClient,
+    preferredCode: 'PAINT_A' | 'PAINT_B',
+  ): Promise<number> {
+    const booths = await tx.department.findMany({
+      where: { code: { in: [PAINT_A_CODE, PAINT_B_CODE] } },
+      select: { id: true, code: true },
+    });
+    const preferred = booths.find((b) => b.code === preferredCode);
+    if (preferred) return preferred.id;
+    const fallback = booths.find((b) => b.code !== preferredCode);
+    if (!fallback) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'PAINT_A and PAINT_B departments are missing — seed misconfiguration',
+      );
+    }
+    return fallback.id;
+  }
+
   private async pickLighterPaintBooth(tx: Prisma.TransactionClient): Promise<number> {
     const booths = await tx.department.findMany({
       where: { code: { in: [PAINT_A_CODE, PAINT_B_CODE] } },

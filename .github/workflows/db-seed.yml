@@ -31,6 +31,7 @@ on:
           - seed-prep-queue # 50 trailers into prep workflow (wood 11 / wire-hydro 9 / paint-prep 5) + ENCLOSED inventory, with customer/stock detection from PDF shipTo
           - backfill-size-ft-suffix # one-shot: strip trailing "ft" from trailers.size_ft so UI doesn't render "ftft"
           - stats-trailers # read-only: tally trailers across lifecycle / stock yards / series
+          - backfill-paint-b-25ft # one-shot: reroute existing ≥25ft trailers from PAINT_A → PAINT_B
 
 concurrency:
   group: db-seed-prod

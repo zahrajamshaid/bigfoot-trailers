@@ -57,7 +57,8 @@ class DashboardScreen extends StatelessWidget {
                     },
                     if (role == UserRole.owner ||
                         role == UserRole.transportManager ||
-                        role == UserRole.productionManager)
+                        role == UserRole.productionManager ||
+                        role == UserRole.sales)
                       const _StockInventoryCard(),
                   ],
                 ),

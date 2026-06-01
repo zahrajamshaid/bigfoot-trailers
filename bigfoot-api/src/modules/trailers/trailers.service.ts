@@ -293,7 +293,12 @@ export class TrailersService {
             totalSteps: 0,
             firstActiveStepId: null,
           }
-        : await this.workflowGenerator.generateSteps(trailer.id, model.series, tx);
+        : await this.workflowGenerator.generateSteps(
+            trailer.id,
+            model.series,
+            tx,
+            dto.sizeFt,
+          );
 
       return { trailer, stepsSummary };
     });
