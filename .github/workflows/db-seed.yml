@@ -32,6 +32,7 @@ on:
           - backfill-size-ft-suffix # one-shot: strip trailing "ft" from trailers.size_ft so UI doesn't render "ftft"
           - stats-trailers # read-only: tally trailers across lifecycle / stock yards / series
           - backfill-paint-b-25ft # one-shot: reroute existing ≥25ft trailers from PAINT_A → PAINT_B
+          - seed-parts-user # new `parts` role + parts@bigfoot.dev login covering all 4 jig departments
 
 concurrency:
   group: db-seed-prod

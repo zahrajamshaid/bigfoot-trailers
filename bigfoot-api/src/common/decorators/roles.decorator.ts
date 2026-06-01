@@ -13,6 +13,7 @@ export enum UserRole {
   DRIVER = 'driver',
   OFFICE = 'office',
   PURCHASING = 'purchasing',
+  PARTS = 'parts',
 }
 
 export const ROLES_KEY = 'roles';

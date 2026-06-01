@@ -551,6 +551,32 @@ class _AppShellState extends State<AppShell> {
             Icons.delivery_dining,
           ),
         ];
+      case UserRole.parts:
+        // Parts staff prep parts for upcoming trailers. They need to see
+        // pending work orders (incoming SOs) plus the live queue of every
+        // jig department they're assigned to (XP_JIG / YETI_JIG / DO_JIG /
+        // GN_WELD via extraDepartmentIds on the parts@bigfoot.dev account).
+        // The queue screen's dept selector handles the multi-dept switching.
+        return [
+          _NavTab(
+            '/dashboard',
+            l.navDashboard,
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
+          _NavTab(
+            '/trailers?status=pending_production',
+            l.navTrailers,
+            Icons.local_shipping_outlined,
+            Icons.local_shipping,
+          ),
+          _NavTab(
+            '/production',
+            l.navProduction,
+            Icons.precision_manufacturing_outlined,
+            Icons.precision_manufacturing,
+          ),
+        ];
       case UserRole.purchasing:
         // Purchasing lands on trailers pre-filtered to pending_production so
         // they see the orders that haven't started building yet and can plan

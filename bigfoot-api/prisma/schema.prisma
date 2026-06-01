@@ -108,6 +108,9 @@ enum UserRole {
   driver
   office
   purchasing
+  // Parts staff — read-only access to pending work orders + every jig
+  // department queue so they can stage parts ahead of the welders.
+  parts
 
   @@map("user_role_enum")
 }
