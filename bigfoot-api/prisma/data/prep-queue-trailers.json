@@ -1,530 +1,865 @@
 [
   {
-    "folder": "wood",
-    "file": "6580.pdf",
-    "soNumber": "6580",
-    "pdfModelCode": "25DO30",
-    "series": "deck_over",
-    "startStepOrder": 11,
-    "startDeptCode": "WOOD",
-    "date": "03/26/2026",
-    "lengthFt": null
+    "bucket": "enclosed-mul",
+    "kind": "inventory",
+    "startStepOrder": null,
+    "startDeptHint": null,
+    "locationCode": "MULBERRY",
+    "file": "6568.pdf",
+    "soNumber": "6568",
+    "pdfModelCode": "7X16TA2",
+    "shipTo": "Open Stock Mulberry",
+    "shipToLines": [
+      "Open Stock Mulberry"
+    ],
+    "date": "03/23/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Open Stock Mulberry Open Stock Mulberry Ship to Open Stock Mulberry Shipping info Ship date: 03/23/2026 Sales Order details Sales Order no.: 6568 Date: 03/23/2026 SERVICE DESCRIPTION QTY 7X16TA2 7X16 ENCLOSED TRAILER COLOR --- WHITE .080 5K BULL DOG JACK DEMCO ADJUSTABLE COUPLER 1\""
   },
   {
-    "folder": "wood",
-    "file": "6672.pdf",
-    "soNumber": "6672",
-    "pdfModelCode": "14ET24XP",
-    "series": "xp",
-    "startStepOrder": 11,
-    "startDeptCode": "WOOD",
-    "date": "04/23/2026",
-    "lengthFt": "24"
+    "bucket": "enclosed-va",
+    "kind": "inventory",
+    "startStepOrder": null,
+    "startDeptHint": null,
+    "locationCode": "TAPPAHANNOCK",
+    "file": "6567.pdf",
+    "soNumber": "6567",
+    "pdfModelCode": "7X16TA2",
+    "shipTo": "Open Stock Mulberry",
+    "shipToLines": [
+      "Open Stock Mulberry"
+    ],
+    "date": "03/23/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Open Stock Mulberry Open Stock Mulberry Ship to Open Stock Mulberry Shipping info Ship date: 03/23/2026 Sales Order details Sales Order no.: 6567 Date: 03/23/2026 SERVICE DESCRIPTION QTY 7X16TA2 7X16 ENCLOSED TRAILER COLOR --- WHITE .0805K BULL DOG JACK DEMCO ADJUSTABLE COUPLER 1\"X"
   },
   {
-    "folder": "wood",
-    "file": "6741.pdf",
-    "soNumber": "6741",
-    "pdfModelCode": "15ET24YETI",
-    "series": "yeti",
-    "startStepOrder": 11,
-    "startDeptCode": "WOOD",
-    "date": "05/11/2026",
-    "lengthFt": "24"
-  },
-  {
-    "folder": "wood",
-    "file": "6744.pdf",
-    "soNumber": "6744",
-    "pdfModelCode": "15ET20TLT",
-    "series": "yeti",
-    "startStepOrder": 11,
-    "startDeptCode": "WOOD",
-    "date": "05/11/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "wood",
-    "file": "6752.pdf",
-    "soNumber": "6752",
-    "pdfModelCode": "14ET16XP",
-    "series": "xp",
-    "startStepOrder": 11,
-    "startDeptCode": "WOOD",
-    "date": "03/17/2026",
-    "lengthFt": null
-  },
-  {
-    "folder": "wood",
-    "file": "6788.pdf",
-    "soNumber": "6788",
-    "pdfModelCode": "14ET20XP",
-    "series": "xp",
-    "startStepOrder": 11,
-    "startDeptCode": "WOOD",
-    "date": "05/21/2026",
-    "lengthFt": "20"
-  },
-  {
-    "folder": "wood",
-    "file": "6791.pdf",
-    "soNumber": "6791",
-    "pdfModelCode": "14ET20XP",
-    "series": "xp",
-    "startStepOrder": 11,
-    "startDeptCode": "WOOD",
-    "date": "05/22/2026",
-    "lengthFt": "20"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6505.pdf",
-    "soNumber": "6505",
-    "pdfModelCode": "22GN25",
-    "series": "gooseneck_dump",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "03/02/2026",
-    "lengthFt": null
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6659.pdf",
-    "soNumber": "6659",
-    "pdfModelCode": "26GN30",
-    "series": "gooseneck_dump",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "04/21/2026",
-    "lengthFt": null
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6695.pdf",
-    "soNumber": "6695",
-    "pdfModelCode": "17ET24",
-    "series": "xp",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "04/29/2026",
-    "lengthFt": "24"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6702.pdf",
-    "soNumber": "6702",
-    "pdfModelCode": "21ET24YETI",
-    "series": "yeti",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "04/30/2026",
-    "lengthFt": null
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6704.pdf",
-    "soNumber": "6704",
-    "pdfModelCode": "15ET20TLT",
-    "series": "yeti",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/01/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6717.pdf",
-    "soNumber": "6717",
-    "pdfModelCode": "15TET24TLT",
-    "series": "yeti",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/05/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6730.pdf",
-    "soNumber": "6730",
-    "pdfModelCode": "18ET24TLT",
-    "series": "yeti",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/07/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6745.pdf",
-    "soNumber": "6745",
-    "pdfModelCode": "18ET20TLT",
-    "series": "yeti",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/11/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6746.pdf",
-    "soNumber": "6746",
-    "pdfModelCode": "18TLT22",
-    "series": "yeti",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/11/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6750.pdf",
-    "soNumber": "6750",
-    "pdfModelCode": "14ET22XP",
-    "series": "xp",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/11/2026",
-    "lengthFt": "22"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6756.pdf",
-    "soNumber": "6756",
-    "pdfModelCode": "15TET24TLT",
-    "series": "yeti",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/11/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6758.pdf",
-    "soNumber": "6758",
-    "pdfModelCode": "10ET20XP",
-    "series": "xp",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/13/2026",
-    "lengthFt": "20"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6766.pdf",
-    "soNumber": "6766",
-    "pdfModelCode": "14ET24XP",
-    "series": "xp",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/12/2026",
-    "lengthFt": "24"
-  },
-  {
-    "folder": "wire-hydro",
-    "file": "6831.pdf",
-    "soNumber": "6831",
-    "pdfModelCode": "14ET16XP",
-    "series": "xp",
-    "startStepOrder": 9,
-    "startDeptCode": "WIRE",
-    "date": "05/27/2026",
-    "lengthFt": "16"
-  },
-  {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6373.pdf",
     "soNumber": "6373",
     "pdfModelCode": "17ET24",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "Open Stock Mulberry",
+    "shipToLines": [
+      "Open Stock Mulberry"
+    ],
     "date": "01/21/2026",
-    "lengthFt": null
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Open Stock Mulberry Open Stock Mulberry Ship to Open Stock Mulberry Shipping info Ship date: 01/21/2026 Sales Order details Sales Order no.: 6373 Date: 01/21/2026 SERVICE DESCRIPTION QTY 17ET24 Bigfoot Trailers Premium 17,500LB GVWR Equipment Trailer Meant to Carry Approximately 13"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6658.pdf",
     "soNumber": "6658",
     "pdfModelCode": "17DO25",
-    "series": "deck_over",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "OPEN STOCK KENNY",
+    "shipToLines": [
+      "OPEN STOCK KENNY"
+    ],
     "date": "04/21/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to OPEN STOCK KENNY Ship to OPEN STOCK KENNY Sales Order details Sales Order no.: 6658 Date: 04/21/2026 SERVICE DESCRIPTION QTY 17DO25 TYPE/MODEL: 17DO25 LENGTH: 20' FLAT DECK PLUS 5? DOVE TAIL DECK WIDTH: 102? WIDE GVWR: 17,500LBS RECOMMENDED PAYLOAD: 14,000LBS FRAME: 10? STRUCTURAL "
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6666.pdf",
     "soNumber": "6666",
     "pdfModelCode": "17DO25",
-    "series": "deck_over",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "04/22/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6666 Date: 04/22/2026 SERVICE DESCRIPTION QTY 17DO25 TYPE/MODEL: 17DO25 LENGTH: 20' FLAT DECK PLUS 5? DOVE TAIL DECK WIDTH: 102? WIDE GVWR: 17,500LBS REC"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6691.pdf",
     "soNumber": "6691",
     "pdfModelCode": "25DO35",
-    "series": "deck_over",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "CLAUDE CANCALON JAX",
+    "shipToLines": [
+      "CLAUDE CANCALON JAX"
+    ],
     "date": "04/28/2026",
-    "lengthFt": null
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to CLAUDE CANCALON 9R SOLUTIONS LLC 369 PALAZZO CIRCLE ST. AUGUSTINE, FL 32092 Ship to CLAUDE CANCALON JAX Sales Order details Sales Order no.: 6691 Date: 04/28/2026 SERVICE DESCRIPTION QTY 25DO35 Bigfoot Trailers Premium 25,500LB GVWR Deck Over Wheels Equipment Trailer Meant to Carry"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6697.pdf",
     "soNumber": "6697",
     "pdfModelCode": "21TLT26",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "GIANNIS LANDSCAPE & LAWN CARE",
+    "shipToLines": [
+      "GIANNIS LANDSCAPE & LAWN CARE"
+    ],
     "date": "04/09/2025",
-    "lengthFt": null
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to GIANNIS LANDSCAPE & LAWN CARE GIANNIS LANDSCAPE & LAWN CARE Ship to GIANNIS LANDSCAPE & LAWN CARE Shipping info Ship date: 04/08/2025 Sales Order details Sales Order no.: 6697 Date: 04/09/2025 SERVICE DESCRIPTION QTY 21TLT26 PINTLE EYE NO POCKETS OR RUB RAIL BIGFOOT TRAILERS TOP SE"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6703.pdf",
     "soNumber": "6703",
     "pdfModelCode": "26GN32-40",
-    "series": "gooseneck_dump",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "MARK CRAMER 1 PO BOX SUMTERVILLE, FL 33585",
+    "shipToLines": [
+      "MARK CRAMER 1 PO BOX SUMTERVILLE",
+      "FL 33585"
+    ],
     "date": "05/01/2026",
-    "lengthFt": null
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to MARK CRAMER 1 PO BOX SUMTERVILLE, FL 33585 Ship to MARK CRAMER 1 PO BOX SUMTERVILLE, FL 33585 Sales Order details Sales Order no.: 6703 Date: 05/01/2026 SERVICE DESCRIPTION QTY 26GN32-40 BUILD AT 35' GOOSENECK DECKOVER 12K DEXTER SPRING AXLES DUAL 12K SPRING LOADED LEG JACKS DOUBLE"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6711.pdf",
     "soNumber": "6711",
     "pdfModelCode": "18ET24TLT",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "COLT'S MOTORSPORTS LLC (DEALER) JAX",
+    "shipToLines": [
+      "COLT'S MOTORSPORTS LLC (DEALER) JAX"
+    ],
     "date": "05/04/2026",
-    "lengthFt": "16"
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to COLT'S MOTORSPORTS LLC (DEALER) COLT'S MOTORSPORTS LLC 100 SW 266TH ST SUITE 82 NEWBERRY, FL 32669 Ship to COLT'S MOTORSPORTS LLC (DEALER) JAX Sales Order details Sales Order no.: 6711 Date: 05/04/2026 SERVICE DESCRIPTION QTY 18ET24TLT TYPE/MODEL: 18TLT24 LENGTH:16? TILT DECK 8' ST"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6714.pdf",
     "soNumber": "6714",
     "pdfModelCode": "14ET22XP",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Jacksonville",
+    "shipToLines": [
+      "A Open Stock Jacksonville"
+    ],
     "date": "05/04/2026",
-    "lengthFt": "22"
+    "lengthFt": "22",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Jacksonville Ship to A Open Stock Jacksonville Sales Order details Sales Order no.: 6714 Date: 05/04/2026 SERVICE DESCRIPTION QTY 14ET22XP TYPE/MODEL: 14ET22 LENGTH:22' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6? CHANNEL LOW"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6715.pdf",
     "soNumber": "6715",
     "pdfModelCode": "17DO26",
-    "series": "deck_over",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "LAP EMERGENCY FUELING SERVICE, LLC LAP EMERGENCY FUELING SERVICE, LLC 10830 CREATIVE DRIVE JACKSONVILLE, FL 32218",
+    "shipToLines": [
+      "LAP EMERGENCY FUELING SERVICE",
+      "LLC LAP EMERGENCY FUELING SERVICE",
+      "LLC 10830 CREATIVE DRIVE JACKSONVILLE",
+      "FL 32218"
+    ],
     "date": "05/04/2026",
-    "lengthFt": "21"
+    "lengthFt": "21",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to LAP EMERGENCY FUELING SERVICE, LLC LAP EMERGENCY FUELING SERVICE, LLC 10830 CREATIVE DRIVE JACKSONVILLE, FL 32218 Ship to LAP EMERGENCY FUELING SERVICE, LLC LAP EMERGENCY FUELING SERVICE, LLC 10830 CREATIVE DRIVE JACKSONVILLE, FL 32218 Sales Order details Sales Order no.: 6715 Date: 0"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6731.pdf",
     "soNumber": "6731",
     "pdfModelCode": "17DO25",
-    "series": "deck_over",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "TROY FRYMYER",
+    "shipToLines": [
+      "TROY FRYMYER"
+    ],
     "date": "05/07/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to TROY FRYMYER Ship to TROY FRYMYER Sales Order details Sales Order no.: 6731 Date: 05/07/2026 SERVICE DESCRIPTION QTY 17DO25 TYPE/MODEL: 17DO25 LENGTH: 20' FLAT DECK PLUS 5? DOVE TAIL DECK WIDTH: 102? WIDE GVWR: 17,500LBS RECOMMENDED PAYLOAD: 14,000LBS FRAME: 10? STRUCTURAL CHANNEL "
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6749.pdf",
     "soNumber": "6749",
     "pdfModelCode": "14ET22XP",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/11/2026",
-    "lengthFt": "22"
+    "lengthFt": "22",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6749 Date: 05/11/2026 SERVICE DESCRIPTION QTY 14ET22XP TYPE/MODEL: 14ET22 LENGTH:22' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD:"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6757.pdf",
     "soNumber": "6757",
     "pdfModelCode": "10ET24XP",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Jacksonville",
+    "shipToLines": [
+      "A Open Stock Jacksonville"
+    ],
     "date": "05/13/2026",
-    "lengthFt": "24"
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Jacksonville Ship to A Open Stock Jacksonville Sales Order details Sales Order no.: 6757 Date: 05/13/2026 SERVICE DESCRIPTION QTY 10ET24XP TYPE/MODEL: 10ET24 LENGTH:24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 9,999 RECOMMENDED PAYLOAD: 7800LBS FRAME: 5? CHANNEL LOWER FRA"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6760.pdf",
     "soNumber": "6760",
     "pdfModelCode": "18ET24TLT",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Jacksonville",
+    "shipToLines": [
+      "A Open Stock Jacksonville"
+    ],
     "date": "05/14/2026",
-    "lengthFt": "16"
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Jacksonville Ship to A Open Stock Jacksonville Sales Order details Sales Order no.: 6760 Date: 05/14/2026 SERVICE DESCRIPTION QTY 18ET24TLT TYPE/MODEL: 18TLT24 LENGTH:16? TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,50"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6771_HOT.pdf",
     "soNumber": "6771",
     "pdfModelCode": "10ET18XP",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "Mclaughlin Travis Mclaughlin, Travis 2106 Ettington Ln Mechanicsville, VA 23111",
+    "shipToLines": [
+      "Mclaughlin Travis Mclaughlin",
+      "Travis 2106 Ettington Ln Mechanicsville",
+      "VA 23111"
+    ],
     "date": "04/24/2026",
-    "lengthFt": "18"
+    "lengthFt": "18",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Mclaughlin Travis Mclaughlin, Travis 2106 Ettington Ln Mechanicsville, VA 23111 Ship to Mclaughlin Travis Mclaughlin, Travis 2106 Ettington Ln Mechanicsville, VA 23111 Sales Order details Sales Order no.: 6771 Date: 04/24/2026 SERVICE DESCRIPTION QTY 10ET18XP TYPE/MODEL: 10ET18 LEN"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6772.pdf",
     "soNumber": "6772",
     "pdfModelCode": "18ET24YETI",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/19/2026",
-    "lengthFt": "24"
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6772 Date: 05/19/2026 SERVICE DESCRIPTION QTY 18ET24YETI TYPE/MODEL: 18ET24YETI LENGTH: 24' DECK WIDTH: 83 BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PA"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6773.pdf",
     "soNumber": "6773",
     "pdfModelCode": "18ET20YETI",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/19/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6773 Date: 05/19/2026 SERVICE DESCRIPTION QTY 18ET20YETI TYPE/MODEL: 18ET20YETI LENGTH: 20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED P"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6774.pdf",
     "soNumber": "6774",
     "pdfModelCode": "15ET20YETI",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA",
+    "shipToLines": [
+      "Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers",
+      "FL 33905 USA"
+    ],
     "date": "05/19/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Tropic Trailers 9451 Workmen Way NEED 26 RESALE CERT Fort Myers, FL 33905 Ship to Tropic Trailers Tropic Trailers 9451 Workmen Way Fort Myers, FL 33905 USA Sales Order details Sales Order no.: 6774 Date: 05/19/2026 SERVICE DESCRIPTION QTY 15ET20YETI TYPE/MODEL: 15ET20 LENGTH:20' DE"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6775.pdf",
     "soNumber": "6775",
     "pdfModelCode": "15ET24YETI",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/19/2026",
-    "lengthFt": "24"
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6775 Date: 05/19/2026 SERVICE DESCRIPTION QTY 15ET24YETI TYPE/MODEL: 15ET24 LENGTH:24' DECK WIDTH: 83 BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6783.pdf",
     "soNumber": "6783",
     "pdfModelCode": "14DO24FLT",
-    "series": "deck_over",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "MYR EQUIPMENT LLC MYR EQUIPMENT LLC 1301 Mountain RD Glen Allen, VA 23060",
+    "shipToLines": [
+      "MYR EQUIPMENT LLC MYR EQUIPMENT LLC 1301 Mountain RD Glen Allen",
+      "VA 23060"
+    ],
     "date": "05/20/2026",
-    "lengthFt": "24"
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to MYR EQUIPMENT LLC MYR EQUIPMENT LLC 3491 W. 250 N Bargersville, IN 46106 Ship to MYR EQUIPMENT LLC MYR EQUIPMENT LLC 1301 Mountain RD Glen Allen, VA 23060 Sales Order details Sales Order no.: 6783 Date: 05/20/2026 SERVICE DESCRIPTION QTY 14DO24FLT TYPE/MODEL: 14DO24FLT LENGTH: 24' "
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6786.pdf",
     "soNumber": "6786",
     "pdfModelCode": "10ET20XP",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/21/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6786 Date: 05/21/2026 SERVICE DESCRIPTION QTY 10ET20XP TYPE/MODEL: 10ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 9,999 RECOMMENDED PAYLOAD: 780"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6787.pdf",
     "soNumber": "6787",
     "pdfModelCode": "10ET24XP",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/21/2026",
-    "lengthFt": "24"
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6787 Date: 05/21/2026 SERVICE DESCRIPTION QTY 10ET24XP TYPE/MODEL: 10ET24 LENGTH:24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 9,999 RECOMMENDED PAYLOAD: 780"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6792.pdf",
     "soNumber": "6792",
     "pdfModelCode": "15TET24TLT",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/26/2026",
-    "lengthFt": "16"
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6792 Date: 05/26/2026 SERVICE DESCRIPTION QTY 15TET24TLT TYPE/MODEL: 15TLT24 LENGTH:16 TILT DECK 8' STATIONARY DECK WIDTH: 83 BETWEEN FENDERS GVWR: 14,90"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6793.pdf",
     "soNumber": "6793",
     "pdfModelCode": "15ET20TLT",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/26/2026",
-    "lengthFt": "16"
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6793 Date: 05/26/2026 SERVICE DESCRIPTION QTY 15ET20TLT TYPE/MODEL: 15TLT20 LENGTH:16 TILT DECK 4' STATIONARY DECK WIDTH: 83 BETWEEN FENDERS GVWR: 14,900"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6794.pdf",
     "soNumber": "6794",
     "pdfModelCode": "18ET20TLT",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/26/2026",
-    "lengthFt": "16"
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6794 Date: 05/26/2026 SERVICE DESCRIPTION QTY 18ET20TLT TYPE/MODEL: 18TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83 BETWEEN FENDERS GVWR: 17,90"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6795.pdf",
     "soNumber": "6795",
     "pdfModelCode": "18ET20YETI",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/26/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6795 Date: 05/26/2026 SERVICE DESCRIPTION QTY 18ET20YETI TYPE/MODEL: 18ET20YETI LENGTH: 20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED P"
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6797.pdf",
     "soNumber": "6797",
     "pdfModelCode": "14ET20XP",
-    "series": "xp",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/26/2026",
-    "lengthFt": "20"
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6797 Date: 05/26/2026 SERVICE DESCRIPTION QTY 14ET20XP TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83 BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: "
   },
   {
-    "folder": "prep",
+    "bucket": "paint-prep",
+    "kind": "workflow",
+    "startStepOrder": 5,
+    "startDeptHint": "PAINT_PREP",
+    "locationCode": null,
     "file": "6843.pdf",
     "soNumber": "6843",
     "pdfModelCode": "18ET20TLT",
-    "series": "yeti",
-    "startStepOrder": 5,
-    "startDeptCode": "PAINT_PREP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
     "date": "05/27/2026",
-    "lengthFt": "16"
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6843 Date: 05/27/2026 SERVICE DESCRIPTION QTY 18ET20TLT TYPE/MODEL: 18TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83 BETWEEN FENDERS GVWR: 17,90"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6505.pdf",
+    "soNumber": "6505",
+    "pdfModelCode": "22GN25",
+    "shipTo": "Open Stock Mulberry",
+    "shipToLines": [
+      "Open Stock Mulberry"
+    ],
+    "date": "03/02/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Open Stock Mulberry Open Stock Mulberry Ship to Open Stock Mulberry Shipping info Ship date: 03/02/2026 Sales Order details Sales Order no.: 6505 Date: 03/02/2026 SERVICE DESCRIPTION QTY 22GN25 GOOSENECK DECKOVER 10K DEXTER TORFLEX AXLESDUAL 12K SPRING LOADED LEG JACKS DOUBLE DOOR "
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6659.pdf",
+    "soNumber": "6659",
+    "pdfModelCode": "26GN30",
+    "shipTo": "EDWARD FITZ-SIMMONDS 1369 FOLSOM RD LOXAHATCHEE, FL 33470",
+    "shipToLines": [
+      "EDWARD FITZ-SIMMONDS 1369 FOLSOM RD LOXAHATCHEE",
+      "FL 33470"
+    ],
+    "date": "04/21/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to EDWARD FITZ-SIMMONDS 1369 FOLSOM RD LOXAHATCHEE, FL 33470 Ship to EDWARD FITZ-SIMMONDS 1369 FOLSOM RD LOXAHATCHEE, FL 33470 Sales Order details Sales Order no.: 6659 Date: 04/21/2026 SERVICE DESCRIPTION QTY 26GN30 GOOSENECK DECKOVER 12K DEXTER TORFLEX AXLES DUAL 12K SPRING LOADED L"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6695.pdf",
+    "soNumber": "6695",
+    "pdfModelCode": "17ET24",
+    "shipTo": "TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC SCOTT TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC 432 4TH AVE NORTH TIERRA VERDE, FL 33715",
+    "shipToLines": [
+      "TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC SCOTT TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC 432 4TH AVE NORTH TIERRA VERDE",
+      "FL 33715"
+    ],
+    "date": "04/29/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC SCOTT TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC 432 4TH AVE NORTH TIERRA VERDE, FL 33715 Ship to TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC SCOTT TRIPLE ZZZ MULCHING AND BRUSH CLEARING LLC 432 4TH AVE NORTH TIERRA VERDE, FL 33715 Sales Order"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6702.pdf",
+    "soNumber": "6702",
+    "pdfModelCode": "21ET24YETI",
+    "shipTo": "CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA, GA 30180",
+    "shipToLines": [
+      "CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA",
+      "GA 30180"
+    ],
+    "date": "04/30/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA, GA 30180 Ship to CARL ROSENBERG CARL ROSENBERG ARE MANAGEMENT GROUP LLC 554 SWEETWATER BEND VILLA, GA 30180 Sales Order details Sales Order no.: 6702 Date: 04/30/2026 SERVICE DESCRIPTION QTY 21ET24YETI"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6704.pdf",
+    "soNumber": "6704",
+    "pdfModelCode": "15ET20TLT",
+    "shipTo": "WINGHAM ENTERPRISES",
+    "shipToLines": [
+      "WINGHAM ENTERPRISES"
+    ],
+    "date": "05/01/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to WINGHAM ENTERPRISES Ship to WINGHAM ENTERPRISES Sales Order details Sales Order no.: 6704 Date: 05/01/2026 SERVICE DESCRIPTION QTY 15ET20TLT TYPE/MODEL: 15TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: "
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6717.pdf",
+    "soNumber": "6717",
+    "pdfModelCode": "15TET24TLT",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
+    "date": "05/05/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6717 Date: 05/05/2026 SERVICE DESCRIPTION QTY 15TET24TLT TYPE/MODEL: 15TLT24 LENGTH:16? TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6730.pdf",
+    "soNumber": "6730",
+    "pdfModelCode": "18ET24TLT",
+    "shipTo": "A Open Stock Jacksonville",
+    "shipToLines": [
+      "A Open Stock Jacksonville"
+    ],
+    "date": "05/07/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Jacksonville Ship to A Open Stock Jacksonville Sales Order details Sales Order no.: 6730 Date: 05/07/2026 SERVICE DESCRIPTION QTY 18ET24TLT TYPE/MODEL: 18TLT24 LENGTH:16? TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,50"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6745.pdf",
+    "soNumber": "6745",
+    "pdfModelCode": "18ET20TLT",
+    "shipTo": "OPEN STOCK KENNY",
+    "shipToLines": [
+      "OPEN STOCK KENNY"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to OPEN STOCK KENNY Ship to OPEN STOCK KENNY Sales Order details Sales Order no.: 6745 Date: 05/11/2026 SERVICE DESCRIPTION QTY 18ET20TLT TYPE/MODEL: 18TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,500LBS FRAME: 8? STR"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6746.pdf",
+    "soNumber": "6746",
+    "pdfModelCode": "18TLT22",
+    "shipTo": "OPEN STOCK KENNY",
+    "shipToLines": [
+      "OPEN STOCK KENNY"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to OPEN STOCK KENNY Ship to OPEN STOCK KENNY Sales Order details Sales Order no.: 6746 Date: 05/11/2026 SERVICE DESCRIPTION QTY 18TLT22 TYPE/MODEL: 18TLT22 LENGTH:16? TILT DECK 6' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 17,900LBS RECOMMENDED PAYLOAD: 14,500LBS FRAME: 8? STRUC"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6750.pdf",
+    "soNumber": "6750",
+    "pdfModelCode": "14ET22XP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "22",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6750 Date: 05/11/2026 SERVICE DESCRIPTION QTY 14ET22XP TYPE/MODEL: 14ET22 LENGTH:22' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD:"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6756.pdf",
+    "soNumber": "6756",
+    "pdfModelCode": "15TET24TLT",
+    "shipTo": "DAVID BUCHANAN DAVID BUCHANAN",
+    "shipToLines": [
+      "DAVID BUCHANAN DAVID BUCHANAN"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to DAVID BUCHANAN DAVID BUCHANAN 489 ETHRIDGE MILL RD MILNER, GA 30257 Ship to DAVID BUCHANAN DAVID BUCHANAN Sales Order details Sales Order no.: 6756 Date: 05/11/2026 SERVICE DESCRIPTION QTY 15TET24TLT TYPE/MODEL: 15TLT24 LENGTH:16' TILT DECK 8' STATIONARY DECK WIDTH: 83? BETWEEN FEN"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6758.pdf",
+    "soNumber": "6758",
+    "pdfModelCode": "10ET20XP",
+    "shipTo": "A Open Stock Jacksonville",
+    "shipToLines": [
+      "A Open Stock Jacksonville"
+    ],
+    "date": "05/13/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Jacksonville Ship to A Open Stock Jacksonville Sales Order details Sales Order no.: 6758 Date: 05/13/2026 SERVICE DESCRIPTION QTY 10ET20XP TYPE/MODEL: 10ET20 LENGTH:20' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 9,999 RECOMMENDED PAYLOAD: 7800LBS FRAME: 5? CHANNEL LOWER FRA"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6766.pdf",
+    "soNumber": "6766",
+    "pdfModelCode": "14ET24XP",
+    "shipTo": "TRAVIS MILLS TRAVIS MILLS 17314 CYPRESS HILL DR ROSHARON, TX 77583",
+    "shipToLines": [
+      "TRAVIS MILLS TRAVIS MILLS 17314 CYPRESS HILL DR ROSHARON",
+      "TX 77583"
+    ],
+    "date": "05/12/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to TRAVIS MILLS TRAVIS MILLS 17314 CYPRESS HILL DR ROSHARON, TX 77583 Ship to TRAVIS MILLS TRAVIS MILLS 17314 CYPRESS HILL DR ROSHARON, TX 77583 Sales Order details Sales Order no.: 6766 Date: 05/12/2026 SERVICE DESCRIPTION QTY 14ET24XP TYPE/MODEL: 14ET24 LENGTH:24' DECK WIDTH: 83? BE"
+  },
+  {
+    "bucket": "wire-hydro",
+    "kind": "workflow",
+    "startStepOrder": 9,
+    "startDeptHint": "WIRE/HYDRAULICS",
+    "locationCode": null,
+    "file": "6831.pdf",
+    "soNumber": "6831",
+    "pdfModelCode": "14ET16XP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
+    "date": "05/27/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6831 Date: 05/27/2026 SERVICE DESCRIPTION QTY 14ET16XP TYPE/MODEL: 14ET16 LENGTH:16' DECK WIDTH: 83 BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: "
+  },
+  {
+    "bucket": "wood",
+    "kind": "workflow",
+    "startStepOrder": 11,
+    "startDeptHint": "WOOD",
+    "locationCode": null,
+    "file": "6580.pdf",
+    "soNumber": "6580",
+    "pdfModelCode": "25DO30",
+    "shipTo": "THE YARD STOP",
+    "shipToLines": [
+      "THE YARD STOP"
+    ],
+    "date": "03/26/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to THE YARD STOP THE YARD STOP GARDEN CENTER INC Ship to THE YARD STOP Shipping info Ship date: 03/26/2026 Sales Order details Sales Order no.: 6580 Date: 03/26/2026 SERVICE DESCRIPTION QTY 25DO30 BUILD AT 31' 26' PLUS 5'TOOL BOX WITH LID Bigfoot Trailers Premium 25,500LB GVWR Deck Ov"
+  },
+  {
+    "bucket": "wood",
+    "kind": "workflow",
+    "startStepOrder": 11,
+    "startDeptHint": "WOOD",
+    "locationCode": null,
+    "file": "6672.pdf",
+    "soNumber": "6672",
+    "pdfModelCode": "14ET24XP",
+    "shipTo": "JOSEPH BRINSON JR",
+    "shipToLines": [
+      "JOSEPH BRINSON JR"
+    ],
+    "date": "04/23/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to JOSEPH BRINSON JR Ship to JOSEPH BRINSON JR Sales Order details Sales Order no.: 6672 Date: 04/23/2026 SERVICE DESCRIPTION QTY 14ET24XP TYPE/MODEL: 14ET24 FULL TILT LENGTH:24' DECK WIDTH: 83\" BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6\" TUBE LOWER FRAME,"
+  },
+  {
+    "bucket": "wood",
+    "kind": "workflow",
+    "startStepOrder": 11,
+    "startDeptHint": "WOOD",
+    "locationCode": null,
+    "file": "6741.pdf",
+    "soNumber": "6741",
+    "pdfModelCode": "15ET24YETI",
+    "shipTo": "OPEN STOCK KENNY",
+    "shipToLines": [
+      "OPEN STOCK KENNY"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "24",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to OPEN STOCK KENNY Ship to OPEN STOCK KENNY Sales Order details Sales Order no.: 6741 Date: 05/11/2026 SERVICE DESCRIPTION QTY 15ET24YETI TYPE/MODEL: 15ET24 LENGTH:24' DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8? STRUCTURAL I BEAM ? INTAGRA"
+  },
+  {
+    "bucket": "wood",
+    "kind": "workflow",
+    "startStepOrder": 11,
+    "startDeptHint": "WOOD",
+    "locationCode": null,
+    "file": "6744.pdf",
+    "soNumber": "6744",
+    "pdfModelCode": "15ET20TLT",
+    "shipTo": "OPEN STOCK KENNY",
+    "shipToLines": [
+      "OPEN STOCK KENNY"
+    ],
+    "date": "05/11/2026",
+    "lengthFt": "16",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to OPEN STOCK KENNY Ship to OPEN STOCK KENNY Sales Order details Sales Order no.: 6744 Date: 05/11/2026 SERVICE DESCRIPTION QTY 15ET20TLT TYPE/MODEL: 15TLT20 LENGTH:16? TILT DECK 4' STATIONARY DECK WIDTH: 83? BETWEEN FENDERS GVWR: 14,900LBS RECOMMENDED PAYLOAD: 11,500LBS FRAME: 8? STR"
+  },
+  {
+    "bucket": "wood",
+    "kind": "workflow",
+    "startStepOrder": 11,
+    "startDeptHint": "WOOD",
+    "locationCode": null,
+    "file": "6752.pdf",
+    "soNumber": "6752",
+    "pdfModelCode": "14ET16XP",
+    "shipTo": "HI-LOW SOLUTIONS, LLC",
+    "shipToLines": [
+      "HI-LOW SOLUTIONS",
+      "LLC"
+    ],
+    "date": "03/17/2026",
+    "lengthFt": null,
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to HI-LOW SOLUTIONS, LLC HI-LOW SOLUTIONS, LLC Michael Arnone 477 Mozart Road Ship to HI-LOW SOLUTIONS, LLC Sales Order details Sales Order no.: 6752 Date: 03/17/2026 SERVICE DESCRIPTION QTY 14ET16XP ALL FLAT DRIVE OVER FENDER NO RAMPS NO D RINGS OR STAKE POCKETS Bigfoot Trailers Prem"
+  },
+  {
+    "bucket": "wood",
+    "kind": "workflow",
+    "startStepOrder": 11,
+    "startDeptHint": "WOOD",
+    "locationCode": null,
+    "file": "6788.pdf",
+    "soNumber": "6788",
+    "pdfModelCode": "14ET20XP",
+    "shipTo": "Open Stock Mulberry",
+    "shipToLines": [
+      "Open Stock Mulberry"
+    ],
+    "date": "05/21/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to Open Stock Mulberry Ship to Open Stock Mulberry Sales Order details Sales Order no.: 6788 Date: 05/21/2026 SERVICE DESCRIPTION QTY 14ET20XP TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83 BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: 11,000LBS FRAME: 6 CHANNEL LOWER FRAME, 6 UP"
+  },
+  {
+    "bucket": "wood",
+    "kind": "workflow",
+    "startStepOrder": 11,
+    "startDeptHint": "WOOD",
+    "locationCode": null,
+    "file": "6791.pdf",
+    "soNumber": "6791",
+    "pdfModelCode": "14ET20XP",
+    "shipTo": "A Open Stock Mulberry Open Stock Mulberry",
+    "shipToLines": [
+      "A Open Stock Mulberry Open Stock Mulberry"
+    ],
+    "date": "05/22/2026",
+    "lengthFt": "20",
+    "rawDescriptionHead": "PACK ING SLIP Bigfoot Trailers LLC 6925 State Road 60 W Mulberry, FL 33860-7815 office@bigfoottrailers.net Bill to A Open Stock Mulberry Open Stock Mulberry Ship to A Open Stock Mulberry Open Stock Mulberry Sales Order details Sales Order no.: 6791 Date: 05/22/2026 SERVICE DESCRIPTION QTY 14ET20XP TYPE/MODEL: 14ET20 LENGTH:20' DECK WIDTH: 83 BETWEEN FENDERS GVWR: 14,000LBS RECOMMENDED PAYLOAD: "
   }
 ]
