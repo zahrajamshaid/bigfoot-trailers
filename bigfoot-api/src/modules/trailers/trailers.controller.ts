@@ -28,6 +28,7 @@ import {
   ToggleHotDto,
   UploadQbPdfDto,
   UpdateSaleStatusDto,
+  SetPaintBoothDto,
 } from './dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -140,6 +141,30 @@ export class TrailersController {
     @Body() dto: UpdateSaleStatusDto,
   ) {
     return this.trailersService.updateSaleStatus(BigInt(id), dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/paint-booth — swap a trailer between PAINT_A / PAINT_B
+  // ---------------------------------------------------------------------------
+  @Patch(':id/paint-booth')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({
+    summary: 'Manually move a trailer between PAINT_A and PAINT_B',
+    description:
+      'Production manager / owner override of the size-based auto-routing. ' +
+      'The trailer\'s paint production_step is repointed to the target booth; ' +
+      'status / queue position are preserved. PAINT_A rejects trailers ≥25ft.',
+  })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Paint booth updated' })
+  @ApiResponse({ status: 400, description: '≥25ft trailers cannot be on PAINT_A' })
+  @ApiResponse({ status: 403, description: 'Forbidden — insufficient role' })
+  @ApiResponse({ status: 404, description: 'Trailer not found' })
+  async setPaintBooth(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetPaintBoothDto,
+  ) {
+    return this.trailersService.setPaintBooth(BigInt(id), dto.paintBoothCode);
   }
 
   // ---------------------------------------------------------------------------

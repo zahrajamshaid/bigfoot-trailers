@@ -259,6 +259,14 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
     if (!isClosed) await load();
   }
 
+  /// Owner / production_manager — swap the trailer's paint step between
+  /// PAINT_A and PAINT_B. Throws on failure (e.g. ≥25ft trailer routed to A);
+  /// refreshes on success.
+  Future<void> setPaintBooth(String code) async {
+    await _repository.setPaintBooth(trailerId, code);
+    if (!isClosed) await load();
+  }
+
   Future<void> setPriority(int priority) async {
     try {
       await _repository.updatePriority(trailerId, priority);

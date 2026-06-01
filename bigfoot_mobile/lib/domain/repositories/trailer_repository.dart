@@ -42,6 +42,11 @@ abstract class TrailerRepository {
   /// trailers return without changes.
   Future<Trailer> markCompleted(int id);
 
+  /// Owner / production_manager swap between paint booths. [code] is the
+  /// target booth's department code: `PAINT_A` or `PAINT_B`. Rejects
+  /// PAINT_A for ≥25ft trailers on the server.
+  Future<Trailer> setPaintBooth(int id, String code);
+
   Future<void> addAddon(int trailerId, Map<String, dynamic> data);
 
   Future<void> removeAddon(int trailerId, int addonId);

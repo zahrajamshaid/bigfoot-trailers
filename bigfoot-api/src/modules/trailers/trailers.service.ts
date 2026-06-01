@@ -15,6 +15,18 @@ import {
   TrailerSaleStatusDto,
   FulfilmentType,
 } from './dto/sale-status.dto';
+import { PaintBoothCode } from './dto/paint-booth.dto';
+
+// trailer.sizeFt is a free-form string ("24" / "26ft" / "20'"); pull the
+// leading number and return it as feet. Mirrors the helper in the workflow
+// generator so we can enforce the same PAINT_A 25ft cap on manual swaps.
+function parsePaintLengthFt(sizeFt: string | null | undefined): number | null {
+  if (!sizeFt) return null;
+  const m = String(sizeFt).match(/(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
 import {
   Prisma,
   TrailerStatus,
@@ -561,6 +573,77 @@ export class TrailersService {
         data: { departmentId: t.department.id },
       });
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/paint-booth — owner / production_manager swap
+  //
+  // Moves the trailer's paint production_step between PAINT_A and PAINT_B.
+  // Useful when the production manager needs to rebalance a tight queue,
+  // or to override the size-based auto-routing for a specific build.
+  //
+  // Validation:
+  //   - Trailer must have a paint step (anything inventory-only doesn't, and
+  //     gn_dump builds are already on PAINT_B and can be swapped to A here).
+  //   - Length cap is *only enforced when the target is PAINT_A*: PAINT_A
+  //     physically can't fit ≥25ft trailers, so we reject that swap.
+  //     Moving to PAINT_B is always allowed regardless of length.
+  // ---------------------------------------------------------------------------
+  async setPaintBooth(id: bigint, code: PaintBoothCode) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id },
+      select: { id: true, soNumber: true, sizeFt: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    if (code === PaintBoothCode.PAINT_A) {
+      const len = parsePaintLengthFt(trailer.sizeFt);
+      if (len !== null && len >= 25) {
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          `PAINT_A only fits trailers under 25ft (this trailer is ${len}ft). Route to PAINT_B.`,
+        );
+      }
+    }
+
+    const targetBooth = await this.prisma.department.findUnique({
+      where: { code },
+      select: { id: true, code: true },
+    });
+    if (!targetBooth) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Paint booth department "${code}" missing — seed misconfiguration.`,
+      );
+    }
+
+    const paintStep = await this.prisma.productionStep.findFirst({
+      where: {
+        trailerId: id,
+        department: { code: { in: ['PAINT_A', 'PAINT_B'] } },
+      },
+      select: { id: true, departmentId: true },
+    });
+    if (!paintStep) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'Trailer has no paint production_step — model may be inventory-only.',
+      );
+    }
+
+    if (paintStep.departmentId !== targetBooth.id) {
+      await this.prisma.productionStep.update({
+        where: { id: paintStep.id },
+        data: { departmentId: targetBooth.id },
+      });
+    }
+
+    return this.prisma.trailer.findUnique({
+      where: { id },
+      select: TRAILER_DETAIL_SELECT,
+    });
   }
 
   // ---------------------------------------------------------------------------

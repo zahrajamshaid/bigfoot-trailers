@@ -439,6 +439,61 @@ class _TrailerDetailBody extends StatelessWidget {
 
 // ── Tab 1: Info ──────────────────────────────────────────────────────────────
 
+/// True when the signed-in user can edit the trailer (owner /
+/// production_manager). Mirrors `_TrailerDetailScreenState._canEditTrailer`,
+/// duplicated at top level so subordinate widgets (_InfoTab, etc.) can use
+/// the same gate without reaching into private state methods.
+bool _canEditTrailer(BuildContext context) {
+  final auth = context.read<AuthViewModel>().state;
+  if (auth is! Authenticated) return false;
+  return auth.user.role == UserRole.owner ||
+      auth.user.role == UserRole.productionManager;
+}
+
+/// Returns the trailer's paint step department code (`PAINT_A` or
+/// `PAINT_B`) when it has one, else null. Inventory-only models skip the
+/// workflow entirely so the paint step won't exist.
+String? _paintStepFor(dynamic trailer) {
+  final steps = trailer.productionSteps as List?;
+  if (steps == null || steps.isEmpty) return null;
+  for (final s in steps) {
+    final code = s.departmentCode as String?;
+    if (code == 'PAINT_A' || code == 'PAINT_B') return code;
+  }
+  return null;
+}
+
+/// Owner / production_manager swap PAINT_A ↔ PAINT_B. Calls the API,
+/// shows a snackbar on success/failure.
+Future<void> _swapPaintBooth(BuildContext context, String code) async {
+  final l = AppLocalizations.of(context);
+  final cubit = context.read<TrailerDetailViewModel>();
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await cubit.setPaintBooth(code);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Moved to $code.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+  } on ApiException catch (e) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l.trailerDetailUpdateFailed(e.displayMessage)),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  } catch (e) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l.trailerDetailUpdateFailed('$e')),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+}
+
 class _InfoTab extends StatelessWidget {
   final dynamic trailer;
   final List<ProductionStepSummary> steps;
@@ -515,6 +570,21 @@ class _InfoTab extends StatelessWidget {
           locationLine: _locationLine(),
         ),
         const SizedBox(height: 8),
+
+        // Paint booth swap — owner / production_manager only, and only when
+        // the trailer has a paint step (skips inventory-only models).
+        if (_canEditTrailer(context))
+          () {
+            final paintStep = _paintStepFor(t);
+            if (paintStep == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _PaintBoothCard(
+                currentBoothCode: paintStep,
+                onSwap: (code) => _swapPaintBooth(context, code),
+              ),
+            );
+          }(),
 
         // Compact key/value details (short fields only — long-form notes are
         // rendered separately below so they get full width).
@@ -1777,6 +1847,53 @@ class _StagePhotosTab extends StatelessWidget {
             ),
             Flexible(
               child: InteractiveViewer(child: Image.network(photo.downloadUrl!)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small selector card letting owner / production_manager swap the trailer
+/// between PAINT_A and PAINT_B. The API enforces the ≥25ft → PAINT_B rule
+/// server-side, so we just show both and surface the failure as a snackbar.
+class _PaintBoothCard extends StatelessWidget {
+  final String currentBoothCode; // 'PAINT_A' | 'PAINT_B'
+  final ValueChanged<String> onSwap;
+
+  const _PaintBoothCard({
+    required this.currentBoothCode,
+    required this.onSwap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: [
+            const Icon(Icons.format_paint_outlined,
+                size: 18, color: AppColors.disabled),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Paint booth',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'PAINT_A', label: Text('A')),
+                ButtonSegment(value: 'PAINT_B', label: Text('B')),
+              ],
+              selected: {currentBoothCode},
+              showSelectedIcon: false,
+              onSelectionChanged: (sel) {
+                final next = sel.first;
+                if (next != currentBoothCode) onSwap(next);
+              },
             ),
           ],
         ),
