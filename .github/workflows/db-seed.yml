@@ -28,6 +28,7 @@ on:
           - seed-open-stock       # 93 multi-location open-stock trailers (MUL/JAX/ATL/TAL/TAP) — extends seed-open-mul to all 5 yards
           - seed-sold-and-delivery # 43 sold-pending-pickup + scheduled deliveries (factory_pickup / stack_to_location / stack_to_dealer → Tropic Trailers)
           - seed-production-queue # 44 trailers dropped into production at jig (step 1) or finish (step 3) per source folder
+          - seed-production-customer-data # update production trailers with customer name & stock/order build flags
           - backfill-size-ft-suffix # one-shot: strip trailing "ft" from trailers.size_ft so UI doesn't render "ftft"
 
 concurrency:
