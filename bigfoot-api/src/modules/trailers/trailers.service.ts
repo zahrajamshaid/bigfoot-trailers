@@ -482,9 +482,13 @@ export class TrailersService {
     // series). Same-series model swaps (e.g. XP_14ET → XP_17K) don't touch
     // production_steps. Transitions involving the inventory series have no
     // sensible automatic step mapping — those require a manual fix.
-    const oldSeries = existing.trailerModel.series;
+    // existing.trailerModel can be undefined under test mocks that don't
+    // include the relation; treat that as "unknown old series" and skip
+    // the reconcile rather than crashing.
+    const oldSeries = existing.trailerModel?.series ?? null;
     const seriesChanged =
       newSeries !== null &&
+      oldSeries !== null &&
       newSeries !== oldSeries &&
       oldSeries !== TrailerSeries.inventory &&
       newSeries !== TrailerSeries.inventory;
