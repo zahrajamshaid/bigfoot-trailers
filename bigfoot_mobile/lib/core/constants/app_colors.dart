@@ -21,6 +21,10 @@ abstract final class AppColors {
   // Inventory-only (Triple Crown / Enclosed / Misc) — neutral teal so it
   // reads as "different category" without colliding with the four build series.
   static const Color seriesInventory = Color(0xFF00897B);
+  // Gooseneck Yeti — magenta so it stands apart from the orange gooseneck
+  // and the purple yeti, while still reading as part of the build-series
+  // colour family (saturated, not neutral).
+  static const Color seriesGooseneckYeti = Color(0xFFC2185B);
 
   // ── Status chips ────────────────────────────────────────────────────────
   static const Color statusPending = Color(0xFF9E9E9E);

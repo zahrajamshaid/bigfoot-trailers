@@ -54,6 +54,7 @@ const TRAILER_DETAIL_SELECT = {
   qbSoPdfStorageKey: true,
   qbSoId: true,
   qbInvoicedAt: true,
+  qbSoDate: true,
   status: true,
   saleStatus: true,
   soldToName: true,

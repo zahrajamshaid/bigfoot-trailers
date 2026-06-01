@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/est_clock.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/stock_inventory.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
@@ -192,7 +191,7 @@ class _StockTrailerCard extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final t = trailer;
     final date = t.deliveredAt != null
-        ? DateFormat('MMM d, yyyy').format(t.deliveredAt!.toLocal())
+        ? EstClock.date(t.deliveredAt!)
         : l.stockInventoryUnknownDate;
 
     return Container(

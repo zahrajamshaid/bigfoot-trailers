@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/est_clock.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/websocket/ws_client.dart';
 import '../../../data/models/trailer.dart';
@@ -626,6 +627,19 @@ class _InfoTab extends StatelessWidget {
             ),
           ),
         ),
+
+        // Order date pulled off the QB packing-slip PDF. Sits in the notes
+        // band so it's grouped with the other build context. Falls out
+        // gracefully for trailers without an attached PDF or for inventory
+        // models that skip the PDF flow.
+        if (t.qbSoDate != null) ...[
+          const SizedBox(height: 8),
+          _NoteCard(
+            label: 'Order date',
+            icon: Icons.event_outlined,
+            value: EstClock.date(t.qbSoDate as DateTime),
+          ),
+        ],
 
         // Long-form notes — each in its own card so the layout grows with
         // arbitrary text length and the user can long-press to copy.

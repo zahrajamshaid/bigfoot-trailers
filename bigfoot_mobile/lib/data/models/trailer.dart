@@ -21,6 +21,10 @@ class Trailer {
   final String? optionsNotes;
   final String? specialNote;
   final String? qbSoPdfStorageKey;
+  /// Order date from the QB packing-slip PDF ("Date:" field). Backfilled
+  /// from Spaces; date-only (no time-of-day). Surfaced on the trailer
+  /// detail screen so production knows when a build was ordered.
+  final DateTime? qbSoDate;
   final String status;
 
   /// Sale state, independent of the production [status]:
@@ -59,6 +63,7 @@ class Trailer {
     this.optionsNotes,
     this.specialNote,
     this.qbSoPdfStorageKey,
+    this.qbSoDate,
     required this.status,
     this.saleStatus = 'available',
     this.soldToName,

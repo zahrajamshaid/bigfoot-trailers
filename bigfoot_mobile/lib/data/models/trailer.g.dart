@@ -19,6 +19,9 @@ Trailer _$TrailerFromJson(Map<String, dynamic> json) => Trailer(
   optionsNotes: json['optionsNotes'] as String?,
   specialNote: json['specialNote'] as String?,
   qbSoPdfStorageKey: json['qbSoPdfStorageKey'] as String?,
+  qbSoDate: json['qbSoDate'] == null
+      ? null
+      : DateTime.parse(json['qbSoDate'] as String),
   status: json['status'] as String,
   saleStatus: json['saleStatus'] as String? ?? 'available',
   soldToName: json['soldToName'] as String?,
@@ -62,6 +65,7 @@ Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
   'optionsNotes': instance.optionsNotes,
   'specialNote': instance.specialNote,
   'qbSoPdfStorageKey': instance.qbSoPdfStorageKey,
+  'qbSoDate': instance.qbSoDate?.toIso8601String(),
   'status': instance.status,
   'saleStatus': instance.saleStatus,
   'soldToName': instance.soldToName,

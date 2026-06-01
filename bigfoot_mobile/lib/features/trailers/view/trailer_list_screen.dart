@@ -697,6 +697,7 @@ const _seriesFilters = [
   (label: 'Yeti', value: 'yeti', color: AppColors.seriesYeti),
   (label: 'Deck Over', value: 'deck_over', color: AppColors.seriesDeckOver),
   (label: 'Gooseneck', value: 'gooseneck_dump', color: AppColors.seriesGooseneck),
+  (label: 'GN Yeti', value: 'gooseneck_yeti', color: AppColors.seriesGooseneckYeti),
   (label: 'Inventory', value: 'inventory', color: AppColors.seriesInventory),
 ];
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import '../../../core/utils/est_clock.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
@@ -471,7 +471,7 @@ class _CompletedCard extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final d = delivery;
     final date = d.deliveredAt != null
-        ? DateFormat('MMM d, yyyy').format(d.deliveredAt!.toLocal())
+        ? EstClock.date(d.deliveredAt!)
         : l.stockInventoryUnknownDate;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),

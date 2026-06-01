@@ -145,6 +145,10 @@ class SeriesBadge extends StatelessWidget {
         return ('DECK OVER', AppColors.seriesDeckOver);
       case 'gooseneck_dump':
         return ('GOOSENECK', AppColors.seriesGooseneck);
+      case 'gooseneck_yeti':
+        return ('GN YETI', AppColors.seriesGooseneckYeti);
+      case 'inventory':
+        return ('INVENTORY', AppColors.seriesInventory);
       default:
         return (s.toUpperCase(), AppColors.disabled);
     }

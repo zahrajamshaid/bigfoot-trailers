@@ -277,6 +277,10 @@ model Trailer {
   qbSoPdfStorageKey String?   @map("qb_so_pdf_storage_key") @db.VarChar(300)
   qbSoId            String?   @map("qb_so_id") @db.VarChar(50)
   qbInvoicedAt      DateTime? @map("qb_invoiced_at") @db.Timestamptz
+  // Order date pulled from the QB packing-slip PDF (the "Date:" field).
+  // Extracted on PDF upload + backfilled retroactively. Date-only — no
+  // timezone since the PDF carries no time-of-day.
+  qbSoDate          DateTime? @map("qb_so_date") @db.Date
 
   // Status & workflow control
   status         TrailerStatus     @default(pending_production)
