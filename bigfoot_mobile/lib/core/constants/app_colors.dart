@@ -18,6 +18,9 @@ abstract final class AppColors {
   static const Color seriesYeti = Color(0xFF7B1FA2);
   static const Color seriesDeckOver = Color(0xFF388E3C);
   static const Color seriesGooseneck = Color(0xFFE65100);
+  // Inventory-only (Triple Crown / Enclosed / Misc) — neutral teal so it
+  // reads as "different category" without colliding with the four build series.
+  static const Color seriesInventory = Color(0xFF00897B);
 
   // ── Status chips ────────────────────────────────────────────────────────
   static const Color statusPending = Color(0xFF9E9E9E);

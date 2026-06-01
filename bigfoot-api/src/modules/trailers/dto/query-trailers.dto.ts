@@ -17,6 +17,9 @@ export enum TrailerSeriesDto {
   YETI = 'yeti',
   DECK_OVER = 'deck_over',
   GOOSENECK_DUMP = 'gooseneck_dump',
+  // Inventory-only models (Triple Crown / Enclosed / Misc). Lets the
+  // trailer list filter by these in admin / sales views.
+  INVENTORY = 'inventory',
 }
 
 export class QueryTrailersDto {

@@ -690,11 +690,14 @@ List<({String label, String value, Color color})> _statusFilters(
 }
 
 // Series labels are brand/product identifiers — kept as-is in both locales.
+// "Inventory" covers the workflow-less models (Triple Crown / Enclosed /
+// Misc) so admin / sales can filter to just those types.
 const _seriesFilters = [
   (label: 'XP', value: 'xp', color: AppColors.seriesXp),
   (label: 'Yeti', value: 'yeti', color: AppColors.seriesYeti),
   (label: 'Deck Over', value: 'deck_over', color: AppColors.seriesDeckOver),
   (label: 'Gooseneck', value: 'gooseneck_dump', color: AppColors.seriesGooseneck),
+  (label: 'Inventory', value: 'inventory', color: AppColors.seriesInventory),
 ];
 
 List<({String label, String value, Color color, IconData icon})> _saleFilters(

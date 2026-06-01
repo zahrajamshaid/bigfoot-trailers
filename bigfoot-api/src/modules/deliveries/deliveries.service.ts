@@ -182,6 +182,38 @@ export class DeliveriesService {
       });
     }
 
+    // For a stack_to_location delivery (sending the trailer to one of our
+    // yards) we treat it as a stock build by default — the trailer is going
+    // into open-stock inventory at the destination. Flip the flag in the
+    // same transaction so it's visible from the moment the delivery exists.
+    if (deliveryType === DeliveryType.stack_to_location) {
+      return this.prisma.$transaction(async (tx) => {
+        const delivery = await tx.delivery.create({
+          data: {
+            trailerId,
+            deliveryType,
+            driverUserId: dto.driverUserId ? BigInt(dto.driverUserId) : null,
+            destinationLocationId: dto.destinationLocationId ?? null,
+            customerDeliveryAddress: dto.customerDeliveryAddress ?? null,
+            contactPhone: dto.contactPhone?.trim() || null,
+            balanceDue:
+              dto.balanceDue != null ? new Prisma.Decimal(dto.balanceDue) : null,
+            deliveryBatchId: dto.deliveryBatchId
+              ? BigInt(dto.deliveryBatchId)
+              : null,
+            createdByUserId,
+            status: DeliveryStatus.scheduled,
+          },
+          select: deliverySelect,
+        });
+        await tx.trailer.update({
+          where: { id: trailerId },
+          data: { isStockBuild: true },
+        });
+        return delivery;
+      });
+    }
+
     return this.prisma.delivery.create({
       data: {
         trailerId,

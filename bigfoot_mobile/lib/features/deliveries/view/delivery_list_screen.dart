@@ -111,7 +111,8 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
         final canCreate =
             user != null &&
             (user.role == UserRole.owner ||
-                user.role == UserRole.transportManager);
+                user.role == UserRole.transportManager ||
+                user.role == UserRole.sales);
 
         return Scaffold(
           floatingActionButton: canCreate

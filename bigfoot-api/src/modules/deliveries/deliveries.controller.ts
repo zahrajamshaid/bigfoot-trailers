@@ -57,7 +57,7 @@ export class DeliveriesController {
   // POST /deliveries — transport_manager, owner
   // ---------------------------------------------------------------------------
   @Post()
-  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER, UserRole.SALES)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a delivery' })
   @ApiResponse({ status: 201, description: 'Delivery created' })
