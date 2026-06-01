@@ -640,7 +640,7 @@ class _InfoTab extends StatelessWidget {
           _NoteCard(
             label: 'Order date',
             icon: Icons.event_outlined,
-            value: EstClock.date(t.qbSoDate as DateTime),
+            value: EstClock.calendarDate(t.qbSoDate as DateTime),
           ),
         ],
 

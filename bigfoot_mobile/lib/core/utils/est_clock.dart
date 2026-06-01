@@ -77,9 +77,24 @@ class EstClock {
     return '${DateFormat('MMM d, yyyy h:mm a').format(eastern)} $abbr';
   }
 
-  /// Eastern date label like "Jun 1, 2026" — no timezone suffix because
-  /// a calendar date doesn't shift across the DST boundary day.
+  /// Eastern date label for a real timestamp like "Jun 1, 2026". Shifts
+  /// the instant into Eastern first so a value that happened at 23:00 UTC
+  /// renders as the correct local day instead of next-morning UTC.
+  ///
+  /// **Don't use this on a Postgres DATE-typed field** — those arrive as
+  /// UTC midnight and a shift to Eastern walks them back a day. For
+  /// those, [calendarDate] keeps the calendar components untouched.
   static String date(DateTime dt) {
     return DateFormat('MMM d, yyyy').format(toEastern(dt));
+  }
+
+  /// Calendar-date label for values that carry no time component (Postgres
+  /// `@db.Date`). The driver transports those as UTC-midnight, which would
+  /// drift back a day if pushed through any timezone conversion. We just
+  /// read the UTC year/month/day directly.
+  static String calendarDate(DateTime dt) {
+    final utc = dt.isUtc ? dt : dt.toUtc();
+    return DateFormat('MMM d, yyyy')
+        .format(DateTime(utc.year, utc.month, utc.day));
   }
 }
