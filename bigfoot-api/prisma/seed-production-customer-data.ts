@@ -8,7 +8,7 @@
 // For each SO:
 // - If stock build (detected from "Open Stock" in ship-to), sets isStockBuild=true
 //   and currentLocationId to the inferred yard (Mulberry, Jacksonville, etc.)
-// - If customer order, sets soldToName = customer company name
+// - If customer order, sets soldToName = customer company name and saleStatus = 'sold'
 //
 // Idempotent: uses so_number as the key. Re-running updates existing trailers
 // but skips those with customerLocked=true (to preserve manual overrides).
@@ -19,6 +19,7 @@
 import 'dotenv/config';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { TrailerSaleStatus } from '@prisma/client';
 import { createPrismaClient } from './db-client';
 
 const prisma = createPrismaClient();
@@ -106,10 +107,11 @@ async function main(): Promise<void> {
           );
         }
       } else if (r.customerName && !r.isStockBuild) {
-        // Customer order: set soldToName
+        // Customer order: set soldToName and mark as sold
         updateData.soldToName = r.customerName;
+        updateData.saleStatus = TrailerSaleStatus.sold;
         console.log(
-          `  ✓ SO ${r.soNumber}: order → ${r.customerName.slice(0, 40)}`,
+          `  ✓ SO ${r.soNumber}: order → ${r.customerName.slice(0, 40)} (SOLD)`,
         );
       } else {
         console.log(`  ○ SO ${r.soNumber}: no update needed`);
