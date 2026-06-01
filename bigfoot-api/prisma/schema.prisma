@@ -25,6 +25,11 @@ enum TrailerSeries {
   // series skip workflow_template lookup and are created straight in
   // ready_for_delivery — they're tracked for stock but not built on a line.
   inventory
+  // Gooseneck Yeti — mirrors the gooseneck_dump workflow except step 3
+  // (finish weld) runs through YETI_FIN instead of GN_FIN. Paint defaults
+  // to PAINT_B like other goosenecks; hydraulics + the rest of the line
+  // stay identical to gooseneck_dump.
+  gooseneck_yeti
 
   @@map("trailer_series_enum")
 }

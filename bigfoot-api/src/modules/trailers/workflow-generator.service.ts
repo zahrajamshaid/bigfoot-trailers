@@ -82,8 +82,14 @@ export class WorkflowGeneratorService {
     const forcePaintB =
       lengthFt !== null && lengthFt >= PAINT_A_MAX_FT;
 
+    // gooseneck_dump + gooseneck_yeti both hardcode PAINT_B via the
+    // workflow template, so we leave paintBoothDeptId null for them and
+    // let template.departmentId carry through.
+    const isGooseneck =
+      series === TrailerSeries.gooseneck_dump ||
+      series === TrailerSeries.gooseneck_yeti;
     let paintBoothDeptId: number | null = null;
-    if (series !== TrailerSeries.gooseneck_dump) {
+    if (!isGooseneck) {
       paintBoothDeptId = forcePaintB
         ? await this.resolvePaintBoothId(tx, PAINT_B_CODE)
         : await this.pickLighterPaintBooth(tx);
