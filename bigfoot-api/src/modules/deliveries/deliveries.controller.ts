@@ -173,7 +173,12 @@ export class DeliveriesController {
   // GET /deliveries/stock-inventory — must be BEFORE :id routes
   // ---------------------------------------------------------------------------
   @Get('stock-inventory')
-  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.PRODUCTION_MANAGER, UserRole.OWNER)
+  @Roles(
+    UserRole.TRANSPORT_MANAGER,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.OWNER,
+    UserRole.SALES,
+  )
   @ApiOperation({ summary: 'Trailers currently parked at each stock-location yard' })
   @ApiResponse({ status: 200, description: 'Stock inventory grouped by location' })
   async getStockInventory() {
