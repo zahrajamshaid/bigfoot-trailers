@@ -83,6 +83,77 @@ class QcQueueItem {
   }
 }
 
+/// One row in the failed-QC drilldown list. Flattened from the nested
+/// /qc/failed-inspections payload so the screen can iterate cheaply.
+class FailedInspectionItem {
+  final int inspectionId;
+  final DateTime? inspectedAt;
+  final String? failNotes;
+  final int attemptNumber;
+  final bool isFinalQc;
+  final int trailerId;
+  final String soNumber;
+  final String? modelName;
+  final String? series;
+  final String? customerName;
+  final String? inspectorName;
+  final String? reworkTargetCode;
+  final String? reworkTargetName;
+  final String? stepDeptCode;
+  final String? stepDeptName;
+  final int? stepOrder;
+
+  const FailedInspectionItem({
+    required this.inspectionId,
+    required this.trailerId,
+    required this.soNumber,
+    this.inspectedAt,
+    this.failNotes,
+    this.attemptNumber = 1,
+    this.isFinalQc = false,
+    this.modelName,
+    this.series,
+    this.customerName,
+    this.inspectorName,
+    this.reworkTargetCode,
+    this.reworkTargetName,
+    this.stepDeptCode,
+    this.stepDeptName,
+    this.stepOrder,
+  });
+
+  factory FailedInspectionItem.fromJson(Map<String, dynamic> json) {
+    final trailer = json['trailer'] as Map<String, dynamic>?;
+    final model = trailer?['trailerModel'] as Map<String, dynamic>?;
+    final customer = trailer?['customer'] as Map<String, dynamic>?;
+    final inspector = json['inspectorUser'] as Map<String, dynamic>?;
+    final rework = json['reworkTargetDept'] as Map<String, dynamic>?;
+    final step = json['productionStep'] as Map<String, dynamic>?;
+    final stepDept = step?['department'] as Map<String, dynamic>?;
+    return FailedInspectionItem(
+      inspectionId: (json['id'] as num).toInt(),
+      inspectedAt: json['inspectedAt'] != null
+          ? DateTime.tryParse(json['inspectedAt'].toString())
+          : null,
+      failNotes: json['failNotes'] as String?,
+      attemptNumber: (json['attemptNumber'] as num?)?.toInt() ?? 1,
+      isFinalQc: json['isFinalQc'] as bool? ?? false,
+      trailerId: (trailer?['id'] as num?)?.toInt() ?? 0,
+      soNumber: (trailer?['soNumber'] as String?) ?? '',
+      modelName: model?['displayName'] as String?,
+      series: model?['series'] as String?,
+      customerName:
+          (customer?['name'] as String?) ?? (trailer?['soldToName'] as String?),
+      inspectorName: inspector?['fullName'] as String?,
+      reworkTargetCode: rework?['code'] as String?,
+      reworkTargetName: rework?['displayName'] as String?,
+      stepDeptCode: stepDept?['code'] as String?,
+      stepDeptName: stepDept?['displayName'] as String?,
+      stepOrder: (step?['stepOrder'] as num?)?.toInt(),
+    );
+  }
+}
+
 class QcInspectionResult {
   final int inspectionId;
   final String result;
@@ -186,6 +257,11 @@ abstract class QcRepository {
   Future<QcInspection> getInspection(int id);
 
   Future<List<QcInspection>> getInspectionsForStep(int stepId);
+
+  /// Backs the dashboard fail-rate drilldown. Returns failed inspections
+  /// over a rolling window with the trailer + dept context the list view
+  /// needs. Default window is 30 days.
+  Future<List<FailedInspectionItem>> getFailedInspections({int days});
 
   Future<String> uploadPhoto(List<int> bytes, String filename);
 

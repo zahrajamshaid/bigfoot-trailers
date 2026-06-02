@@ -45,6 +45,23 @@ export class QcController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /qc/failed-inspections — drilldown list behind the fail-rate stat
+  // ---------------------------------------------------------------------------
+  @Get('failed-inspections')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
+  @ApiOperation({
+    summary: 'Recent failed QC inspections (with trailer + dept context)',
+    description:
+      'Backs the dashboard fail-rate tap. Returns failed QcInspection rows ' +
+      'over a rolling window — default 30 days. Newest first.',
+  })
+  @ApiResponse({ status: 200, description: 'List of failed inspections' })
+  async getFailedInspections(@Query('days') daysParam?: string) {
+    const days = Math.max(1, Math.min(180, Number(daysParam) || 30));
+    return this.qcService.getFailedInspections(days);
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /qc/checklist-items
   // ---------------------------------------------------------------------------
   @Get('checklist-items')

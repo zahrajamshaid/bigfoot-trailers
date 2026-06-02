@@ -212,7 +212,7 @@ class _ManagerDashboard extends StatelessWidget {
                 value: '${data.qcFailRate.toStringAsFixed(1)}%',
                 icon: Icons.analytics_outlined,
                 color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
-                onTap: () => context.goNamed(RouteNames.qcQueue),
+                onTap: () => context.goNamed(RouteNames.qcFailed),
               ),
             ],
           ),
@@ -321,7 +321,7 @@ class _QcDashboard extends StatelessWidget {
             value: '${data.failRateToday.toStringAsFixed(1)}%',
             icon: Icons.trending_down,
             color: data.failRateToday > 20 ? AppColors.error : AppColors.navy,
-            onTap: () => context.goNamed(RouteNames.qcQueue),
+            onTap: () => context.goNamed(RouteNames.qcFailed),
           ),
           StatCard(
             title: l.dashStatReworkQueue,

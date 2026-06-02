@@ -563,6 +563,49 @@ export class QcService {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /qc/failed-inspections — drilldown behind the dashboard fail-rate
+  //
+  // Returns failed QcInspection rows over a rolling window (default 30 days)
+  // with the trailer, inspector, and rework-target context the mobile
+  // screen needs to render a useful list. Newest first.
+  // ---------------------------------------------------------------------------
+  async getFailedInspections(days: number) {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    return this.prisma.qcInspection.findMany({
+      where: {
+        result: QcResult.fail,
+        inspectedAt: { gte: cutoff },
+      },
+      orderBy: { inspectedAt: 'desc' },
+      select: {
+        id: true,
+        inspectedAt: true,
+        failNotes: true,
+        attemptNumber: true,
+        isFinalQc: true,
+        trailer: {
+          select: {
+            id: true,
+            soNumber: true,
+            trailerModel: { select: { displayName: true, series: true } },
+            customer: { select: { name: true } },
+            soldToName: true,
+          },
+        },
+        inspectorUser: { select: { id: true, fullName: true } },
+        reworkTargetDept: { select: { code: true, displayName: true } },
+        productionStep: {
+          select: {
+            stepOrder: true,
+            department: { select: { code: true, displayName: true } },
+          },
+        },
+      },
+      take: 200,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /qc/inspections/:id/send-customer-sms — manually dispatch the
   // trailer_complete SMS queued when a FINAL_QC pass was recorded.
   // ---------------------------------------------------------------------------

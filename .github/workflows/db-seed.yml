@@ -36,6 +36,8 @@ on:
           - fix-trailer-6770-yeti # one-shot: reroute SO 6770's production steps to YETI departments after model swap
           - seed-gn-yeti-model # new gooseneck_yeti series + GN_YETI model (GN workflow with YETI_FIN at step 3)
           - backfill-qb-so-date # one-shot: pull "Date:" off attached PDFs for pending/in-production trailers
+          - fix-trailers-to-wood # one-shot: jump SO 6702 + 6704 to WOOD (step 11)
+          - seed-wood-install-fenders # add "Install fenders" to the WOOD worker checklist
 
 concurrency:
   group: db-seed-prod

@@ -48,6 +48,7 @@ abstract final class ApiEndpoints {
 
   // ── Quality Control ──────────────────────────────────────────────────────
   static const String qcStats = '/qc/stats';
+  static const String qcFailedInspections = '/qc/failed-inspections';
   static const String qcChecklistItems = '/qc/checklist-items';
   static const String qcInspections = '/qc/inspections';
   static String qcInspection(int id) => '/qc/inspections/$id';
