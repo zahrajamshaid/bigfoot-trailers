@@ -140,6 +140,16 @@ class _ManagerDashboard extends StatelessWidget {
                 onTap: () => context.goNamed(RouteNames.trailerList),
               ),
               StatCard(
+                title: 'Pending production',
+                value: '${data.pendingProduction}',
+                icon: Icons.schedule_outlined,
+                color: AppColors.statusPending,
+                onTap: () => context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {'status': 'pending_production'},
+                ),
+              ),
+              StatCard(
                 title: l.dashStatActiveTrailers,
                 value: '${data.activeTrailers}',
                 icon: Icons.precision_manufacturing,

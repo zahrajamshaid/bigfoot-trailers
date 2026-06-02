@@ -216,20 +216,18 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
         payload['stockLocationId'] = _selectedStockLocationId;
       }
 
-      if (!_isStockBuild) {
-        final newName = _customerController.text.trim();
-        final origName = t.customer?.name ?? t.soldToName ?? '';
-        if (newName != origName) {
-          // '' clears the name and reverts sale status to available.
-          payload['soldToName'] = newName;
-          // The typed name is now the source of truth — drop any legacy
-          // customer-record link so it can't shadow the new name.
-          if (t.customerId != null) payload['customerId'] = null;
-        }
-      } else {
-        // Stock build — no customer of any kind.
+      // Customer / sold-to name is independent of the stock-build flag.
+      // Submitting a non-empty name marks the trailer sold (server sets
+      // saleStatus); an empty string clears the name and reverts to
+      // available. Works for both stock builds and non-stock builds —
+      // a sold-pending-pickup trailer is both.
+      final newName = _customerController.text.trim();
+      final origName = t.customer?.name ?? t.soldToName ?? '';
+      if (newName != origName) {
+        payload['soldToName'] = newName;
+        // The typed name is now the source of truth — drop any legacy
+        // customer-record link so it can't shadow the new name.
         if (t.customerId != null) payload['customerId'] = null;
-        if ((t.soldToName ?? '').isNotEmpty) payload['soldToName'] = '';
       }
 
       if (payload.isNotEmpty) {
@@ -441,6 +439,10 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        // Stock-build toggle is independent of the customer
+                        // field — a sold trailer can also sit at a yard until
+                        // pickup, and the customer can be added or changed
+                        // any time after creation.
                         SwitchListTile(
                           title: Text(l.createTrailerStockBuild),
                           subtitle: Text(l.createTrailerStockBuildSubtitle),
@@ -448,13 +450,26 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                           activeColor: AppColors.amber,
                           onChanged: (v) => setState(() {
                             _isStockBuild = v;
-                            if (v) {
-                              _customerController.clear();
-                            } else {
+                            if (!v) {
                               _selectedStockLocationId = null;
+                              _stockLocationError = null;
                             }
                           }),
                           contentPadding: EdgeInsets.zero,
+                        ),
+                        // Customer name — always visible so a customer can
+                        // be added retroactively to a trailer that was
+                        // originally created without one (or cleared).
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _customerController,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: InputDecoration(
+                            labelText: l.createTrailerCustomerLabel,
+                            hintText: l.createTrailerCustomerHint,
+                            helperText: l.createTrailerCustomerHelper,
+                            prefixIcon: const Icon(Icons.person_outline),
+                          ),
                         ),
                         if (_isStockBuild) ...[
                           const SizedBox(height: 12),
@@ -467,19 +482,6 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                               _stockLocationError = null;
                             }),
                             errorText: _stockLocationError,
-                          ),
-                        ],
-                        if (!_isStockBuild) ...[
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _customerController,
-                            textCapitalization: TextCapitalization.words,
-                            decoration: InputDecoration(
-                              labelText: l.createTrailerCustomerLabel,
-                              hintText: l.createTrailerCustomerHint,
-                              helperText: l.createTrailerCustomerHelper,
-                              prefixIcon: const Icon(Icons.person_outline),
-                            ),
                           ),
                         ],
                         const SizedBox(height: 16),

@@ -45,12 +45,29 @@ class DashboardRepositoryImpl implements DashboardRepository {
       qcFailRate = 0;
     }
 
+    // Pending production tile uses the API's `total` for accuracy — the
+    // first-page iteration above only sees the first 100 trailers, which
+    // would undercount the pre-build queue on a busy week. limit=1 keeps
+    // the round-trip cheap. Fail soft so a hiccup doesn't break the card.
+    int pendingProduction = 0;
+    try {
+      final pending = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.trailers,
+        queryParameters: {'status': 'pending_production', 'limit': 1},
+        fromJson: (d) => d as Map<String, dynamic>,
+      );
+      pendingProduction = (pending.data?['total'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      pendingProduction = 0;
+    }
+
     return DashboardStats(
       activeTrailers: active,
       readyForDelivery: ready,
       hotTrailers: hot,
       qcFailRate: qcFailRate,
       totalTrailers: totalTrailers,
+      pendingProduction: pendingProduction,
     );
   }
 

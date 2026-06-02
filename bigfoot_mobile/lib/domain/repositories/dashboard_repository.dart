@@ -19,6 +19,9 @@ class DashboardStats {
   /// Owner / PM / sales dashboards for the at-a-glance "how big is the
   /// herd right now" tile.
   final int totalTrailers;
+  /// Trailers in `pending_production` — the pre-build queue. The 8th card
+  /// in the manager grid; pairs naturally with active / ready / delivered.
+  final int pendingProduction;
 
   // Worker
   final int myQueueCount;
@@ -51,6 +54,7 @@ class DashboardStats {
     this.weeklyCompleted = 0,
     this.qcFailRate = 0,
     this.totalTrailers = 0,
+    this.pendingProduction = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,
