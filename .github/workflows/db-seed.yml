@@ -38,6 +38,7 @@ on:
           - backfill-qb-so-date # one-shot: pull "Date:" off attached PDFs for pending/in-production trailers
           - fix-trailers-to-wood # one-shot: jump SO 6702 + 6704 to WOOD (step 11)
           - seed-wood-install-fenders # add "Install fenders" to the WOOD worker checklist
+          - seed-paint-b-checklists # mirror PAINT_A xp/yeti/deck_over checklist items onto PAINT_B
 
 concurrency:
   group: db-seed-prod
