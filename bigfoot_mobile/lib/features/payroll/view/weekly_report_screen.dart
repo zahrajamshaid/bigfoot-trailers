@@ -435,9 +435,24 @@ class _WorkerCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Theme(
-        data: Theme.of(context)
-            .copyWith(dividerColor: Colors.transparent),
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          // Force Material 3 surface-tint overlays off so the expanded card
+          // doesn't get painted over with the theme's dark surface tone.
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
         child: ExpansionTile(
+          backgroundColor: AppColors.white,
+          collapsedBackgroundColor: AppColors.white,
+          iconColor: AppColors.navy,
+          collapsedIconColor: AppColors.navy,
+          textColor: AppColors.navy,
+          collapsedTextColor: AppColors.navy,
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero, side: BorderSide.none),
+          collapsedShape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero, side: BorderSide.none),
           tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
           title: Text(
@@ -487,9 +502,22 @@ class _DeptTile extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Theme(
-        data: Theme.of(context)
-            .copyWith(dividerColor: Colors.transparent),
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
         child: ExpansionTile(
+          backgroundColor: AppColors.background,
+          collapsedBackgroundColor: AppColors.background,
+          iconColor: AppColors.navy,
+          collapsedIconColor: AppColors.navy,
+          textColor: AppColors.navy,
+          collapsedTextColor: AppColors.navy,
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero, side: BorderSide.none),
+          collapsedShape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero, side: BorderSide.none),
           tilePadding:
               const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
           childrenPadding: const EdgeInsets.fromLTRB(12, 0, 10, 10),
