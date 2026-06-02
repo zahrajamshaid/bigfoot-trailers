@@ -61,6 +61,29 @@ class DashboardRepositoryImpl implements DashboardRepository {
       pendingProduction = 0;
     }
 
+    // Completed this week — same pattern. Filters delivered trailers by
+    // the `completedSince` query (Delivery.deliveredAt >= Sunday 00:00
+    // UTC) so the count is computed on the backend instead of relying on
+    // the first-page iteration above.
+    int weeklyCompleted = 0;
+    try {
+      final now = DateTime.now().toUtc();
+      final daysBack = now.weekday % 7; // Sun=0 days back
+      final sunday = DateTime.utc(now.year, now.month, now.day - daysBack);
+      final completed = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.trailers,
+        queryParameters: {
+          'status': 'delivered',
+          'completedSince': sunday.toIso8601String(),
+          'limit': 1,
+        },
+        fromJson: (d) => d as Map<String, dynamic>,
+      );
+      weeklyCompleted = (completed.data?['total'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      weeklyCompleted = 0;
+    }
+
     return DashboardStats(
       activeTrailers: active,
       readyForDelivery: ready,
@@ -68,6 +91,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
       qcFailRate: qcFailRate,
       totalTrailers: totalTrailers,
       pendingProduction: pendingProduction,
+      weeklyCompleted: weeklyCompleted,
     );
   }
 
