@@ -283,10 +283,17 @@ export class PayrollService {
         departmentId: true,
         pointsAwarded: true,
         isRework: true,
+        // Pull the trailer's SO + size + model so the weekly report shows
+        // each worker which builds they touched (the team uses this to
+        // reconcile pay against the QB orders).
         trailer: {
           select: {
             id: true,
-            trailerModelId: true,
+            soNumber: true,
+            sizeFt: true,
+            trailerModel: {
+              select: { id: true, displayName: true, code: true },
+            },
           },
         },
         department: { select: { id: true, code: true, displayName: true } },
@@ -294,7 +301,15 @@ export class PayrollService {
       },
     });
 
-    // Aggregate per worker
+    // Aggregate per worker → per department → list of trailers touched.
+    interface TrailerLine {
+      trailerId: string;
+      soNumber: string;
+      sizeFt: string | null;
+      modelName: string | null;
+      points: number;
+      isRework: boolean;
+    }
     const workerMap = new Map<
       string,
       {
@@ -310,6 +325,10 @@ export class PayrollService {
             totalPoints: number;
             stepsCompleted: number;
             reworkCount: number;
+            // Distinct trailers the worker touched in this dept this week.
+            // De-duped by trailerId; points accumulate when the same trailer
+            // came back through the dept (rework or otherwise).
+            trailers: Map<string, TrailerLine>;
           }
         >;
       }
@@ -339,13 +358,39 @@ export class PayrollService {
           totalPoints: 0,
           stepsCompleted: 0,
           reworkCount: 0,
+          trailers: new Map(),
         });
       }
 
       const deptRecord = worker.departments.get(deptId)!;
+      const pts = Number(step.pointsAwarded);
       deptRecord.stepsCompleted += 1;
-      deptRecord.totalPoints += Number(step.pointsAwarded);
+      deptRecord.totalPoints += pts;
       if (step.isRework) deptRecord.reworkCount += 1;
+
+      // Test mocks sometimes return a step without the full trailer
+      // relation populated. Defensive defaults keep the aggregation working
+      // and the prod payload includes everything the select asks for.
+      if (step.trailer) {
+        const trailerKey = step.trailer.id.toString();
+        const existing = deptRecord.trailers.get(trailerKey);
+        if (existing) {
+          existing.points += pts;
+          if (step.isRework) existing.isRework = true;
+        } else {
+          deptRecord.trailers.set(trailerKey, {
+            trailerId: trailerKey,
+            soNumber: step.trailer.soNumber ?? '',
+            sizeFt: step.trailer.sizeFt ?? null,
+            modelName:
+              step.trailer.trailerModel?.displayName ??
+              step.trailer.trailerModel?.code ??
+              null,
+            points: pts,
+            isRework: step.isRework,
+          });
+        }
+      }
     }
 
     // Look up dollar rates for earnings calculation
@@ -379,10 +424,29 @@ export class PayrollService {
     const workers = Array.from(workerMap.values()).map((worker) => {
       const departments = Array.from(worker.departments.values()).map((dept) => {
         const dollarPerPoint = rateMap.get(dept.departmentId) ?? 0;
+        // Flatten the trailers map → sorted list (SO ascending) and round
+        // each line's accumulated points to 2dp for the API payload.
+        const trailers = Array.from(dept.trailers.values())
+          .map((t) => ({
+            trailerId: t.trailerId,
+            soNumber: t.soNumber,
+            sizeFt: t.sizeFt,
+            modelName: t.modelName,
+            points: +t.points.toFixed(2),
+            isRework: t.isRework,
+          }))
+          .sort((a, b) =>
+              (a.soNumber ?? '').localeCompare(b.soNumber ?? ''));
         return {
-          ...dept,
+          departmentId: dept.departmentId,
+          departmentCode: dept.departmentCode,
+          departmentName: dept.departmentName,
+          totalPoints: dept.totalPoints,
+          stepsCompleted: dept.stepsCompleted,
+          reworkCount: dept.reworkCount,
           dollarPerPoint,
           grossPay: +(dept.totalPoints * dollarPerPoint).toFixed(2),
+          trailers,
         };
       });
 
