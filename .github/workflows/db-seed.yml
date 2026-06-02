@@ -39,6 +39,7 @@ on:
           - fix-trailers-to-wood # one-shot: jump SO 6702 + 6704 to WOOD (step 11)
           - seed-wood-install-fenders # add "Install fenders" to the WOOD worker checklist
           - seed-paint-b-checklists # mirror PAINT_A xp/yeti/deck_over checklist items onto PAINT_B
+          - seed-jig-queue-low-enum # one-shot: ALTER TYPE notification_type_enum ADD 'jig_queue_low'
 
 concurrency:
   group: db-seed-prod

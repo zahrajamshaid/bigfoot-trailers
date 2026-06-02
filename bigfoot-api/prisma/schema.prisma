@@ -152,6 +152,11 @@ enum NotificationType {
   worker_message
   payment_not_collected
   delivery_complete
+  // Fires when a jig department's queue (active + waiting steps) drops
+  // below 3. Notifies production managers so they enter more SOs before
+  // the line starves. Self-applies via ALTER TYPE in the notification
+  // path so prod can pick it up without a separate db push.
+  jig_queue_low
 
   @@map("notification_type_enum")
 }

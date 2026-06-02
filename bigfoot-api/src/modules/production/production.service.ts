@@ -394,6 +394,11 @@ export class ProductionService {
       pointsAwarded,
     });
 
+    // When a jig step finishes, the trailer leaves the jig queue. Check the
+    // remaining count and ping production managers if the line is running
+    // thin — they need to enter more work orders before the welders run dry.
+    await this.notificationsService.onPossibleJigQueueLow(step.departmentId);
+
     if (pointsAwarded > 0) {
       this.notificationsService.onPointsUpdated({
         userId: completedByUserId,

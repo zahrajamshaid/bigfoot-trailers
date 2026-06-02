@@ -4,6 +4,7 @@ import { SmsService } from './sms.service';
 import { NotificationsGateway, WsEvent } from './notifications.gateway';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppError, ErrorCode } from '../../common/errors';
+import { NotificationType, ProductionStepStatus } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
 // Payload interfaces for each notification scenario
@@ -213,6 +214,53 @@ export class NotificationsService {
         payload.nextStepId,
       );
     }
+  }
+
+  // =========================================================================
+  // onPossibleJigQueueLow — fires when a jig step completes
+  //
+  // The four jig-weld departments (XP_JIG, YETI_JIG, DO_JIG, GN_WELD) are
+  // the start of the production line. When one of them drops below 3
+  // active+waiting steps, production managers should kick off more SOs so
+  // the welders never run out. We check after every jig-step completion
+  // and notify when the queue is low, with a 6-hour dedup so a slow
+  // afternoon doesn't spam the inbox.
+  // =========================================================================
+  async onPossibleJigQueueLow(deptId: number): Promise<void> {
+    const JIG_CODES = new Set(['XP_JIG', 'YETI_JIG', 'DO_JIG', 'GN_WELD']);
+    const LOW_THRESHOLD = 3;
+    const DEDUP_HOURS = 6;
+
+    const dept = await this.prisma.department.findUnique({
+      where: { id: deptId },
+      select: { code: true, displayName: true },
+    });
+    if (!dept || !JIG_CODES.has(dept.code)) return;
+
+    const count = await this.prisma.productionStep.count({
+      where: {
+        departmentId: deptId,
+        status: {
+          in: [ProductionStepStatus.active, ProductionStepStatus.waiting],
+        },
+      },
+    });
+    if (count >= LOW_THRESHOLD) return;
+
+    // Dedup: same dept + same notification type fired recently → skip.
+    // The dept code is in PushNotification.body so we can match it.
+    const cutoff = new Date(Date.now() - DEDUP_HOURS * 60 * 60 * 1000);
+    const recent = await this.prisma.pushNotification.findFirst({
+      where: {
+        notificationType: NotificationType.jig_queue_low,
+        createdAt: { gte: cutoff },
+        body: { contains: dept.displayName },
+      },
+      select: { id: true },
+    });
+    if (recent) return;
+
+    await this.pushService.sendJigQueueLow(dept.code, dept.displayName, count);
   }
 
   // =========================================================================

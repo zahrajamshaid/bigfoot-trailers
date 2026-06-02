@@ -215,6 +215,32 @@ export class PushService implements OnModuleInit {
     });
   }
 
+  /** Jig Queue Low → production_manager only */
+  async sendJigQueueLow(
+    deptCode: string,
+    deptName: string,
+    count: number,
+  ): Promise<void> {
+    const managers = await this.prisma.user.findMany({
+      where: { role: 'production_manager', isActive: true },
+      select: { id: true },
+    });
+    if (managers.length === 0) return;
+    const noun = count === 1 ? 'trailer' : 'trailers';
+    await this.send({
+      recipientUserIds: managers.map((m) => m.id),
+      notificationType: NotificationType.jig_queue_low,
+      title: `Low ${deptName} queue`,
+      body:
+        `Only ${count} ${noun} left in ${deptName}. ` +
+        'Enter more work orders to keep the line fed.',
+      data: {
+        deptCode,
+        count: count.toString(),
+      },
+    });
+  }
+
   /** Trailer Stalled → production_manager + owner */
   async sendTrailerStalled(
     trailerId: bigint,
