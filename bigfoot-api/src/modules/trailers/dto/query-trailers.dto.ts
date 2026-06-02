@@ -6,6 +6,7 @@ import {
   Min,
   Max,
   IsString,
+  IsDateString,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
@@ -86,4 +87,15 @@ export class QueryTrailersDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Only return trailers that have at least one delivered Delivery at or ' +
+      'after this timestamp. Used by the "Completed this week" drilldown. ' +
+      'ISO 8601.',
+    example: '2026-05-26T00:00:00.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  completedSince?: string;
 }

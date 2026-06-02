@@ -209,10 +209,24 @@ class _ManagerDashboard extends StatelessWidget {
                 value: '${data.weeklyCompleted}',
                 icon: Icons.check_circle_outline,
                 color: AppColors.statusDelivered,
-                onTap: () => context.goNamed(
-                  RouteNames.trailerList,
-                  queryParameters: {'status': 'delivered'},
-                ),
+                // Deep-link to the trailer list scoped to deliveries that
+                // landed since the previous Sunday 00:00 UTC. Backend
+                // matches on Delivery.deliveredAt so a stale record edit
+                // doesn't shift a trailer into the window.
+                onTap: () {
+                  final now = DateTime.now().toUtc();
+                  // weekday: Mon=1 … Sat=6, Sun=7 → 0 days back from Sunday.
+                  final daysBack = now.weekday % 7;
+                  final sunday =
+                      DateTime.utc(now.year, now.month, now.day - daysBack);
+                  context.goNamed(
+                    RouteNames.trailerList,
+                    queryParameters: {
+                      'status': 'delivered',
+                      'completedSince': sunday.toIso8601String(),
+                    },
+                  );
+                },
               ),
               StatCard(
                 title: l.dashStatQcFailRate,

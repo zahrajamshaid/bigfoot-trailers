@@ -178,6 +178,18 @@ export class TrailersService {
         { customer: { company: { contains: term, mode: 'insensitive' } } },
       ];
     }
+    if (query.completedSince) {
+      // Drilldown for the "Completed this week" dashboard tile. We match on
+      // the Delivery row rather than trailer.updatedAt so a record edit
+      // after delivery doesn't shift a trailer into the window.
+      where.deliveries = {
+        ...(where.deliveries as Prisma.DeliveryListRelationFilter | undefined),
+        some: {
+          status: DeliveryStatus.delivered,
+          deliveredAt: { gte: new Date(query.completedSince) },
+        },
+      };
+    }
 
     const [trailers, total] = await this.prisma.$transaction([
       this.prisma.trailer.findMany({

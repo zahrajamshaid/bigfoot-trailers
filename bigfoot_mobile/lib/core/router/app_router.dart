@@ -94,6 +94,7 @@ class AppRouter {
                 return TrailerListScreen(
                   initialStatus: q['status'],
                   initialHotOnly: q['hot'] == 'true',
+                  initialCompletedSince: q['completedSince'],
                 );
               },
               routes: [

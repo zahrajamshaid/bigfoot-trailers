@@ -39,6 +39,9 @@ class TrailersLoaded extends TrailersState {
   final String? saleStatusFilter;
   final bool hotOnly;
   final bool isLoadingMore;
+  /// ISO 8601 cutoff for the "delivery completed at or after" filter —
+  /// used by the dashboard "Completed this week" tile's deep link.
+  final String? completedSince;
 
   const TrailersLoaded({
     required this.trailers,
@@ -53,6 +56,7 @@ class TrailersLoaded extends TrailersState {
     this.saleStatusFilter,
     this.hotOnly = false,
     this.isLoadingMore = false,
+    this.completedSince,
   });
 
   TrailersLoaded copyWith({
@@ -68,6 +72,7 @@ class TrailersLoaded extends TrailersState {
     String? saleStatusFilter,
     bool? hotOnly,
     bool? isLoadingMore,
+    String? completedSince,
   }) {
     return TrailersLoaded(
       trailers: trailers ?? this.trailers,
@@ -82,6 +87,7 @@ class TrailersLoaded extends TrailersState {
       saleStatusFilter: saleStatusFilter ?? this.saleStatusFilter,
       hotOnly: hotOnly ?? this.hotOnly,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      completedSince: completedSince ?? this.completedSince,
     );
   }
 
@@ -100,6 +106,7 @@ class TrailersLoaded extends TrailersState {
         saleStatusFilter,
         hotOnly,
         isLoadingMore,
+        completedSince,
       ];
 }
 
@@ -132,6 +139,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
     int? locationId,
     String? saleStatus,
     bool hotOnly = false,
+    String? completedSince,
   }) async {
     emit(const TrailersLoading());
     try {
@@ -143,6 +151,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
         locationId: locationId,
         saleStatus: saleStatus,
         hotOnly: hotOnly,
+        completedSince: completedSince,
       );
       emit(TrailersLoaded(
         trailers: _sortTrailers(result.items),
@@ -156,6 +165,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
         locationFilter: locationId,
         saleStatusFilter: saleStatus,
         hotOnly: hotOnly,
+        completedSince: completedSince,
       ));
     } on ApiException catch (e) {
       emit(TrailersError(e.displayMessage));
@@ -185,6 +195,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
         locationId: current.locationFilter,
         saleStatus: current.saleStatusFilter,
         hotOnly: current.hotOnly,
+        completedSince: current.completedSince,
       );
       emit(TrailersLoaded(
         trailers: _sortTrailers([...current.trailers, ...result.items]),
@@ -198,6 +209,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
         locationFilter: current.locationFilter,
         saleStatusFilter: current.saleStatusFilter,
         hotOnly: current.hotOnly,
+        completedSince: current.completedSince,
       ));
     } catch (_) {
       emit(current.copyWith(isLoadingMore: false));
@@ -228,6 +240,8 @@ class TrailersViewModel extends Cubit<TrailersState> {
       locationId: current is TrailersLoaded ? current.locationFilter : null,
       saleStatus: current is TrailersLoaded ? current.saleStatusFilter : null,
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
+      completedSince:
+          current is TrailersLoaded ? current.completedSince : null,
     );
   }
 
@@ -240,6 +254,8 @@ class TrailersViewModel extends Cubit<TrailersState> {
       locationId: current is TrailersLoaded ? current.locationFilter : null,
       saleStatus: current is TrailersLoaded ? current.saleStatusFilter : null,
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
+      completedSince:
+          current is TrailersLoaded ? current.completedSince : null,
     );
   }
 
@@ -252,6 +268,8 @@ class TrailersViewModel extends Cubit<TrailersState> {
       locationId: locationId,
       saleStatus: current is TrailersLoaded ? current.saleStatusFilter : null,
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
+      completedSince:
+          current is TrailersLoaded ? current.completedSince : null,
     );
   }
 
@@ -264,6 +282,8 @@ class TrailersViewModel extends Cubit<TrailersState> {
       locationId: current is TrailersLoaded ? current.locationFilter : null,
       saleStatus: saleStatus,
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
+      completedSince:
+          current is TrailersLoaded ? current.completedSince : null,
     );
   }
 
@@ -277,6 +297,8 @@ class TrailersViewModel extends Cubit<TrailersState> {
       locationId: current is TrailersLoaded ? current.locationFilter : null,
       saleStatus: current is TrailersLoaded ? current.saleStatusFilter : null,
       hotOnly: !wasHot,
+      completedSince:
+          current is TrailersLoaded ? current.completedSince : null,
     );
   }
 
@@ -307,6 +329,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
           locationId: current.locationFilter,
           saleStatus: current.saleStatusFilter,
           hotOnly: current.hotOnly,
+          completedSince: current.completedSince,
         );
       }
     }

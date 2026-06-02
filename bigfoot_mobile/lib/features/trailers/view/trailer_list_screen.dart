@@ -14,6 +14,7 @@ class TrailerListScreen extends StatefulWidget {
   /// Optional status filter applied on first load — set by dashboard deep
   /// links such as `?status=ready_for_delivery`.
   final String? initialStatus;
+  final String? initialCompletedSince;
 
   /// When true the list opens with the "Hot Only" filter applied
   /// (`?hot=true` deep link).
@@ -23,6 +24,7 @@ class TrailerListScreen extends StatefulWidget {
     super.key,
     this.initialStatus,
     this.initialHotOnly = false,
+    this.initialCompletedSince,
   });
 
   @override
@@ -43,6 +45,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
     context.read<TrailersViewModel>().load(
           status: widget.initialStatus,
           hotOnly: widget.initialHotOnly,
+          completedSince: widget.initialCompletedSince,
         );
     _scrollController.addListener(_onScroll);
     _loadLocations();

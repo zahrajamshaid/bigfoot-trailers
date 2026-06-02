@@ -11,6 +11,7 @@ abstract class TrailerRepository {
     int? locationId,
     String? saleStatus,
     bool hotOnly = false,
+    String? completedSince,
   });
 
   Future<Trailer> getTrailer(int id);
