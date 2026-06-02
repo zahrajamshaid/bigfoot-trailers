@@ -163,7 +163,9 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
             'optionsNotes': _notesController.text.trim(),
           if (_specialNoteController.text.trim().isNotEmpty)
             'specialNote': _specialNoteController.text.trim(),
-          if (!_isStockBuild && _customerController.text.trim().isNotEmpty)
+          // Customer name attaches regardless of stock-build flag — a sold
+          // trailer can still sit at a yard until pickup.
+          if (_customerController.text.trim().isNotEmpty)
             'soldToName': _customerController.text.trim(),
           'isStockBuild': _isStockBuild,
           if (_isStockBuild) 'stockLocationId': _selectedStockLocationId,
@@ -413,7 +415,10 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Stock Build toggle
+                    // Stock Build toggle — independent of customer name now.
+                    // A sold trailer can also sit at a stock yard until pickup;
+                    // when both are filled the trailer is created with the
+                    // customer attached AND lands at the chosen yard.
                     SwitchListTile(
                       title: Text(l.createTrailerStockBuild),
                       subtitle: Text(l.createTrailerStockBuildSubtitle),
@@ -421,30 +426,31 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                       activeColor: AppColors.amber,
                       onChanged: (v) => setState(() {
                         _isStockBuild = v;
-                        if (v) {
-                          _customerController.clear();
-                        } else {
+                        if (!v) {
                           _selectedStockLocationId = null;
+                          _stockLocationError = null;
                         }
                       }),
                       contentPadding: EdgeInsets.zero,
                     ),
 
-                    // Customer name — only when not a stock build. Plain text:
-                    // customer records are owned by the GoHighLevel integration.
-                    if (!_isStockBuild) ...[
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _customerController,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: InputDecoration(
-                          labelText: l.createTrailerCustomerLabel,
-                          hintText: l.createTrailerCustomerHint,
-                          helperText: l.createTrailerCustomerHelper,
-                          prefixIcon: const Icon(Icons.person_outline),
-                        ),
+                    // Customer name — always visible. Plain text; customer
+                    // records are owned by the GoHighLevel integration.
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _customerController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        labelText: l.createTrailerCustomerLabel,
+                        hintText: l.createTrailerCustomerHint,
+                        helperText: l.createTrailerCustomerHelper,
+                        prefixIcon: const Icon(Icons.person_outline),
                       ),
-                    ],
+                    ),
+                    // Stock location — visible only when the trailer will
+                    // sit in stock inventory. Independent from the customer
+                    // field above, so a sold trailer can still be parked at
+                    // a yard until the customer picks it up.
                     if (_isStockBuild) ...[
                       const SizedBox(height: 12),
                       StockLocationChips(

@@ -28,6 +28,7 @@ QueueItem _$QueueItemFromJson(Map<String, dynamic> json) => QueueItem(
       : DateTime.parse(json['becameActiveAt'] as String),
   hoursInQueue: (json['hoursInQueue'] as num?)?.toDouble(),
   globalPriority: (json['globalPriority'] as num?)?.toInt() ?? 9999,
+  stallThresholdHours: (json['stallThresholdHours'] as num?)?.toInt() ?? 48,
 );
 
 Map<String, dynamic> _$QueueItemToJson(QueueItem instance) => <String, dynamic>{
@@ -50,6 +51,7 @@ Map<String, dynamic> _$QueueItemToJson(QueueItem instance) => <String, dynamic>{
   'becameActiveAt': instance.becameActiveAt?.toIso8601String(),
   'hoursInQueue': instance.hoursInQueue,
   'globalPriority': instance.globalPriority,
+  'stallThresholdHours': instance.stallThresholdHours,
 };
 
 StepCompletionResult _$StepCompletionResultFromJson(

@@ -811,7 +811,12 @@ export class ProductionService {
             customer: true,
           },
         },
-        department: { select: { code: true, displayName: true } },
+        // stallThresholdHours travels with each queue item so the mobile
+        // tile renders against the live dept setting instead of a baked-in
+        // 24/48h. Admin edits to the dept's threshold show up next refresh.
+        department: {
+          select: { code: true, displayName: true, stallThresholdHours: true },
+        },
         reworkedFromInspections: {
           orderBy: { inspectedAt: 'desc' },
           take: 1,
@@ -889,6 +894,7 @@ export class ProductionService {
         status: step.status,
         currentStageCode: currentStage?.code ?? null,
         currentStageName: currentStage?.name ?? null,
+        stallThresholdHours: step.department.stallThresholdHours,
       };
     });
   }

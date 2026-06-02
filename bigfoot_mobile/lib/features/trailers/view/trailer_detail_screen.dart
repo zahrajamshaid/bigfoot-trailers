@@ -283,13 +283,16 @@ class _TrailerDetailBody extends StatelessWidget {
         auth.user.role == UserRole.productionManager;
   }
 
-  /// Edit visibility mirrors PATCH /trailers/:id RBAC — owner and
-  /// production_manager (the same roles that can create a trailer).
+  /// Edit visibility mirrors PATCH /trailers/:id RBAC — owner,
+  /// production_manager, and sales. Sales accounts need to edit
+  /// customer / sold-to / stock-build state on the trailers they're
+  /// managing, so they're allowed alongside the production roles.
   static bool _canEditTrailer(BuildContext context) {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
-        auth.user.role == UserRole.productionManager;
+        auth.user.role == UserRole.productionManager ||
+        auth.user.role == UserRole.sales;
   }
 
   static bool _canViewStagePhotos(BuildContext context) {

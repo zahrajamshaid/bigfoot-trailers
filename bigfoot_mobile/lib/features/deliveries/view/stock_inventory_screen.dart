@@ -23,10 +23,26 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
   String? _error;
   List<StockLocationGroup> _groups = const [];
 
+  // ── Filters ──────────────────────────────────────────────────────────────
+  // All applied client-side against the in-memory groups so refresh stays
+  // free and the result is instant. Null/empty = no filter.
+  final _searchController = TextEditingController();
+  String _search = '';
+  int? _locationFilter; // location id
+  String? _seriesFilter; // 'xp' | 'yeti' | ...
+  String? _saleStatusFilter; // 'available' | 'sold'
+  bool _hotOnly = false;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -51,13 +67,72 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
     }
   }
 
+  /// Apply the active filter chips + search box to the loaded groups.
+  /// Returns a fresh list of groups, each containing only the trailers
+  /// that match; groups with no matching trailers are dropped.
+  List<StockLocationGroup> _filteredGroups() {
+    final s = _search.trim().toLowerCase();
+    final out = <StockLocationGroup>[];
+    for (final g in _groups) {
+      if (_locationFilter != null && g.locationId != _locationFilter) continue;
+      final filteredTrailers = g.trailers.where((t) {
+        if (_seriesFilter != null && t.series != _seriesFilter) return false;
+        if (_saleStatusFilter != null && t.saleStatus != _saleStatusFilter) {
+          return false;
+        }
+        if (_hotOnly && !t.isHot) return false;
+        if (s.isNotEmpty) {
+          final hay = [
+            t.soNumber,
+            t.model ?? '',
+            t.customerName ?? '',
+            t.sizeFt ?? '',
+          ].join(' ').toLowerCase();
+          if (!hay.contains(s)) return false;
+        }
+        return true;
+      }).toList();
+      if (filteredTrailers.isEmpty) continue;
+      out.add(StockLocationGroup(
+        locationId: g.locationId,
+        code: g.code,
+        name: g.name,
+        city: g.city,
+        state: g.state,
+        count: filteredTrailers.length,
+        trailers: filteredTrailers,
+      ));
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context).stockInventoryTitle)),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _buildBody(),
+      body: Column(
+        children: [
+          _FilterBar(
+            controller: _searchController,
+            search: _search,
+            onSearchChanged: (v) => setState(() => _search = v),
+            groups: _groups,
+            locationFilter: _locationFilter,
+            seriesFilter: _seriesFilter,
+            saleStatusFilter: _saleStatusFilter,
+            hotOnly: _hotOnly,
+            onLocationChanged: (id) => setState(() => _locationFilter = id),
+            onSeriesChanged: (s) => setState(() => _seriesFilter = s),
+            onSaleStatusChanged: (s) => setState(() => _saleStatusFilter = s),
+            onHotToggle: () => setState(() => _hotOnly = !_hotOnly),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              child: _buildBody(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -91,13 +166,17 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
         ],
       );
     }
-    if (_groups.isEmpty) {
+    final groups = _filteredGroups();
+    if (groups.isEmpty) {
+      final emptyAfterFilters = _groups.isNotEmpty;
       return ListView(
         children: [
           const SizedBox(height: 140),
           Center(
             child: Text(
-              AppLocalizations.of(context).stockInventoryEmptyBody,
+              emptyAfterFilters
+                  ? 'No trailers match the current filters.'
+                  : AppLocalizations.of(context).stockInventoryEmptyBody,
               textAlign: TextAlign.center,
             ),
           ),
@@ -107,8 +186,201 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _groups.length,
-      itemBuilder: (_, i) => _LocationSection(group: _groups[i]),
+      itemCount: groups.length,
+      itemBuilder: (_, i) => _LocationSection(group: groups[i]),
+    );
+  }
+}
+
+/// Filter bar above the stock inventory list. Search box + chip rows for
+/// yard, series, sale status, and Hot-only. All filtering runs in-memory
+/// against the already-loaded groups, so no network round-trips.
+class _FilterBar extends StatelessWidget {
+  final TextEditingController controller;
+  final String search;
+  final ValueChanged<String> onSearchChanged;
+  final List<StockLocationGroup> groups;
+  final int? locationFilter;
+  final String? seriesFilter;
+  final String? saleStatusFilter;
+  final bool hotOnly;
+  final ValueChanged<int?> onLocationChanged;
+  final ValueChanged<String?> onSeriesChanged;
+  final ValueChanged<String?> onSaleStatusChanged;
+  final VoidCallback onHotToggle;
+
+  const _FilterBar({
+    required this.controller,
+    required this.search,
+    required this.onSearchChanged,
+    required this.groups,
+    required this.locationFilter,
+    required this.seriesFilter,
+    required this.saleStatusFilter,
+    required this.hotOnly,
+    required this.onLocationChanged,
+    required this.onSeriesChanged,
+    required this.onSaleStatusChanged,
+    required this.onHotToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.white,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: controller,
+            onChanged: onSearchChanged,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Search SO, model, customer, size…',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: search.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () {
+                        controller.clear();
+                        onSearchChanged('');
+                      },
+                    )
+                  : null,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _Chip(
+                  label: 'Hot only',
+                  icon: Icons.local_fire_department,
+                  selected: hotOnly,
+                  color: AppColors.error,
+                  onTap: onHotToggle,
+                ),
+                const SizedBox(width: 6),
+                // Yards — built from whatever loaded so we never offer a
+                // yard with zero trailers.
+                ..._yardChips(),
+                const SizedBox(width: 6),
+                ..._seriesChips(),
+                const SizedBox(width: 6),
+                _Chip(
+                  label: 'Available',
+                  selected: saleStatusFilter == 'available',
+                  color: AppColors.disabled,
+                  onTap: () => onSaleStatusChanged(
+                      saleStatusFilter == 'available' ? null : 'available'),
+                ),
+                const SizedBox(width: 6),
+                _Chip(
+                  label: 'Sold',
+                  icon: Icons.sell,
+                  selected: saleStatusFilter == 'sold',
+                  color: AppColors.success,
+                  onTap: () => onSaleStatusChanged(
+                      saleStatusFilter == 'sold' ? null : 'sold'),
+                ),
+                const SizedBox(width: 12),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _yardChips() {
+    return [
+      for (final g in groups) ...[
+        _Chip(
+          label: g.code.isNotEmpty ? g.code : g.name,
+          icon: Icons.warehouse_outlined,
+          selected: locationFilter == g.locationId,
+          color: AppColors.navy,
+          onTap: () => onLocationChanged(
+              locationFilter == g.locationId ? null : g.locationId),
+        ),
+        const SizedBox(width: 6),
+      ],
+    ];
+  }
+
+  List<Widget> _seriesChips() {
+    const series = [
+      ('XP', 'xp'),
+      ('Yeti', 'yeti'),
+      ('Deck Over', 'deck_over'),
+      ('Gooseneck', 'gooseneck_dump'),
+      ('GN Yeti', 'gooseneck_yeti'),
+      ('Inventory', 'inventory'),
+    ];
+    return [
+      for (final (label, value) in series) ...[
+        _Chip(
+          label: label,
+          selected: seriesFilter == value,
+          color: AppColors.navy,
+          onTap: () =>
+              onSeriesChanged(seriesFilter == value ? null : value),
+        ),
+        const SizedBox(width: 6),
+      ],
+    ];
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected ? color.withValues(alpha: 0.15) : Colors.transparent;
+    final border = selected ? color : AppColors.divider;
+    final fg = selected ? color : AppColors.disabled;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border.all(color: border),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: fg),
+              const SizedBox(width: 4),
+            ],
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12, color: fg, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -232,7 +504,16 @@ class _StockTrailerCard extends StatelessWidget {
                 ),
                 if ((t.model ?? '').isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text(t.model!,
+                  Text(
+                    [
+                      t.model!,
+                      if ((t.sizeFt ?? '').isNotEmpty) '${t.sizeFt}ft',
+                    ].join(' · '),
+                    style: const TextStyle(color: AppColors.disabled),
+                  ),
+                ] else if ((t.sizeFt ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text('${t.sizeFt}ft',
                       style: const TextStyle(color: AppColors.disabled)),
                 ],
                 const SizedBox(height: 8),

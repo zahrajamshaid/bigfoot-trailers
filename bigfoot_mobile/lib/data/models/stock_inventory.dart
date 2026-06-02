@@ -6,6 +6,11 @@ class StockTrailer {
   final int trailerId;
   final String soNumber;
   final String? model;
+  final String? series;
+  final String? sizeFt;
+  final bool isHot;
+  final String? saleStatus;
+  final String? customerName;
   final DateTime? deliveredAt;
   final String? deliveredBy;
 
@@ -14,6 +19,11 @@ class StockTrailer {
     required this.trailerId,
     required this.soNumber,
     this.model,
+    this.series,
+    this.sizeFt,
+    this.isHot = false,
+    this.saleStatus,
+    this.customerName,
     this.deliveredAt,
     this.deliveredBy,
   });
@@ -23,6 +33,11 @@ class StockTrailer {
         trailerId: int.parse(json['trailerId'].toString()),
         soNumber: (json['soNumber'] as String?) ?? '',
         model: json['model'] as String?,
+        series: json['series'] as String?,
+        sizeFt: json['sizeFt'] as String?,
+        isHot: json['isHot'] as bool? ?? false,
+        saleStatus: json['saleStatus'] as String?,
+        customerName: json['customerName'] as String?,
         deliveredAt: json['deliveredAt'] != null
             ? DateTime.tryParse(json['deliveredAt'].toString())
             : null,

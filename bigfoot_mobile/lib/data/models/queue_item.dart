@@ -26,6 +26,11 @@ class QueueItem {
   final DateTime? becameActiveAt;
   final double? hoursInQueue;
   final int globalPriority;
+  /// Stall threshold for the department this step belongs to. Set by an
+  /// admin on /admin/departments/:id; ships per-item so a threshold edit
+  /// propagates throughout the app on the next queue refresh. Falls back
+  /// to 48 when the API doesn't supply one (older builds).
+  final int stallThresholdHours;
 
   const QueueItem({
     required this.stepId,
@@ -47,6 +52,7 @@ class QueueItem {
     this.becameActiveAt,
     this.hoursInQueue,
     this.globalPriority = 9999,
+    this.stallThresholdHours = 48,
   });
 
   factory QueueItem.fromJson(Map<String, dynamic> json) =>
@@ -60,11 +66,17 @@ class QueueItem {
     return DateTime.now().difference(becameActiveAt!).inMinutes / 60.0;
   }
 
-  /// Stall level: 0 = ok, 1 = warning (>24h), 2 = critical (>48h).
+  /// Stall level keyed to the department's [stallThresholdHours]:
+  ///   0 = ok                    (hours < threshold)
+  ///   1 = warning (yellow)      (hours >= threshold)
+  ///   2 = critical (red)        (hours >= 2 × threshold)
+  /// Means an admin change on /admin/departments/:id propagates straight
+  /// through to the queue cards without any client-side constants.
   int get stallLevel {
     final hours = calculatedHoursInQueue;
-    if (hours > 48) return 2;
-    if (hours > 24) return 1;
+    final t = stallThresholdHours > 0 ? stallThresholdHours : 48;
+    if (hours >= t * 2) return 2;
+    if (hours >= t) return 1;
     return 0;
   }
 }

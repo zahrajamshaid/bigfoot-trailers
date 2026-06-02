@@ -17,6 +17,7 @@ class DashboardData extends Equatable {
   final int stalledSteps;
   final int weeklyCompleted;
   final double qcFailRate;
+  final int totalTrailers;
   final int myQueueCount;
   final double myPointsToday;
   final double myPointsWeek;
@@ -41,6 +42,7 @@ class DashboardData extends Equatable {
     this.stalledSteps = 0,
     this.weeklyCompleted = 0,
     this.qcFailRate = 0,
+    this.totalTrailers = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,
@@ -66,6 +68,7 @@ class DashboardData extends Equatable {
     int? stalledSteps,
     int? weeklyCompleted,
     double? qcFailRate,
+    int? totalTrailers,
     int? myQueueCount,
     double? myPointsToday,
     double? myPointsWeek,
@@ -90,6 +93,7 @@ class DashboardData extends Equatable {
       stalledSteps: stalledSteps ?? this.stalledSteps,
       weeklyCompleted: weeklyCompleted ?? this.weeklyCompleted,
       qcFailRate: qcFailRate ?? this.qcFailRate,
+      totalTrailers: totalTrailers ?? this.totalTrailers,
       myQueueCount: myQueueCount ?? this.myQueueCount,
       myPointsToday: myPointsToday ?? this.myPointsToday,
       myPointsWeek: myPointsWeek ?? this.myPointsWeek,
@@ -112,7 +116,7 @@ class DashboardData extends Equatable {
   @override
   List<Object?> get props => [
         activeTrailers, readyForDelivery, hotTrailers, stalledSteps,
-        weeklyCompleted, qcFailRate, myQueueCount, myPointsToday,
+        weeklyCompleted, qcFailRate, totalTrailers, myQueueCount, myPointsToday,
         myPointsWeek, nextTrailerSo, nextTrailerColor,
         readyForInspection, inspectionsToday, failRateToday, reworkQueue,
         activeDeliveries, upcomingDeliveries, completedThisWeek,
@@ -252,6 +256,7 @@ class DashboardViewModel extends Cubit<DashboardState> {
       stalledSteps: stats.stalledSteps,
       weeklyCompleted: stats.weeklyCompleted,
       qcFailRate: stats.qcFailRate,
+      totalTrailers: stats.totalTrailers,
       myQueueCount: stats.myQueueCount,
       myPointsToday: stats.myPointsToday,
       myPointsWeek: stats.myPointsWeek,

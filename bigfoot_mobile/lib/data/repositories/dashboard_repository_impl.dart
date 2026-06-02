@@ -15,6 +15,11 @@ class DashboardRepositoryImpl implements DashboardRepository {
       fromJson: (d) => d as Map<String, dynamic>,
     );
     final trailers = (trailersResp.data?['trailers'] as List<dynamic>?) ?? [];
+    // /trailers also returns the true total count (independent of the page
+    // limit), so we surface it on the Owner / PM / Sales dashboards
+    // instead of relying on the page we just fetched.
+    final totalTrailers = (trailersResp.data?['total'] as num?)?.toInt() ??
+        trailers.length;
 
     int active = 0, ready = 0, hot = 0;
     for (final t in trailers) {
@@ -45,6 +50,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
       readyForDelivery: ready,
       hotTrailers: hot,
       qcFailRate: qcFailRate,
+      totalTrailers: totalTrailers,
     );
   }
 

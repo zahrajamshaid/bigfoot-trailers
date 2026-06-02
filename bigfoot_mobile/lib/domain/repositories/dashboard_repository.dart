@@ -15,6 +15,10 @@ class DashboardStats {
   final int stalledSteps;
   final int weeklyCompleted;
   final double qcFailRate;
+  /// Total trailers in the system across every status — surfaced on the
+  /// Owner / PM / sales dashboards for the at-a-glance "how big is the
+  /// herd right now" tile.
+  final int totalTrailers;
 
   // Worker
   final int myQueueCount;
@@ -46,6 +50,7 @@ class DashboardStats {
     this.stalledSteps = 0,
     this.weeklyCompleted = 0,
     this.qcFailRate = 0,
+    this.totalTrailers = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,

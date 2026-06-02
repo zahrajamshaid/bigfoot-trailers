@@ -79,9 +79,12 @@ export class TrailersController {
 
   // ---------------------------------------------------------------------------
   // PATCH /trailers/:id — update color, notes, status
+  // Sales accounts can edit customer-facing fields on their assigned
+  // trailers (sold/stock state, soldToName, etc.), so they're allowed
+  // here alongside owner + production_manager.
   // ---------------------------------------------------------------------------
   @Patch(':id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.SALES)
   @ApiOperation({ summary: 'Update trailer fields (color, notes, status)' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer updated' })

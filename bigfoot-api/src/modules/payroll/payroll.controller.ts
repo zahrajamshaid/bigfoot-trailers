@@ -49,10 +49,10 @@ export class PayrollController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /payroll/point-values — owner only
+  // POST /payroll/point-values — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('point-values')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a point value entry' })
   @ApiResponse({ status: 201, description: 'Point value created' })
@@ -88,10 +88,10 @@ export class PayrollController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /payroll/dollar-rates — owner only
+  // POST /payroll/dollar-rates — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('dollar-rates')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a dollar-per-point rate entry' })
   @ApiResponse({ status: 201, description: 'Dollar rate created' })
@@ -129,10 +129,10 @@ export class PayrollController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /payroll/records/lock/:week_start — owner only
+  // POST /payroll/records/lock/:week_start — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('records/lock/:week_start')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Lock a week's payroll" })

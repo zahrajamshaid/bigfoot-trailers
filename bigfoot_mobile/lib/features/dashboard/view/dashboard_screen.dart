@@ -133,6 +133,13 @@ class _ManagerDashboard extends StatelessWidget {
             crossAxisSpacing: 8,
             children: [
               StatCard(
+                title: 'Total trailers',
+                value: '${data.totalTrailers}',
+                icon: Icons.inventory_2_outlined,
+                color: AppColors.navy,
+                onTap: () => context.goNamed(RouteNames.trailerList),
+              ),
+              StatCard(
                 title: l.dashStatActiveTrailers,
                 value: '${data.activeTrailers}',
                 icon: Icons.precision_manufacturing,

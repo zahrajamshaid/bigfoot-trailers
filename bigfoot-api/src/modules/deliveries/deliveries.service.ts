@@ -712,7 +712,12 @@ export class DeliveriesService {
           select: {
             id: true,
             soNumber: true,
+            sizeFt: true,
+            isHot: true,
+            saleStatus: true,
+            soldToName: true,
             trailerModel: { select: { displayName: true, series: true } },
+            customer: { select: { name: true } },
           },
         },
         driverUser: { select: { id: true, fullName: true } },
@@ -730,6 +735,11 @@ export class DeliveriesService {
           trailerId: string;
           soNumber: string;
           model: string | null;
+          series: string | null;
+          sizeFt: string | null;
+          isHot: boolean;
+          saleStatus: string;
+          customerName: string | null;
           deliveredAt: Date | null;
           deliveredBy: string | null;
         }>;
@@ -749,6 +759,12 @@ export class DeliveriesService {
         trailerId: d.trailer.id.toString(),
         soNumber: d.trailer.soNumber,
         model: d.trailer.trailerModel?.displayName ?? null,
+        series: d.trailer.trailerModel?.series ?? null,
+        sizeFt: d.trailer.sizeFt ?? null,
+        isHot: d.trailer.isHot,
+        saleStatus: d.trailer.saleStatus,
+        customerName:
+          d.trailer.customer?.name ?? d.trailer.soldToName ?? null,
         deliveredAt: d.deliveredAt,
         deliveredBy: (d.driverUser ?? d.createdByUser)?.fullName ?? null,
       });
