@@ -36,7 +36,6 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
     final user = auth is Authenticated ? auth.user : null;
     final isManager = user != null &&
         (user.role == UserRole.owner || user.role == UserRole.productionManager);
-    final isOwner = user?.role == UserRole.owner;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -87,13 +86,16 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
                         icon: const Icon(Icons.table_chart_outlined),
                         label: Text(l.payrollWeeklyReport),
                       ),
-                      if (isOwner)
+                      // Point matrix + dollar rates are now editable by
+                      // owner and production_manager (backend RBAC mirrors
+                      // this), so the entry buttons render for both.
+                      if (isManager)
                         OutlinedButton.icon(
                           onPressed: () => context.pushNamed(RouteNames.pointMatrix),
                           icon: const Icon(Icons.grid_view_outlined),
                           label: Text(l.payrollPointMatrix),
                         ),
-                      if (isOwner)
+                      if (isManager)
                         OutlinedButton.icon(
                           onPressed: () => context.pushNamed(RouteNames.dollarRates),
                           icon: const Icon(Icons.attach_money_outlined),

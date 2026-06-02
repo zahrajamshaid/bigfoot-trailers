@@ -1,5 +1,10 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/user.dart';
@@ -121,13 +126,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                       if (mounted) setState(() => _locking = false);
                     }
                   },
-                  onExportCsv: () {
-                    final csv = _buildCsv(_report);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(l.payrollCsvPrepared(csv.length))),
-                    );
-                  },
+                  onExportCsv: () => _exportCsv(context, l),
                 ),
     );
   }
@@ -137,11 +136,57 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
   String _buildCsv(dynamic report) {
     final buffer = StringBuffer('Name,Total Points,Steps,Reworks,Gross Pay\n');
     for (final w in report.workers as List<dynamic>) {
+      // Escape any embedded double-quotes per RFC 4180 so the CSV opens
+      // cleanly in Excel / Numbers / Google Sheets.
+      final safeName = w.fullName.toString().replaceAll('"', '""');
       buffer.writeln(
-        '"${w.fullName}",${w.totalPoints},${w.totalStepsCompleted},${w.totalReworkCount},${w.totalGrossPay}',
+        '"$safeName",${w.totalPoints},${w.totalStepsCompleted},${w.totalReworkCount},${w.totalGrossPay}',
       );
     }
     return buffer.toString();
+  }
+
+  /// Write the CSV to a temp file and hand it to the platform share sheet.
+  /// On web, fall back to a synthesised download because file paths aren't
+  /// shareable in the browser. Snackbar on success / error so the user gets
+  /// feedback either way.
+  Future<void> _exportCsv(
+    BuildContext context,
+    AppLocalizations l,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final csv = _buildCsv(_report);
+      final filename = 'bigfoot-payroll-${_fmt(_weekStart)}.csv';
+
+      if (kIsWeb) {
+        // share_plus on web only handles text, not files — push the
+        // serialised CSV as text so the user can paste it into a sheet.
+        await SharePlus.instance.share(
+          ShareParams(
+            text: csv,
+            subject: filename,
+          ),
+        );
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$filename');
+        await file.writeAsString(csv, flush: true);
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path, mimeType: 'text/csv', name: filename)],
+            subject: filename,
+          ),
+        );
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(l.payrollCsvPrepared(csv.length))),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('CSV export failed: $e')),
+      );
+    }
   }
 }
 

@@ -365,11 +365,16 @@ class AppRouter {
     return null;
   }
 
-  /// Guards owner-only screens. Non-owner accounts are bounced back to the
-  /// payroll landing page so they never see the screen.
+  /// Guards payroll-config screens (point matrix + dollar rates). Owner
+  /// and production_manager both have full payroll powers on the backend
+  /// (POST / PATCH point-values, POST dollar-rates, week lock); the UI
+  /// gate now mirrors that. Everyone else is bounced back to the payroll
+  /// landing page so they never see the screen.
   String? _ownerOnly(BuildContext context, GoRouterState state) {
     final authState = context.read<AuthViewModel>().state;
-    if (authState is Authenticated && authState.user.role == 'owner') {
+    if (authState is Authenticated &&
+        (authState.user.role == 'owner' ||
+            authState.user.role == 'production_manager')) {
       return null;
     }
     return '/payroll';
