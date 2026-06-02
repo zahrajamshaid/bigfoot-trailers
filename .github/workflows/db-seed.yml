@@ -30,6 +30,7 @@ on:
           - seed-production-queue # 44 trailers dropped into production at jig (step 1) or finish (step 3) per source folder
           - seed-prep-queue # 50 trailers into prep workflow (wood 11 / wire-hydro 9 / paint-prep 5) + ENCLOSED inventory, with customer/stock detection from PDF shipTo
           - backfill-size-ft-suffix # one-shot: strip trailing "ft" from trailers.size_ft so UI doesn't render "ftft"
+          - backfill-inventory-size-ft # one-shot: populate sizeFt on in-inventory trailers from seeded PDF JSONs
           - stats-trailers # read-only: tally trailers across lifecycle / stock yards / series
           - backfill-paint-b-25ft # one-shot: reroute existing ≥25ft trailers from PAINT_A → PAINT_B
           - seed-parts-user # new `parts` role + parts@bigfoot.dev login covering all 4 jig departments
