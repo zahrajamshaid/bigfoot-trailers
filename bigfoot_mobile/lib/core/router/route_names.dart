@@ -23,6 +23,7 @@ abstract final class RouteNames {
   // ── QC ───────────────────────────────────────────────────────────────────
   static const String qcQueue = 'qcQueue';
   static const String qcFailed = 'qcFailed';
+  static const String qcRework = 'qcRework';
   static const String qcInspectionForm = 'qcInspectionForm';
   static const String qcInspectionDetail = 'qcInspectionDetail';
 

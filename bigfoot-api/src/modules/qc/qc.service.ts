@@ -526,40 +526,117 @@ export class QcService {
   async getQcStats() {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+    // 30-day rolling window for the bigger "QC fail rate" tile on the
+    // manager dashboard. Today-only is too volatile (0 inspections → 0%,
+    // or 1 fail out of 1 → 100%); 30 days smooths it out.
+    const startOf30dWindow = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [readyForInspection, reworkQueue, inspectionsToday, failsToday] =
-      await this.prisma.$transaction([
-        // "Ready for inspection" = QC steps the trailer has actually reached
-        // and are waiting on the inspector (status `active`). `waiting` QC
-        // steps belong to trailers still at an earlier production stage.
-        this.prisma.productionStep.count({
-          where: {
-            status: ProductionStepStatus.active,
-            department: { isQcStep: true },
-          },
-        }),
-        this.prisma.productionStep.count({
-          where: { status: ProductionStepStatus.rework },
-        }),
-        this.prisma.qcInspection.count({
-          where: { inspectedAt: { gte: startOfToday } },
-        }),
-        this.prisma.qcInspection.count({
-          where: {
-            inspectedAt: { gte: startOfToday },
-            result: QcResult.fail,
-          },
-        }),
-      ]);
+    const [
+      readyForInspection,
+      reworkQueue,
+      inspectionsToday,
+      failsToday,
+      inspections30d,
+      fails30d,
+    ] = await this.prisma.$transaction([
+      // "Ready for inspection" = QC steps the trailer has actually reached
+      // and are waiting on the inspector (status `active`). `waiting` QC
+      // steps belong to trailers still at an earlier production stage.
+      this.prisma.productionStep.count({
+        where: {
+          status: ProductionStepStatus.active,
+          department: { isQcStep: true },
+        },
+      }),
+      // "Rework queue" — actively-being-redone steps. The rework-routing
+      // service flips the targeted earlier step to status='active' and
+      // sets isRework=true (rather than using the ProductionStepStatus
+      // .rework enum value, which the schema carries but the runtime
+      // doesn't actually set). The previous query keyed off the unused
+      // enum value, which is why this card always read 0.
+      this.prisma.productionStep.count({
+        where: {
+          isRework: true,
+          status: ProductionStepStatus.active,
+        },
+      }),
+      this.prisma.qcInspection.count({
+        where: { inspectedAt: { gte: startOfToday } },
+      }),
+      this.prisma.qcInspection.count({
+        where: {
+          inspectedAt: { gte: startOfToday },
+          result: QcResult.fail,
+        },
+      }),
+      this.prisma.qcInspection.count({
+        where: { inspectedAt: { gte: startOf30dWindow } },
+      }),
+      this.prisma.qcInspection.count({
+        where: {
+          inspectedAt: { gte: startOf30dWindow },
+          result: QcResult.fail,
+        },
+      }),
+    ]);
 
-    const failRateToday = inspectionsToday > 0 ? failsToday / inspectionsToday : 0;
+    // Rates ship as percentages (0–100) so the UI can render them with a
+    // plain `%` suffix. Previously these were 0–1 fractions, which made
+    // "25%" render as "0.2%" on the dashboard. New mobile build also
+    // populates qcFailRate (the 30-day rolling rate behind the manager
+    // dashboard tile) — backend returns 0 when no inspections exist.
+    const failRateToday =
+      inspectionsToday > 0 ? (failsToday / inspectionsToday) * 100 : 0;
+    const qcFailRate =
+      inspections30d > 0 ? (fails30d / inspections30d) * 100 : 0;
 
     return {
       readyForInspection,
       inspectionsToday,
       failRateToday,
+      qcFailRate,
       reworkQueue,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /qc/rework-queue — drilldown behind the dashboard rework tile.
+  //
+  // Returns the active production_steps where isRework=true — the trailers
+  // QC bumped back to an earlier department that haven't been redone yet.
+  // Ordered by becameActiveAt asc so the oldest rework sits at the top.
+  // ---------------------------------------------------------------------------
+  async getReworkQueue() {
+    return this.prisma.productionStep.findMany({
+      where: {
+        isRework: true,
+        status: ProductionStepStatus.active,
+      },
+      orderBy: [
+        { becameActiveAt: 'asc' },
+        { queuePosition: 'asc' },
+      ],
+      select: {
+        id: true,
+        stepOrder: true,
+        queuePosition: true,
+        reworkCount: true,
+        becameActiveAt: true,
+        department: { select: { code: true, displayName: true } },
+        trailer: {
+          select: {
+            id: true,
+            soNumber: true,
+            isHot: true,
+            globalPriority: true,
+            trailerModel: { select: { displayName: true, series: true } },
+            customer: { select: { name: true } },
+            soldToName: true,
+          },
+        },
+      },
+      take: 200,
+    });
   }
 
   // ---------------------------------------------------------------------------

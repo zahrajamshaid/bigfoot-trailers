@@ -30,6 +30,7 @@ import '../../features/qc/view/checklist_management_screen.dart';
 import '../../features/qc/view/inspection_detail_screen.dart';
 import '../../features/qc/view/inspection_form_screen.dart';
 import '../../features/qc/view/qc_failed_screen.dart';
+import '../../features/qc/view/qc_rework_screen.dart';
 import '../../features/qc/view/qc_queue_screen.dart';
 import '../../features/qc/viewmodel/qc_viewmodel.dart';
 import '../../domain/repositories/qc_repository.dart';
@@ -152,6 +153,12 @@ class AppRouter {
                   name: RouteNames.qcFailed,
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) => const QcFailedScreen(),
+                ),
+                GoRoute(
+                  path: 'rework',
+                  name: RouteNames.qcRework,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) => const QcReworkScreen(),
                 ),
                 GoRoute(
                   path: 'inspect/:stepId',

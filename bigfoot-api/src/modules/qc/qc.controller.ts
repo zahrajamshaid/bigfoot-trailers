@@ -45,6 +45,23 @@ export class QcController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /qc/rework-queue — drilldown behind the dashboard rework tile
+  // ---------------------------------------------------------------------------
+  @Get('rework-queue')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
+  @ApiOperation({
+    summary: 'Trailers currently in rework (production_steps active+isRework)',
+    description:
+      'Returns the active production_steps with isRework=true — i.e. ' +
+      'trailers QC sent back to an earlier department that the worker ' +
+      'has not finished redoing yet.',
+  })
+  @ApiResponse({ status: 200, description: 'List of in-flight rework steps' })
+  async getReworkQueue() {
+    return this.qcService.getReworkQueue();
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /qc/failed-inspections — drilldown list behind the fail-rate stat
   // ---------------------------------------------------------------------------
   @Get('failed-inspections')

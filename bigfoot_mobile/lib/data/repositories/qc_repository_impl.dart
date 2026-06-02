@@ -222,6 +222,18 @@ class QcRepositoryImpl implements QcRepository {
   }
 
   @override
+  Future<List<ReworkQueueItem>> getReworkQueue() async {
+    final resp = await _api.get<List<dynamic>>(
+      ApiEndpoints.qcReworkQueue,
+      fromJson: (d) => d as List<dynamic>,
+    );
+    return (resp.data ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(ReworkQueueItem.fromJson)
+        .toList();
+  }
+
+  @override
   Future<List<FailedInspectionItem>> getFailedInspections({int days = 30}) async {
     final resp = await _api.get<List<dynamic>>(
       '${ApiEndpoints.qcFailedInspections}?days=$days',

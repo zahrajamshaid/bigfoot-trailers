@@ -26,10 +26,25 @@ class DashboardRepositoryImpl implements DashboardRepository {
       }
     }
 
+    // Manager dashboard shows the "QC fail rate" tile, so pull the same
+    // 30-day rate the QC dashboard uses. Don't fail the whole manager card
+    // load if /qc/stats hiccups — fall back to 0 quietly.
+    double qcFailRate = 0;
+    try {
+      final qc = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.qcStats,
+        fromJson: (d) => d as Map<String, dynamic>,
+      );
+      qcFailRate = (qc.data?['qcFailRate'] as num?)?.toDouble() ?? 0;
+    } catch (_) {
+      qcFailRate = 0;
+    }
+
     return DashboardStats(
       activeTrailers: active,
       readyForDelivery: ready,
       hotTrailers: hot,
+      qcFailRate: qcFailRate,
     );
   }
 
@@ -72,9 +87,25 @@ class DashboardRepositoryImpl implements DashboardRepository {
           (data['pendingInspections'] as num?)?.toInt() ??
           0,
       inspectionsToday: (data['inspectionsToday'] as num?)?.toInt() ?? 0,
-      failRateToday: (data['failRateToday'] as num?)?.toDouble() ?? 0,
+      // Rates come back as 0–100 percentages from the new backend; older
+      // versions sent 0–1 fractions, so multiply when the value is < 1.0.
+      // (A real 100% rate against the new API still reads as 100 here.)
+      failRateToday: _asPercent(data['failRateToday']),
+      qcFailRate: _asPercent(data['qcFailRate']),
       reworkQueue: (data['reworkQueue'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  /// Coerce a 0-1 fraction or a 0-100 percentage into a 0-100 percentage.
+  /// Any value at or above 1.0 is assumed to already be a percentage (so a
+  /// real 100% from the new API still reads as 100); anything strictly
+  /// below 1 — including the historical 0.25 = 25% shape — is multiplied.
+  double _asPercent(dynamic value) {
+    final n = (value as num?)?.toDouble();
+    if (n == null) return 0;
+    if (n <= 0) return 0;
+    if (n < 1.0) return n * 100;
+    return n;
   }
 
   @override

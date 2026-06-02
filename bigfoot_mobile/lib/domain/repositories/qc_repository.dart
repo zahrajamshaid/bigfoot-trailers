@@ -154,6 +154,68 @@ class FailedInspectionItem {
   }
 }
 
+/// One row in the rework drilldown list. Flattens the production_step
+/// payload (with the trailer + dept context the list view renders).
+class ReworkQueueItem {
+  final int stepId;
+  final int stepOrder;
+  final int? queuePosition;
+  final int reworkCount;
+  final DateTime? becameActiveAt;
+  final String? deptCode;
+  final String? deptName;
+  final int trailerId;
+  final String soNumber;
+  final bool isHot;
+  final int globalPriority;
+  final String? modelName;
+  final String? series;
+  final String? customerName;
+
+  const ReworkQueueItem({
+    required this.stepId,
+    required this.stepOrder,
+    required this.trailerId,
+    required this.soNumber,
+    this.queuePosition,
+    this.reworkCount = 0,
+    this.becameActiveAt,
+    this.deptCode,
+    this.deptName,
+    this.isHot = false,
+    this.globalPriority = 9999,
+    this.modelName,
+    this.series,
+    this.customerName,
+  });
+
+  factory ReworkQueueItem.fromJson(Map<String, dynamic> json) {
+    final dept = json['department'] as Map<String, dynamic>?;
+    final trailer = json['trailer'] as Map<String, dynamic>?;
+    final model = trailer?['trailerModel'] as Map<String, dynamic>?;
+    final customer = trailer?['customer'] as Map<String, dynamic>?;
+    return ReworkQueueItem(
+      stepId: (json['id'] as num).toInt(),
+      stepOrder: (json['stepOrder'] as num?)?.toInt() ?? 0,
+      queuePosition: (json['queuePosition'] as num?)?.toInt(),
+      reworkCount: (json['reworkCount'] as num?)?.toInt() ?? 0,
+      becameActiveAt: json['becameActiveAt'] != null
+          ? DateTime.tryParse(json['becameActiveAt'].toString())
+          : null,
+      deptCode: dept?['code'] as String?,
+      deptName: dept?['displayName'] as String?,
+      trailerId: (trailer?['id'] as num?)?.toInt() ?? 0,
+      soNumber: (trailer?['soNumber'] as String?) ?? '',
+      isHot: trailer?['isHot'] as bool? ?? false,
+      globalPriority: (trailer?['globalPriority'] as num?)?.toInt() ?? 9999,
+      modelName: model?['displayName'] as String?,
+      series: model?['series'] as String?,
+      customerName:
+          (customer?['name'] as String?) ?? (trailer?['soldToName'] as String?),
+    );
+  }
+}
+
 class QcInspectionResult {
   final int inspectionId;
   final String result;
@@ -262,6 +324,11 @@ abstract class QcRepository {
   /// over a rolling window with the trailer + dept context the list view
   /// needs. Default window is 30 days.
   Future<List<FailedInspectionItem>> getFailedInspections({int days});
+
+  /// Backs the dashboard rework-queue drilldown. Returns active
+  /// production_steps where isRework=true — trailers waiting on a
+  /// worker to redo an earlier step.
+  Future<List<ReworkQueueItem>> getReworkQueue();
 
   Future<String> uploadPhoto(List<int> bytes, String filename);
 

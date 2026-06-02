@@ -328,10 +328,7 @@ class _QcDashboard extends StatelessWidget {
             value: '${data.reworkQueue}',
             icon: Icons.replay,
             color: AppColors.warning,
-            onTap: () => context.goNamed(
-              RouteNames.qcQueue,
-              queryParameters: {'filter': 'rework'},
-            ),
+            onTap: () => context.goNamed(RouteNames.qcRework),
           ),
         ],
       ),
