@@ -2804,7 +2804,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Batch completed — all trailers delivered.';
 
   @override
-  String get batchScreenUpdate => 'Update';
+  String get batchScreenUpdate => 'Edit';
 
   @override
   String get stockInventoryEmptyBody =>

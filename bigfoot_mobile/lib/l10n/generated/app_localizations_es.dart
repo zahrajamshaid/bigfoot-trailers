@@ -2824,7 +2824,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Lote completado — todos los remolques entregados.';
 
   @override
-  String get batchScreenUpdate => 'Actualizar';
+  String get batchScreenUpdate => 'Editar';
 
   @override
   String get stockInventoryEmptyBody =>

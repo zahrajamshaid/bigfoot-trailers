@@ -4835,7 +4835,7 @@ abstract class AppLocalizations {
   /// No description provided for @batchScreenUpdate.
   ///
   /// In en, this message translates to:
-  /// **'Update'**
+  /// **'Edit'**
   String get batchScreenUpdate;
 
   /// No description provided for @stockInventoryEmptyBody.

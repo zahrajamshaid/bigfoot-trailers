@@ -1099,7 +1099,7 @@
   "batchScreenUpdateFail": "Error al actualizar: {error}",
   "@batchScreenUpdateFail": {"placeholders": {"error": {"type": "String"}}},
   "batchScreenCompletedNote": "Lote completado — todos los remolques entregados.",
-  "batchScreenUpdate": "Actualizar",
+  "batchScreenUpdate": "Editar",
 
   "stockInventoryEmptyBody": "No hay remolques en stock en ningún yard.\nDesliza hacia abajo para actualizar.",
   "stockInventoryUnknownDate": "Fecha desconocida",

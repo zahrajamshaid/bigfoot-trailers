@@ -521,7 +521,11 @@ class _BatchActions extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            if (batch.status == 'building')
+            // Mirror the backend gate (batches.service.ts update): editable
+            // while building OR scheduled — once a batch is in_transit /
+            // complete the trailers are on the move or delivered and the
+            // backend rejects the PATCH with BATCH_NOT_BUILDING anyway.
+            if (batch.status == 'building' || batch.status == 'scheduled')
               OutlinedButton.icon(
                 onPressed: busy ? null : onUpdate,
                 icon: const Icon(Icons.edit_outlined, size: 18),

@@ -1099,7 +1099,7 @@
   "batchScreenUpdateFail": "Update failed: {error}",
   "@batchScreenUpdateFail": {"placeholders": {"error": {"type": "String"}}},
   "batchScreenCompletedNote": "Batch completed — all trailers delivered.",
-  "batchScreenUpdate": "Update",
+  "batchScreenUpdate": "Edit",
 
   "stockInventoryEmptyBody": "No trailers in stock at any yard.\nPull down to refresh.",
   "stockInventoryUnknownDate": "Unknown date",
