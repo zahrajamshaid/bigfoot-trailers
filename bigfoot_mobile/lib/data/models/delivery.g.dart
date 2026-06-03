@@ -30,6 +30,9 @@ Delivery _$DeliveryFromJson(Map<String, dynamic> json) => Delivery(
   createdAt: json['createdAt'] == null
       ? null
       : DateTime.parse(json['createdAt'] as String),
+  scheduledDate: json['scheduledDate'] == null
+      ? null
+      : DateTime.parse(json['scheduledDate'] as String),
   deliveryBatchId: (json['deliveryBatchId'] as num?)?.toInt(),
   signatureUrl: json['signatureUrl'] as String?,
   gpsLat: _decimalToDouble(json['gpsLat']),
@@ -71,6 +74,7 @@ Map<String, dynamic> _$DeliveryToJson(Delivery instance) => <String, dynamic>{
   'departedAt': instance.departedAt?.toIso8601String(),
   'deliveredAt': instance.deliveredAt?.toIso8601String(),
   'createdAt': instance.createdAt?.toIso8601String(),
+  'scheduledDate': instance.scheduledDate?.toIso8601String(),
   'deliveryBatchId': instance.deliveryBatchId,
   'signatureUrl': instance.signatureUrl,
   'gpsLat': instance.gpsLat,

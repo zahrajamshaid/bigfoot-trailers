@@ -39,6 +39,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get commonClose => 'Cerrar';
 
   @override
+  String get commonClear => 'Borrar';
+
+  @override
   String get commonYes => 'Sí';
 
   @override
@@ -1936,6 +1939,11 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String deliveryListScheduled(String value) {
+    return 'Programada: $value';
+  }
+
+  @override
   String deliveryDetailTitle(int id) {
     return 'Entrega #$id';
   }
@@ -2664,6 +2672,12 @@ class AppLocalizationsEs extends AppLocalizations {
       'El número de lote es obligatorio';
 
   @override
+  String get createDeliveryScheduledDate => 'Fecha programada';
+
+  @override
+  String get createDeliveryScheduledPickHint => 'Elegir una fecha';
+
+  @override
   String get createDeliveryBatchType => 'Tipo de lote';
 
   @override
@@ -2779,6 +2793,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get batchScreenRemoveDeliveryId => 'Quitar ID de entrega (opcional)';
+
+  @override
+  String batchScreenTrailersInBatchLabel(int count) {
+    return 'En este lote ($count)';
+  }
+
+  @override
+  String get batchScreenNoTrailersInBatch =>
+      'Aún no hay remolques en este lote.';
+
+  @override
+  String get batchScreenRemoveTrailer => 'Quitar del lote';
+
+  @override
+  String get batchScreenUndoRemove => 'Deshacer eliminación';
+
+  @override
+  String batchScreenAddTrailersLabel(int count) {
+    return 'Agregar remolques listos ($count seleccionados)';
+  }
+
+  @override
+  String batchScreenUpdateFail(String error) {
+    return 'Error al actualizar: $error';
+  }
 
   @override
   String get batchScreenCompletedNote =>

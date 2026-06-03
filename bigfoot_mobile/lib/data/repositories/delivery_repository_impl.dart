@@ -150,6 +150,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     int? deliveryBatchId,
     String? pickedUpByName,
     double? paymentCollected,
+    DateTime? scheduledDate,
   }) async {
     await _api.post(
       ApiEndpoints.deliveries,
@@ -167,6 +168,11 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
         if (pickedUpByName != null && pickedUpByName.isNotEmpty)
           'pickedUpByName': pickedUpByName,
         if (paymentCollected != null) 'paymentCollected': paymentCollected,
+        // DATE column on the backend — send YYYY-MM-DD only so timezone
+        // offsets don't accidentally roll the date forward/backward.
+        if (scheduledDate != null)
+          'scheduledDate':
+              '${scheduledDate.year.toString().padLeft(4, '0')}-${scheduledDate.month.toString().padLeft(2, '0')}-${scheduledDate.day.toString().padLeft(2, '0')}',
       },
     );
   }
@@ -241,6 +247,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     int? destinationLocationId,
     String? destinationName,
     List<int>? trailerIds,
+    DateTime? scheduledDate,
   }) async {
     final response = await _api.post<Map<String, dynamic>>(
       ApiEndpoints.deliveryBatches,
@@ -251,6 +258,10 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
         if (destinationLocationId != null) 'destinationLocationId': destinationLocationId,
         if (destinationName != null && destinationName.isNotEmpty) 'destinationName': destinationName,
         if (trailerIds != null && trailerIds.isNotEmpty) 'trailerIds': trailerIds,
+        // YYYY-MM-DD only — see createDelivery for the rationale.
+        if (scheduledDate != null)
+          'scheduledDate':
+              '${scheduledDate.year.toString().padLeft(4, '0')}-${scheduledDate.month.toString().padLeft(2, '0')}-${scheduledDate.day.toString().padLeft(2, '0')}',
       },
       fromJson: (d) => d as Map<String, dynamic>,
     );

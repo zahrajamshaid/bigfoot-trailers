@@ -438,6 +438,10 @@ class _BatchGroupCard extends StatelessWidget {
   }
 }
 
+String _formatYmd(DateTime d) {
+  return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
 class _DeliveryCard extends StatelessWidget {
   final Delivery delivery;
   final VoidCallback onTap;
@@ -482,6 +486,25 @@ class _DeliveryCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(AppLocalizations.of(context)
                 .deliveryListDriverLabel(delivery.driverName)),
+            if (delivery.scheduledDate != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.event_outlined,
+                      size: 16, color: AppColors.navy),
+                  const SizedBox(width: 4),
+                  Text(
+                    AppLocalizations.of(context).deliveryListScheduled(
+                      _formatYmd(delivery.scheduledDate!),
+                    ),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (delivery.deliveryType == 'factory_pickup' &&
                 delivery.pickedUpByName != null &&
                 delivery.pickedUpByName!.isNotEmpty) ...[

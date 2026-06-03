@@ -698,6 +698,11 @@ model Delivery {
   paymentCollected        Decimal?       @map("payment_collected") @db.Decimal(10, 2)
   paymentMethod           PaymentMethod? @map("payment_method")
   status                  DeliveryStatus @default(scheduled)
+  /// The date a delivery is planned for. Filled in by sales / transport
+  /// when the delivery is created so the transport portal can sort by
+  /// upcoming date. Null on factory pickups (recorded as already-delivered
+  /// in one step) and on legacy rows created before the column existed.
+  scheduledDate           DateTime?      @map("scheduled_date") @db.Date
   tcAccepted              Boolean        @default(false) @map("tc_accepted")
   tcAcceptedAt            DateTime?      @map("tc_accepted_at") @db.Timestamptz
   signatureUrl            String?        @map("signature_url")
@@ -724,6 +729,7 @@ model Delivery {
   @@index([trailerId], map: "idx_deliveries_trailer")
   @@index([driverUserId, status], map: "idx_deliveries_driver")
   @@index([status, deliveryType, createdAt(sort: Desc)], map: "idx_deliveries_status_type")
+  @@index([scheduledDate], map: "idx_deliveries_scheduled_date")
   @@map("deliveries")
 }
 

@@ -32,6 +32,9 @@ class Delivery {
   final DateTime? departedAt;
   final DateTime? deliveredAt;
   final DateTime? createdAt;
+  /// Planned delivery date set by sales / transport when the delivery is
+  /// created. Null for legacy rows + factory pickups (one-step recorded).
+  final DateTime? scheduledDate;
   final int? deliveryBatchId;
   final String? signatureUrl;
   @JsonKey(fromJson: _decimalToDouble)
@@ -64,6 +67,7 @@ class Delivery {
     this.departedAt,
     this.deliveredAt,
     this.createdAt,
+    this.scheduledDate,
     this.deliveryBatchId,
     this.signatureUrl,
     this.gpsLat,

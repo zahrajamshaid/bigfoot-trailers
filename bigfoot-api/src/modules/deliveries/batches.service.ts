@@ -15,6 +15,16 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
 import { AppError, ErrorCode } from '../../common/errors';
 
+/**
+ * Parses a YYYY-MM-DD ISO date string into a Date for the DATE column.
+ * Returns null on null/empty/garbage so optional DTO fields compose cleanly.
+ */
+function parseISODate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 const batchSelect = {
   id: true,
   batchNumber: true,
@@ -93,6 +103,7 @@ export class BatchesService {
           dto.trailerIds,
           createdByUserId,
           dto.destinationLocationId ?? null,
+          parseISODate(dto.scheduledDate),
         );
       }
 
@@ -114,6 +125,7 @@ export class BatchesService {
     trailerIds: number[],
     createdByUserId: bigint,
     destinationLocationId: number | null,
+    scheduledDate: Date | null = null,
   ) {
     const trailerIdBigints = trailerIds.map((t) => BigInt(t));
     const trailers = await tx.trailer.findMany({
@@ -148,6 +160,7 @@ export class BatchesService {
         destinationLocationId,
         status: DeliveryStatus.scheduled,
         createdByUserId,
+        scheduledDate,
       })),
     });
   }
@@ -170,10 +183,18 @@ export class BatchesService {
       throw new AppError(ErrorCode.NOT_FOUND, `Delivery batch with id ${id} not found`);
     }
 
-    if (batch.status !== DeliveryBatchStatus.building) {
+    // Edits are allowed while the batch is being assembled (`building`) AND
+    // after it's been planned but not yet sent out (`scheduled`). Once a
+    // batch is `in_transit` or `complete`, its trailers are physically on
+    // the move or delivered — reshuffling them would silently desync the
+    // driver's queue and trailer statuses.
+    if (
+      batch.status !== DeliveryBatchStatus.building &&
+      batch.status !== DeliveryBatchStatus.scheduled
+    ) {
       throw new AppError(
         ErrorCode.BATCH_NOT_BUILDING,
-        `Cannot modify batch — status is "${batch.status}", must be "building"`,
+        `Cannot modify batch — status is "${batch.status}", must be "building" or "scheduled"`,
       );
     }
 

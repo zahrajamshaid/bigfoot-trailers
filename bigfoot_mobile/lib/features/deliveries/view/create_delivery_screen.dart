@@ -31,7 +31,8 @@ class CreateDeliveryScreen extends StatefulWidget {
   State<CreateDeliveryScreen> createState() => _CreateDeliveryScreenState();
 }
 
-class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
+class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
 
   // ── Single-delivery fields ────────────────────────────────────────────────
@@ -45,6 +46,9 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
   int? _destinationLocationId;
   int? _batchId;
   String _deliveryType = 'single_pull';
+  // Planned delivery date (used on every non-pickup type). On factory_pickup
+  // the date is implicit (today) and the field is hidden.
+  DateTime? _scheduledDate;
 
   // ── Batch-delivery fields ─────────────────────────────────────────────────
   final _batchNumberCtrl = TextEditingController();
@@ -64,7 +68,18 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from the background — another user may have just
+    // scheduled the trailer that's still in our cached list, so refresh
+    // before the operator can submit a duplicate.
+    if (state == AppLifecycleState.resumed) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -75,7 +90,20 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
     try {
       final data = await context.read<DeliveriesViewModel>().getCreateFormData();
       if (!mounted) return;
-      setState(() => _formData = data);
+      // If the trailer the user had picked is no longer in the eligible
+      // list (e.g. someone else just scheduled it), clear the selection so
+      // the dropdown doesn't crash with "no item matches the current value".
+      final allowedIds = data.trailers
+          .map((t) => (t['id'] as num?)?.toInt())
+          .whereType<int>()
+          .toSet();
+      setState(() {
+        _formData = data;
+        if (_trailerId != null && !allowedIds.contains(_trailerId)) {
+          _trailerId = null;
+        }
+        _selectedTrailerIds.removeWhere((id) => !allowedIds.contains(id));
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -87,6 +115,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _addressCtrl.dispose();
     _phoneCtrl.dispose();
     _balanceCtrl.dispose();
@@ -104,6 +133,16 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_batchMode ? l.batchScreenNewBatch : l.createDeliveryTitle),
+        actions: [
+          IconButton(
+            tooltip: l.commonRetry,
+            icon: const Icon(Icons.refresh),
+            // Eligibility staleness escape hatch — operator can force the
+            // list to refresh if they know someone else just scheduled a
+            // trailer or completed a pickup.
+            onPressed: _submitting ? null : _load,
+          ),
+        ],
       ),
       body: data == null
           ? _loadError != null
@@ -347,6 +386,18 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
       ),
       const SizedBox(height: 12),
 
+      // Planned delivery date — fires the calendar picker. Hidden on
+      // factory_pickup because those are recorded as already-delivered in
+      // one step, so the date is implicit (today).
+      if (!_isFactoryPickup) ...[
+        _ScheduledDateField(
+          value: _scheduledDate,
+          enabled: !_submitting,
+          onPicked: (d) => setState(() => _scheduledDate = d),
+        ),
+        const SizedBox(height: 12),
+      ],
+
       // A single delivery can join an existing batch — new batches are made
       // with the "Batch" mode toggle above, not here.
       if (!_isFactoryPickup)
@@ -464,6 +515,14 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
           border: const OutlineInputBorder(),
         ),
       ),
+      const SizedBox(height: 12),
+      // One date for the whole batch — it gets stamped on every delivery
+      // created from the selected trailers.
+      _ScheduledDateField(
+        value: _scheduledDate,
+        enabled: !_submitting,
+        onPicked: (d) => setState(() => _scheduledDate = d),
+      ),
       const SizedBox(height: 16),
       Text(
         l.createDeliveryTrailersSelected(_selectedTrailerIds.length),
@@ -522,6 +581,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
           destinationLocationId: _batchDestinationLocationId,
           destinationName: _batchDestNameCtrl.text.trim(),
           trailerIds: _selectedTrailerIds.toList(),
+          scheduledDate: _scheduledDate,
         );
       } else {
         await vm.createDelivery(
@@ -541,6 +601,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen> {
           paymentCollected: _isFactoryPickup
               ? double.tryParse(_amountCtrl.text.trim())
               : null,
+          scheduledDate: _isFactoryPickup ? null : _scheduledDate,
         );
       }
       if (!mounted) return;
@@ -627,5 +688,65 @@ class _BatchTrailerPicker extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Read-only field that opens the platform calendar picker and surfaces the
+/// chosen date back. Null state shows "Pick a date" as the placeholder so
+/// the field never reads as "filled" before the user touches it.
+class _ScheduledDateField extends StatelessWidget {
+  final DateTime? value;
+  final bool enabled;
+  final ValueChanged<DateTime?> onPicked;
+
+  const _ScheduledDateField({
+    required this.value,
+    required this.enabled,
+    required this.onPicked,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final formatted = value == null
+        ? l.createDeliveryScheduledPickHint
+        : '${value!.year.toString().padLeft(4, '0')}-${value!.month.toString().padLeft(2, '0')}-${value!.day.toString().padLeft(2, '0')}';
+    return InkWell(
+      onTap: enabled ? () => _open(context) : null,
+      borderRadius: BorderRadius.circular(4),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: l.createDeliveryScheduledDate,
+          border: const OutlineInputBorder(),
+          suffixIcon: value != null && enabled
+              ? IconButton(
+                  tooltip: l.commonClear,
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => onPicked(null),
+                )
+              : const Icon(Icons.calendar_month_outlined),
+        ),
+        child: Text(
+          formatted,
+          style: TextStyle(
+            color: value == null ? Theme.of(context).hintColor : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _open(BuildContext context) async {
+    final now = DateTime.now();
+    final initial = value ?? DateTime(now.year, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      // 30 days back covers backdating a missed delivery; two years out
+      // covers any realistic future plan.
+      firstDate: DateTime(now.year, now.month, now.day - 30),
+      lastDate: DateTime(now.year + 2, now.month, now.day),
+    );
+    if (picked != null) onPicked(picked);
   }
 }

@@ -24,6 +24,17 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
 
+/**
+ * Parses a YYYY-MM-DD ISO date string into a Date. Returns null when the
+ * input is null/empty/garbage, so it composes cleanly with optional DTO
+ * fields and DATE columns that accept null.
+ */
+function parseISODate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 // Shared select for delivery queries
 const deliverySelect = {
   id: true,
@@ -39,6 +50,7 @@ const deliverySelect = {
   paymentMethod: true,
   status: true,
   tcAccepted: true,
+  scheduledDate: true,
   departedAt: true,
   deliveredAt: true,
   failReason: true,
@@ -149,6 +161,12 @@ export class DeliveriesService {
     const deliveryType = dto.deliveryType as DeliveryType;
     const trailerId = BigInt(dto.trailerId);
 
+    // ISO `YYYY-MM-DD` to a Date for the DATE column. The class-validator
+    // IsISO8601 check has already vetted the format, but parseISODate
+    // returns null on garbage so we don't blow up on a malformed payload
+    // that slipped past validation.
+    const scheduledDate = parseISODate(dto.scheduledDate);
+
     // A factory pickup is recorded in one step — the customer collects the
     // trailer at the factory, so the delivery is created already delivered
     // and the trailer is moved to "delivered" in the same transaction.
@@ -203,6 +221,7 @@ export class DeliveriesService {
               : null,
             createdByUserId,
             status: DeliveryStatus.scheduled,
+            scheduledDate,
           },
           select: deliverySelect,
         });
@@ -226,6 +245,7 @@ export class DeliveriesService {
         deliveryBatchId: dto.deliveryBatchId ? BigInt(dto.deliveryBatchId) : null,
         createdByUserId,
         status: DeliveryStatus.scheduled,
+        scheduledDate,
       },
       select: deliverySelect,
     });

@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsNotEmpty,
   IsArray,
+  IsISO8601,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -53,4 +54,14 @@ export class CreateBatchDto {
   @IsInt({ each: true })
   @Type(() => Number)
   trailerIds?: number[];
+
+  // Stamped on every per-trailer delivery row this batch creates, so the
+  // transport portal can sort the batch by upcoming date.
+  @ApiPropertyOptional({
+    description: 'Planned date for every delivery in this batch (YYYY-MM-DD)',
+    example: '2026-07-15',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: false })
+  scheduledDate?: string;
 }

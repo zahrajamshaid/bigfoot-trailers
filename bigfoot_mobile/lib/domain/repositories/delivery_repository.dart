@@ -43,6 +43,9 @@ abstract class DeliveryRepository {
     // factory_pickup only — recorded as already picked up on creation.
     String? pickedUpByName,
     double? paymentCollected,
+    /// Planned delivery date. Ignored by the backend on factory_pickup
+    /// since those are recorded as already-delivered in one step.
+    DateTime? scheduledDate,
   });
 
   Future<void> markFailed(int deliveryId, String failReason);
@@ -74,6 +77,8 @@ abstract class DeliveryRepository {
     int? destinationLocationId,
     String? destinationName,
     List<int>? trailerIds,
+    /// Stamped on every per-trailer delivery the batch creates.
+    DateTime? scheduledDate,
   });
 
   Future<void> updateBatch({

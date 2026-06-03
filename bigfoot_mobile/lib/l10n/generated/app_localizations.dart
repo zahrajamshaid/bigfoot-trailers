@@ -158,6 +158,12 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get commonClose;
 
+  /// No description provided for @commonClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get commonClear;
+
   /// No description provided for @commonYes.
   ///
   /// In en, this message translates to:
@@ -3368,6 +3374,12 @@ abstract class AppLocalizations {
   /// **'Driver: {value}'**
   String deliveryListDriverLabel(String value);
 
+  /// No description provided for @deliveryListScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled: {value}'**
+  String deliveryListScheduled(String value);
+
   /// No description provided for @deliveryDetailTitle.
   ///
   /// In en, this message translates to:
@@ -4604,6 +4616,18 @@ abstract class AppLocalizations {
   /// **'Batch number is required'**
   String get createDeliveryBatchNumberRequired;
 
+  /// No description provided for @createDeliveryScheduledDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled Date'**
+  String get createDeliveryScheduledDate;
+
+  /// No description provided for @createDeliveryScheduledPickHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get createDeliveryScheduledPickHint;
+
   /// No description provided for @createDeliveryBatchType.
   ///
   /// In en, this message translates to:
@@ -4765,6 +4789,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove Delivery ID (optional)'**
   String get batchScreenRemoveDeliveryId;
+
+  /// No description provided for @batchScreenTrailersInBatchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently in batch ({count})'**
+  String batchScreenTrailersInBatchLabel(int count);
+
+  /// No description provided for @batchScreenNoTrailersInBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No trailers in this batch yet.'**
+  String get batchScreenNoTrailersInBatch;
+
+  /// No description provided for @batchScreenRemoveTrailer.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from batch'**
+  String get batchScreenRemoveTrailer;
+
+  /// No description provided for @batchScreenUndoRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo remove'**
+  String get batchScreenUndoRemove;
+
+  /// No description provided for @batchScreenAddTrailersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ready trailers ({count} selected)'**
+  String batchScreenAddTrailersLabel(int count);
+
+  /// No description provided for @batchScreenUpdateFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed: {error}'**
+  String batchScreenUpdateFail(String error);
 
   /// No description provided for @batchScreenCompletedNote.
   ///

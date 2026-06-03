@@ -207,6 +207,40 @@ describe('DeliveriesService', () => {
       );
     });
 
+    it('should persist scheduledDate on a single_pull delivery', async () => {
+      mockPrisma.trailer.findUnique.mockResolvedValue(mockTrailerReady);
+      mockPrisma.delivery.create.mockResolvedValue({ id: BigInt(100) });
+
+      await service.create(
+        {
+          trailerId: 1,
+          deliveryType: 'single_pull' as any,
+          scheduledDate: '2026-07-15',
+        },
+        BigInt(10),
+      );
+
+      const callArgs = mockPrisma.delivery.create.mock.calls[0][0];
+      const persisted: Date = callArgs.data.scheduledDate;
+      expect(persisted).toBeInstanceOf(Date);
+      // ISO YYYY-MM-DD parses as UTC midnight; format back the UTC date
+      // portion to assert what the DATE column will store.
+      expect(persisted.toISOString().slice(0, 10)).toBe('2026-07-15');
+    });
+
+    it('should pass scheduledDate=null when DTO omits it', async () => {
+      mockPrisma.trailer.findUnique.mockResolvedValue(mockTrailerReady);
+      mockPrisma.delivery.create.mockResolvedValue({ id: BigInt(100) });
+
+      await service.create(
+        { trailerId: 1, deliveryType: 'single_pull' as any },
+        BigInt(10),
+      );
+
+      const callArgs = mockPrisma.delivery.create.mock.calls[0][0];
+      expect(callArgs.data.scheduledDate).toBeNull();
+    });
+
     it('should create stack_to_dealer delivery type', async () => {
       mockPrisma.trailer.findUnique.mockResolvedValue(mockTrailerReady);
       mockPrisma.delivery.create.mockResolvedValue({ id: BigInt(100) });

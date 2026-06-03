@@ -208,7 +208,7 @@ describe('BatchesService', () => {
       );
     });
 
-    it('should throw BATCH_NOT_BUILDING if batch is not in building status', async () => {
+    it('should throw BATCH_NOT_BUILDING when batch is in_transit', async () => {
       mockPrisma.deliveryBatch.findUnique.mockResolvedValue({
         id: BigInt(1),
         status: 'in_transit',
@@ -217,6 +217,36 @@ describe('BatchesService', () => {
       await expect(
         service.update(BigInt(1), { addTrailerIds: [5] }, BigInt(10)),
       ).rejects.toMatchObject({ errorCode: ErrorCode.BATCH_NOT_BUILDING });
+    });
+
+    it('should throw BATCH_NOT_BUILDING when batch is complete', async () => {
+      mockPrisma.deliveryBatch.findUnique.mockResolvedValue({
+        id: BigInt(1),
+        status: 'complete',
+      });
+
+      await expect(
+        service.update(BigInt(1), { addTrailerIds: [5] }, BigInt(10)),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BATCH_NOT_BUILDING });
+    });
+
+    it('should allow editing a scheduled batch (not yet dispatched)', async () => {
+      mockPrisma.deliveryBatch.findUnique.mockResolvedValue({
+        id: BigInt(1),
+        status: 'scheduled',
+        batchType: 'dealer',
+        destinationLocationId: null,
+      });
+      mockPrisma.trailer.findMany.mockResolvedValue([
+        { id: BigInt(5), status: 'ready_for_delivery' },
+      ]);
+      mockPrisma.deliveryBatch.findUniqueOrThrow.mockResolvedValue({
+        id: BigInt(1),
+      });
+
+      await service.update(BigInt(1), { addTrailerIds: [5] }, BigInt(10));
+
+      expect(mockPrisma.delivery.createMany).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for unknown batch', async () => {

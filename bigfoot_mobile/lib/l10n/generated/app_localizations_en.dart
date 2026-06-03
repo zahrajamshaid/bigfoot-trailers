@@ -39,6 +39,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonClose => 'Close';
 
   @override
+  String get commonClear => 'Clear';
+
+  @override
   String get commonYes => 'Yes';
 
   @override
@@ -1923,6 +1926,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String deliveryListScheduled(String value) {
+    return 'Scheduled: $value';
+  }
+
+  @override
   String deliveryDetailTitle(int id) {
     return 'Delivery #$id';
   }
@@ -2647,6 +2655,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createDeliveryBatchNumberRequired => 'Batch number is required';
 
   @override
+  String get createDeliveryScheduledDate => 'Scheduled Date';
+
+  @override
+  String get createDeliveryScheduledPickHint => 'Pick a date';
+
+  @override
   String get createDeliveryBatchType => 'Batch Type';
 
   @override
@@ -2760,6 +2774,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get batchScreenRemoveDeliveryId => 'Remove Delivery ID (optional)';
+
+  @override
+  String batchScreenTrailersInBatchLabel(int count) {
+    return 'Currently in batch ($count)';
+  }
+
+  @override
+  String get batchScreenNoTrailersInBatch => 'No trailers in this batch yet.';
+
+  @override
+  String get batchScreenRemoveTrailer => 'Remove from batch';
+
+  @override
+  String get batchScreenUndoRemove => 'Undo remove';
+
+  @override
+  String batchScreenAddTrailersLabel(int count) {
+    return 'Add ready trailers ($count selected)';
+  }
+
+  @override
+  String batchScreenUpdateFail(String error) {
+    return 'Update failed: $error';
+  }
 
   @override
   String get batchScreenCompletedNote =>

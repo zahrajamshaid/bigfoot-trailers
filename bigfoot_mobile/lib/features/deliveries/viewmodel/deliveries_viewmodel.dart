@@ -147,6 +147,7 @@ class DeliveriesViewModel extends Cubit<DeliveriesState> {
     int? deliveryBatchId,
     String? pickedUpByName,
     double? paymentCollected,
+    DateTime? scheduledDate,
   }) => _repository.createDelivery(
     trailerId: trailerId,
     deliveryType: deliveryType,
@@ -158,6 +159,7 @@ class DeliveriesViewModel extends Cubit<DeliveriesState> {
     deliveryBatchId: deliveryBatchId,
     pickedUpByName: pickedUpByName,
     paymentCollected: paymentCollected,
+    scheduledDate: scheduledDate,
   );
 
   Future<void> markFailed(int deliveryId, String failReason) =>
@@ -195,6 +197,7 @@ class DeliveriesViewModel extends Cubit<DeliveriesState> {
     int? destinationLocationId,
     String? destinationName,
     List<int>? trailerIds,
+    DateTime? scheduledDate,
   }) => _repository.createBatch(
     batchNumber: batchNumber,
     batchType: batchType,
@@ -202,6 +205,7 @@ class DeliveriesViewModel extends Cubit<DeliveriesState> {
     destinationLocationId: destinationLocationId,
     destinationName: destinationName,
     trailerIds: trailerIds,
+    scheduledDate: scheduledDate,
   );
 
   Future<void> updateBatch({

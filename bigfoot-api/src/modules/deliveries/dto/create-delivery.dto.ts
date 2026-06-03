@@ -6,6 +6,7 @@ import {
   IsString,
   Min,
   MaxLength,
+  IsISO8601,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -56,6 +57,17 @@ export class CreateDeliveryDto {
   @IsInt()
   @Type(() => Number)
   deliveryBatchId?: number;
+
+  // Planned date the delivery should go out. Sales / transport fills it in
+  // so the transport portal can show what's coming up; ignored on
+  // factory_pickup (those are recorded as already-delivered in one step).
+  @ApiPropertyOptional({
+    description: 'Planned delivery date (YYYY-MM-DD)',
+    example: '2026-07-15',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: false })
+  scheduledDate?: string;
 
   // --- factory_pickup only -------------------------------------------------
   // A factory pickup is recorded in one step: the customer collects the
