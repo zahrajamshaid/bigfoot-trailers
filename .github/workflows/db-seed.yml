@@ -45,6 +45,7 @@ on:
           - backfill-over-24ft-to-hydraulics # one-shot: reroute waiting WIRE step-9 → HYDRAULICS for non-gooseneck trailers >24ft
           - seed-jig-coupler-checks # add "Correct coupler installed" check to every jig dept (worker self-check) + QC_1 (inspection)
           - fix-parts-b-role # one-shot: set parts_b@bigfoot.dev role from `worker` to `parts`
+          - apply-scheduled-date-column # one-shot: ALTER TABLE deliveries ADD scheduled_date DATE (idempotent)
 
 concurrency:
   group: db-seed-prod
