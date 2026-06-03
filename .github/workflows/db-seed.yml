@@ -43,6 +43,7 @@ on:
           - seed-jig-queue-low-enum # one-shot: ALTER TYPE notification_type_enum ADD 'jig_queue_low'
           - fix-trailer-6580-to-hydraulics # one-shot: move SO 6580's step-9 from WIRE → HYDRAULICS
           - backfill-over-24ft-to-hydraulics # one-shot: reroute waiting WIRE step-9 → HYDRAULICS for non-gooseneck trailers >24ft
+          - seed-jig-coupler-checks # add "Correct coupler installed" check to every jig dept (worker self-check) + QC_1 (inspection)
 
 concurrency:
   group: db-seed-prod
