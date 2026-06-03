@@ -2786,6 +2786,24 @@ abstract class AppLocalizations {
   /// **'Failed to add rate: {msg}'**
   String payrollDrAddFail(String msg);
 
+  /// No description provided for @payrollDrDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete dollar rate?'**
+  String get payrollDrDeleteTitle;
+
+  /// No description provided for @payrollDrDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the \${rate}/point rate for {dept}? This cannot be undone.'**
+  String payrollDrDeleteBody(String rate, String dept);
+
+  /// No description provided for @payrollDrDeleteFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete rate: {msg}'**
+  String payrollDrDeleteFail(String msg);
+
   /// No description provided for @customersTitle.
   ///
   /// In en, this message translates to:

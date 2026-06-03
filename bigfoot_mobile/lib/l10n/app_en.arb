@@ -637,6 +637,11 @@
   "payrollDrValidNumber": "Enter a valid positive number",
   "payrollDrAddFail": "Failed to add rate: {msg}",
   "@payrollDrAddFail": {"placeholders": {"msg": {"type": "String"}}},
+  "payrollDrDeleteTitle": "Delete dollar rate?",
+  "payrollDrDeleteBody": "Remove the ${rate}/point rate for {dept}? This cannot be undone.",
+  "@payrollDrDeleteBody": {"placeholders": {"rate": {"type": "String"}, "dept": {"type": "String"}}},
+  "payrollDrDeleteFail": "Failed to delete rate: {msg}",
+  "@payrollDrDeleteFail": {"placeholders": {"msg": {"type": "String"}}},
 
   "customersTitle": "Customers",
   "customersLoadFail": "Unable to load customers: {msg}",

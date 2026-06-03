@@ -130,4 +130,9 @@ class PayrollRepositoryImpl implements PayrollRepository {
     );
     return DollarRate.fromJson(resp.data!);
   }
+
+  @override
+  Future<void> deleteDollarRate(int id) async {
+    await _api.delete(ApiEndpoints.payrollDollarRate(id));
+  }
 }

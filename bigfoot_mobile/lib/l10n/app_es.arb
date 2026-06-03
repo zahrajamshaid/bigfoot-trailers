@@ -637,6 +637,11 @@
   "payrollDrValidNumber": "Ingrese un número positivo válido",
   "payrollDrAddFail": "Error al agregar tarifa: {msg}",
   "@payrollDrAddFail": {"placeholders": {"msg": {"type": "String"}}},
+  "payrollDrDeleteTitle": "¿Eliminar tarifa?",
+  "payrollDrDeleteBody": "¿Eliminar la tarifa de ${rate}/punto para {dept}? Esto no se puede deshacer.",
+  "@payrollDrDeleteBody": {"placeholders": {"rate": {"type": "String"}, "dept": {"type": "String"}}},
+  "payrollDrDeleteFail": "Error al eliminar tarifa: {msg}",
+  "@payrollDrDeleteFail": {"placeholders": {"msg": {"type": "String"}}},
 
   "customersTitle": "Clientes",
   "customersLoadFail": "No se pudieron cargar los clientes: {msg}",

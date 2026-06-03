@@ -133,6 +133,8 @@ class PayrollViewModel extends Cubit<PayrollState> {
     effectiveFrom: effectiveFrom,
   );
 
+  Future<void> deleteDollarRate(int id) => _repository.deleteDollarRate(id);
+
   DateTime weekStartSunday(DateTime date) {
     final utc = DateTime.utc(date.year, date.month, date.day);
     final day = utc.weekday % 7;

@@ -269,6 +269,11 @@ class WeeklyPayrollDepartment {
   final double dollarPerPoint;
   @JsonKey(fromJson: _parseDouble)
   final double grossPay;
+  /// Distinct trailers this worker touched in this department for the week
+  /// (SO, length, model). Defaults to empty so older payloads that don't
+  /// carry the field still deserialise cleanly.
+  @JsonKey(defaultValue: <WeeklyPayrollTrailer>[])
+  final List<WeeklyPayrollTrailer> trailers;
 
   const WeeklyPayrollDepartment({
     required this.departmentId,
@@ -279,11 +284,38 @@ class WeeklyPayrollDepartment {
     this.reworkCount = 0,
     this.dollarPerPoint = 0,
     this.grossPay = 0,
+    this.trailers = const <WeeklyPayrollTrailer>[],
   });
 
   factory WeeklyPayrollDepartment.fromJson(Map<String, dynamic> json) =>
       _$WeeklyPayrollDepartmentFromJson(json);
   Map<String, dynamic> toJson() => _$WeeklyPayrollDepartmentToJson(this);
+}
+
+/// One trailer the worker touched in a given department this week. Surfaces
+/// on the weekly payroll report drilldown + the CSV detail block.
+@JsonSerializable()
+class WeeklyPayrollTrailer {
+  final String trailerId;
+  final String soNumber;
+  final String? sizeFt;
+  final String? modelName;
+  @JsonKey(fromJson: _parseDouble)
+  final double points;
+  final bool isRework;
+
+  const WeeklyPayrollTrailer({
+    required this.trailerId,
+    required this.soNumber,
+    this.sizeFt,
+    this.modelName,
+    this.points = 0,
+    this.isRework = false,
+  });
+
+  factory WeeklyPayrollTrailer.fromJson(Map<String, dynamic> json) =>
+      _$WeeklyPayrollTrailerFromJson(json);
+  Map<String, dynamic> toJson() => _$WeeklyPayrollTrailerToJson(this);
 }
 
 @JsonSerializable()

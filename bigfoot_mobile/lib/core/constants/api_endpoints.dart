@@ -62,6 +62,7 @@ abstract final class ApiEndpoints {
   static const String payrollPointValues = '/payroll/point-values';
   static String payrollPointValue(int id) => '/payroll/point-values/$id';
   static const String payrollDollarRates = '/payroll/dollar-rates';
+  static String payrollDollarRate(int id) => '/payroll/dollar-rates/$id';
   static const String payrollRecords = '/payroll/records';
   static String payrollWeekReport(String weekStart) =>
       '/payroll/records/week/$weekStart';

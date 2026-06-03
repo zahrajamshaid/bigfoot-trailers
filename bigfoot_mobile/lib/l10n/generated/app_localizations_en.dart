@@ -1550,6 +1550,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get payrollDrDeleteTitle => 'Delete dollar rate?';
+
+  @override
+  String payrollDrDeleteBody(String rate, String dept) {
+    return 'Remove the \$$rate/point rate for $dept? This cannot be undone.';
+  }
+
+  @override
+  String payrollDrDeleteFail(String msg) {
+    return 'Failed to delete rate: $msg';
+  }
+
+  @override
   String get customersTitle => 'Customers';
 
   @override

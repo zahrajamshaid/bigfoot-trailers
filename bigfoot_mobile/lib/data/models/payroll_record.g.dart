@@ -305,6 +305,12 @@ WeeklyPayrollDepartment _$WeeklyPayrollDepartmentFromJson(
       ? 0
       : _parseDouble(json['dollarPerPoint']),
   grossPay: json['grossPay'] == null ? 0 : _parseDouble(json['grossPay']),
+  trailers: (json['trailers'] as List<dynamic>?)
+          ?.map(
+            (e) => WeeklyPayrollTrailer.fromJson(e as Map<String, dynamic>),
+          )
+          .toList() ??
+      const <WeeklyPayrollTrailer>[],
 );
 
 Map<String, dynamic> _$WeeklyPayrollDepartmentToJson(
@@ -318,6 +324,29 @@ Map<String, dynamic> _$WeeklyPayrollDepartmentToJson(
   'reworkCount': instance.reworkCount,
   'dollarPerPoint': instance.dollarPerPoint,
   'grossPay': instance.grossPay,
+  'trailers': instance.trailers.map((e) => e.toJson()).toList(),
+};
+
+WeeklyPayrollTrailer _$WeeklyPayrollTrailerFromJson(
+  Map<String, dynamic> json,
+) => WeeklyPayrollTrailer(
+  trailerId: json['trailerId'] as String,
+  soNumber: json['soNumber'] as String,
+  sizeFt: json['sizeFt'] as String?,
+  modelName: json['modelName'] as String?,
+  points: json['points'] == null ? 0 : _parseDouble(json['points']),
+  isRework: json['isRework'] as bool? ?? false,
+);
+
+Map<String, dynamic> _$WeeklyPayrollTrailerToJson(
+  WeeklyPayrollTrailer instance,
+) => <String, dynamic>{
+  'trailerId': instance.trailerId,
+  'soNumber': instance.soNumber,
+  'sizeFt': instance.sizeFt,
+  'modelName': instance.modelName,
+  'points': instance.points,
+  'isRework': instance.isRework,
 };
 
 PayrollLockResult _$PayrollLockResultFromJson(Map<String, dynamic> json) =>

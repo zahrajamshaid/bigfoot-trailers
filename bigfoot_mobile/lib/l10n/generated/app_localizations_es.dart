@@ -1563,6 +1563,19 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get payrollDrDeleteTitle => '¿Eliminar tarifa?';
+
+  @override
+  String payrollDrDeleteBody(String rate, String dept) {
+    return '¿Eliminar la tarifa de \$$rate/punto para $dept? Esto no se puede deshacer.';
+  }
+
+  @override
+  String payrollDrDeleteFail(String msg) {
+    return 'Error al eliminar tarifa: $msg';
+  }
+
+  @override
   String get customersTitle => 'Clientes';
 
   @override

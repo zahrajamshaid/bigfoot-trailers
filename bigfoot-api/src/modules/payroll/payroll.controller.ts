@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -98,6 +99,20 @@ export class PayrollController {
   @ApiResponse({ status: 400, description: 'Invalid department' })
   async createDollarRate(@Body() dto: CreateDollarRateDto) {
     return this.payrollService.createDollarRate(dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE /payroll/dollar-rates/:id — owner + production_manager
+  // ---------------------------------------------------------------------------
+  @Delete('dollar-rates/:id')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a dollar-per-point rate entry' })
+  @ApiParam({ name: 'id', type: 'number', description: 'Dollar rate id' })
+  @ApiResponse({ status: 200, description: 'Dollar rate deleted' })
+  @ApiResponse({ status: 404, description: 'Dollar rate not found' })
+  async deleteDollarRate(@Param('id', ParseIntPipe) id: number) {
+    return this.payrollService.deleteDollarRate(id);
   }
 
   // ---------------------------------------------------------------------------

@@ -24,4 +24,5 @@ abstract class PayrollRepository {
     required double dollarPerPoint,
     required DateTime effectiveFrom,
   });
+  Future<void> deleteDollarRate(int id);
 }

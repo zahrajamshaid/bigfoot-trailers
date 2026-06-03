@@ -210,6 +210,27 @@ export class PayrollService {
   }
 
   // ---------------------------------------------------------------------------
+  // DELETE /payroll/dollar-rates/:id — remove a dollar rate entry
+  // ---------------------------------------------------------------------------
+  async deleteDollarRate(id: number) {
+    const existing = await this.prisma.deptDollarRate.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Dollar rate with id ${id} not found`,
+      );
+    }
+
+    await this.prisma.deptDollarRate.delete({ where: { id } });
+
+    return { id, deleted: true };
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /payroll/records — get payroll records with filters
   // ---------------------------------------------------------------------------
   async findPayrollRecords(query: QueryPayrollRecordsDto) {

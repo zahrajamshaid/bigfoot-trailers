@@ -4,8 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/department.dart';
 import '../../../data/models/payroll_record.dart';
+import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../admin/viewmodel/admin_viewmodel.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/payroll_viewmodel.dart';
 
 class DollarRatesScreen extends StatefulWidget {
@@ -43,9 +45,48 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
     }
   }
 
+  Future<void> _confirmDelete(DollarRate rate, String deptName) async {
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.payrollDrDeleteTitle),
+        content: Text(l.payrollDrDeleteBody(
+            rate.dollarPerPoint.toStringAsFixed(2), deptName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.commonDelete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await context.read<PayrollViewModel>().deleteDollarRate(rate.id);
+      if (mounted) await _load();
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l.payrollDrDeleteFail('$e'))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final auth = context.watch<AuthViewModel>().state;
+    final role = auth is Authenticated ? auth.user.role : '';
+    final canManage =
+        role == UserRole.owner || role == UserRole.productionManager;
     final grouped = <int, List<DollarRate>>{};
     for (final r in _rates) {
       grouped.putIfAbsent(r.departmentId, () => []).add(r);
@@ -106,6 +147,15 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
                                               .split('T')
                                               .first ??
                                           l.payrollDrPresent)),
+                                  trailing: canManage
+                                      ? IconButton(
+                                          icon: const Icon(Icons.delete_outline,
+                                              color: AppColors.error),
+                                          tooltip: l.commonDelete,
+                                          onPressed: () =>
+                                              _confirmDelete(r, deptName),
+                                        )
+                                      : null,
                                 ),
                               ),
                             ],
