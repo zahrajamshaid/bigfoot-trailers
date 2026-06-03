@@ -73,10 +73,22 @@ export class UsersController {
 
   // ---------------------------------------------------------------------------
   // GET /users/drivers — active drivers for delivery assignment
-  // (transport_manager + owner; must be BEFORE the :id route)
+  //
+  // Originally transport_manager + owner only, but sales / office /
+  // production_manager all surface a driver dropdown when they create or
+  // edit a delivery. Without access the call 403s and the mobile silently
+  // falls back to an empty dropdown — operators see no drivers and can't
+  // assign one. Read-only list (active drivers, no PII beyond name).
+  // Must remain BEFORE the :id route so 'drivers' isn't matched as an id.
   // ---------------------------------------------------------------------------
   @Get('drivers')
-  @Roles(UserRole.OWNER, UserRole.TRANSPORT_MANAGER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.TRANSPORT_MANAGER,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.SALES,
+    UserRole.OFFICE,
+  )
   @ApiOperation({ summary: 'List active drivers for delivery assignment' })
   @ApiResponse({ status: 200, description: 'Active drivers' })
   async findDrivers() {
