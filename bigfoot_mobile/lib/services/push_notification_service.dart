@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import '../core/platform/platform_support.dart';
 import '../firebase_options.dart';
 
 class PushPayload {
@@ -38,6 +39,13 @@ class PushNotificationService {
     required Future<void> Function(PushPayload payload) onForeground,
     required Future<void> Function(PushPayload payload) onOpened,
   }) async {
+    // Desktop + web have no FCM implementation here; live notifications on
+    // those targets flow through the WebSocket channel only.
+    if (!PlatformSupport.supportsFcm) {
+      _messaging = null;
+      return;
+    }
+
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -78,6 +86,7 @@ class PushNotificationService {
   }
 
   Future<String?> getToken() async {
+    if (!PlatformSupport.supportsFcm) return null;
     return _messaging?.getToken();
   }
 

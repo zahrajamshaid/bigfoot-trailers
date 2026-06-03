@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../data/models/storage_upload.dart';
+import '../platform/platform_support.dart';
 
 class CameraPermissionDeniedException implements Exception {
   final String message;
@@ -63,12 +64,16 @@ class CameraService {
   }
 
   Future<bool> _ensureCameraPermission() async {
+    // Desktop targets get the system camera/file dialog from image_picker
+    // itself — there's no permission_handler implementation to call.
+    if (!PlatformSupport.supportsPermissionHandler) return true;
     final status = await Permission.camera.request();
     if (status.isGranted) return true;
     throw const CameraPermissionDeniedException('Camera permission denied');
   }
 
   Future<bool> _ensureGalleryPermission() async {
+    if (!PlatformSupport.supportsPermissionHandler) return true;
     final status = await Permission.photos.request();
     if (status.isGranted) return true;
     final storageStatus = await Permission.storage.request();
@@ -77,6 +82,9 @@ class CameraService {
   }
 
   Future<Position?> _currentPosition() async {
+    // GPS tagging is a phone-capture niceity; on desktop we skip it rather
+    // than wire a separate location-permission flow.
+    if (!PlatformSupport.supportsPermissionHandler) return null;
     try {
       if (!await Permission.locationWhenInUse.request().isGranted) return null;
       return Geolocator.getCurrentPosition(

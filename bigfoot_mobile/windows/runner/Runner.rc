@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.bigfoottrailers" "\0"
-            VALUE "FileDescription", "bigfoot_mobile" "\0"
+            VALUE "CompanyName", "Bigfoot Trailers" "\0"
+            VALUE "FileDescription", "Bigfoot Trailers Production Management" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "bigfoot_mobile" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.bigfoottrailers. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Bigfoot Trailers. All rights reserved." "\0"
             VALUE "OriginalFilename", "bigfoot_mobile.exe" "\0"
-            VALUE "ProductName", "bigfoot_mobile" "\0"
+            VALUE "ProductName", "Bigfoot Trailers" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
