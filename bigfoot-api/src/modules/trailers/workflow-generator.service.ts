@@ -13,10 +13,18 @@ export interface GeneratedStepsSummary {
 
 const PAINT_A_CODE = 'PAINT_A';
 const PAINT_B_CODE = 'PAINT_B';
+const WIRE_CODE = 'WIRE';
+const HYDRAULICS_CODE = 'HYDRAULICS';
 
 // PAINT_A is the smaller booth — only fits trailers under this length.
 // Anything at or above goes to PAINT_B regardless of queue balance.
 const PAINT_A_MAX_FT = 25;
+
+// Anything strictly OVER this length on XP/Yeti/Deck-Over series — which
+// would normally land at WIRE on step 9 — gets diverted to HYDRAULICS
+// instead. Gooseneck series already template to HYDRAULICS so they are
+// unaffected by this override.
+const WIRE_MAX_FT = 24;
 
 // trailer.sizeFt is a free-form string (we backfilled out the trailing "ft"
 // suffix). Parse it tolerantly: pull the first integer/decimal we see; if
@@ -95,6 +103,16 @@ export class WorkflowGeneratorService {
         : await this.pickLighterPaintBooth(tx);
     }
 
+    // WIRE → HYDRAULICS override: non-gooseneck trailers strictly over
+    // WIRE_MAX_FT feet need hydraulic systems, so step 9 is re-pointed at
+    // HYDRAULICS. Goosenecks already template to HYDRAULICS at step 9 so
+    // they don't need (or get) this override.
+    const forceHydraulicsOverWire =
+      !isGooseneck && lengthFt !== null && lengthFt > WIRE_MAX_FT;
+    const hydraulicsDeptId = forceHydraulicsOverWire
+      ? await this.resolveDeptIdByCode(tx, HYDRAULICS_CODE)
+      : null;
+
     const now = new Date();
     let firstActiveStepId: bigint | null = null;
 
@@ -109,10 +127,13 @@ export class WorkflowGeneratorService {
       const isPaintBoothStep =
         template.department.code === PAINT_A_CODE ||
         template.department.code === PAINT_B_CODE;
-      const departmentId =
-        isPaintBoothStep && paintBoothDeptId !== null
-          ? paintBoothDeptId
-          : template.departmentId;
+      const isWireStep = template.department.code === WIRE_CODE;
+      let departmentId = template.departmentId;
+      if (isPaintBoothStep && paintBoothDeptId !== null) {
+        departmentId = paintBoothDeptId;
+      } else if (isWireStep && hydraulicsDeptId !== null) {
+        departmentId = hydraulicsDeptId;
+      }
 
       const step = await tx.productionStep.create({
         data: {
@@ -168,6 +189,23 @@ export class WorkflowGeneratorService {
       );
     }
     return fallback.id;
+  }
+
+  private async resolveDeptIdByCode(
+    tx: Prisma.TransactionClient,
+    code: string,
+  ): Promise<number> {
+    const dept = await tx.department.findFirst({
+      where: { code },
+      select: { id: true },
+    });
+    if (!dept) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Department "${code}" is missing — seed misconfiguration`,
+      );
+    }
+    return dept.id;
   }
 
   private async pickLighterPaintBooth(tx: Prisma.TransactionClient): Promise<number> {

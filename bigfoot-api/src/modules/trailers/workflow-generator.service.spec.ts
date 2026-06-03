@@ -140,6 +140,13 @@ const mockTx = {
         .map((c) => ({ id: DEPT[c].id, code: c }));
       return Promise.resolve(matched);
     }),
+    findFirst: jest.fn().mockImplementation(({ where }: any) => {
+      const code: string | undefined = where?.code;
+      if (code && code in DEPT) {
+        return Promise.resolve({ id: DEPT[code].id });
+      }
+      return Promise.resolve(null);
+    }),
   },
 };
 
@@ -514,6 +521,86 @@ describe('WorkflowGeneratorService', () => {
 
       const paintStep = createdSteps[6];
       expect(paintStep.departmentId).toBe(DEPT.PAINT_B.id);
+    });
+  });
+
+  // =========================================================================
+  // WIRE → HYDRAULICS override for trailers strictly over 24ft
+  // =========================================================================
+  describe('WIRE → HYDRAULICS override (>24ft)', () => {
+    const NON_GN_SERIES = ['xp', 'yeti', 'deck_over'] as const;
+
+    it.each(NON_GN_SERIES)(
+      '%s @ 28ft: step 9 lands at HYDRAULICS instead of WIRE',
+      async (series) => {
+        mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows(series));
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any, '28ft');
+
+        const step9 = createdSteps[8];
+        expect(step9.stepOrder).toBe(9);
+        expect(step9.departmentId).toBe(DEPT.HYDRAULICS.id);
+        const deptIds = createdSteps.map((s) => s.departmentId);
+        expect(deptIds).not.toContain(DEPT.WIRE.id);
+      },
+    );
+
+    it.each(NON_GN_SERIES)(
+      '%s @ 24ft: step 9 stays at WIRE (boundary — not strictly over)',
+      async (series) => {
+        mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows(series));
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any, '24ft');
+
+        const step9 = createdSteps[8];
+        expect(step9.departmentId).toBe(DEPT.WIRE.id);
+      },
+    );
+
+    it('xp @ 24.5ft: step 9 lands at HYDRAULICS (fractional > 24)', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('xp'));
+
+      await service.generateSteps(BigInt(1), 'xp' as any, mockTx as any, '24.5');
+
+      const step9 = createdSteps[8];
+      expect(step9.departmentId).toBe(DEPT.HYDRAULICS.id);
+    });
+
+    it('xp without sizeFt: step 9 stays at WIRE (unknown length, no override)', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('xp'));
+
+      await service.generateSteps(BigInt(1), 'xp' as any, mockTx as any);
+
+      const step9 = createdSteps[8];
+      expect(step9.departmentId).toBe(DEPT.WIRE.id);
+    });
+
+    it('xp with unparseable sizeFt: step 9 stays at WIRE', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('xp'));
+
+      await service.generateSteps(BigInt(1), 'xp' as any, mockTx as any, 'unknown');
+
+      const step9 = createdSteps[8];
+      expect(step9.departmentId).toBe(DEPT.WIRE.id);
+    });
+
+    it('gooseneck_dump @ 30ft: step 9 stays HYDRAULICS via template (no override needed)', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(
+        buildTemplateRows('gooseneck_dump'),
+      );
+
+      await service.generateSteps(
+        BigInt(1),
+        'gooseneck_dump' as any,
+        mockTx as any,
+        '30ft',
+      );
+
+      const step9 = createdSteps[8];
+      expect(step9.departmentId).toBe(DEPT.HYDRAULICS.id);
+      // Override path is gated on !isGooseneck, so the dept resolver is
+      // never consulted for the WIRE→HYDRAULICS swap.
+      expect(mockTx.department.findFirst).not.toHaveBeenCalled();
     });
   });
 });
