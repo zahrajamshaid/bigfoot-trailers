@@ -1,8 +1,9 @@
-import 'dart:io';
+import 'dart:io' show HttpClient, SecureSocket;
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'api_exception.dart';
 import 'api_response.dart';
@@ -36,16 +37,22 @@ class DioClient {
       ),
     );
 
-    final adapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = HttpClient();
-        client.maxConnectionsPerHost = 12;
-        client.idleTimeout = const Duration(seconds: 20);
-        client.connectionTimeout = const Duration(seconds: 20);
-        return client;
-      },
-    );
-    dio.httpClientAdapter = adapter;
+    // dart:io HttpClient is not supported on Flutter web — touching it
+    // throws UnsupportedError at runtime, which bubbles up as a non-Dio
+    // exception and surfaces as "An unexpected error occurred" on login.
+    // Skip the IO adapter on web and let Dio use BrowserHttpClientAdapter.
+    if (!kIsWeb) {
+      final adapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.maxConnectionsPerHost = 12;
+          client.idleTimeout = const Duration(seconds: 20);
+          client.connectionTimeout = const Duration(seconds: 20);
+          return client;
+        },
+      );
+      dio.httpClientAdapter = adapter;
+    }
 
     dio.interceptors.add(
       InterceptorsWrapper(
