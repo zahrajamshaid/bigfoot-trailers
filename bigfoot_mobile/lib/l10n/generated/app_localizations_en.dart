@@ -1416,6 +1416,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get payrollCsvChooseTitle => 'Export weekly report';
+
+  @override
+  String get payrollCsvShare => 'Share';
+
+  @override
+  String get payrollCsvShareSub => 'Send via apps, email, or Files';
+
+  @override
+  String get payrollCsvSave => 'Save to device';
+
+  @override
+  String get payrollCsvSaveSub => 'Choose where to store the .csv';
+
+  @override
+  String get payrollCsvSaved => 'CSV saved to device';
+
+  @override
+  String payrollCsvExportFail(String msg) {
+    return 'CSV export failed: $msg';
+  }
+
+  @override
   String get payrollWeekIsLocked => 'Week is locked';
 
   @override

@@ -2564,6 +2564,48 @@ abstract class AppLocalizations {
   /// **'CSV prepared ({n} chars)'**
   String payrollCsvPrepared(int n);
 
+  /// No description provided for @payrollCsvChooseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export weekly report'**
+  String get payrollCsvChooseTitle;
+
+  /// No description provided for @payrollCsvShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get payrollCsvShare;
+
+  /// No description provided for @payrollCsvShareSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Send via apps, email, or Files'**
+  String get payrollCsvShareSub;
+
+  /// No description provided for @payrollCsvSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to device'**
+  String get payrollCsvSave;
+
+  /// No description provided for @payrollCsvSaveSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where to store the .csv'**
+  String get payrollCsvSaveSub;
+
+  /// No description provided for @payrollCsvSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'CSV saved to device'**
+  String get payrollCsvSaved;
+
+  /// No description provided for @payrollCsvExportFail.
+  ///
+  /// In en, this message translates to:
+  /// **'CSV export failed: {msg}'**
+  String payrollCsvExportFail(String msg);
+
   /// No description provided for @payrollWeekIsLocked.
   ///
   /// In en, this message translates to:

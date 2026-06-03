@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/file_download.dart';
 import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
@@ -192,49 +195,113 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     return buffer.toString();
   }
 
-  /// Write the CSV to a temp file and hand it to the platform share sheet.
-  /// On web, fall back to a synthesised download because file paths aren't
-  /// shareable in the browser. Snackbar on success / error so the user gets
-  /// feedback either way.
+  /// UTF-8 BOM so Excel/Sheets detect the encoding and render the `·`
+  /// department separator and accented names correctly.
+  static const String _utf8Bom = '﻿';
+
+  /// Export the weekly report CSV. On web a browser download is triggered
+  /// directly (file paths aren't shareable in the browser). On mobile the
+  /// user chooses to share it (apps/email/Files) or save it to the device.
   Future<void> _exportCsv(
     BuildContext context,
     AppLocalizations l,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      final csv = _buildCsv(_report);
-      final filename = 'bigfoot-payroll-${_fmt(_weekStart)}.csv';
+    final csv = _buildCsv(_report);
+    final filename = 'bigfoot-payroll-${_fmt(_weekStart)}.csv';
 
-      if (kIsWeb) {
-        // share_plus on web only handles text, not files — push the
-        // serialised CSV as text so the user can paste it into a sheet.
-        await SharePlus.instance.share(
-          ShareParams(
-            text: csv,
-            subject: filename,
-          ),
+    if (kIsWeb) {
+      try {
+        await downloadTextFile(csv, filename, mimeType: 'text/csv');
+        messenger.showSnackBar(
+          SnackBar(content: Text(l.payrollCsvPrepared(csv.length))),
         );
-      } else {
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/$filename');
-        await file.writeAsString(csv, flush: true);
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(file.path, mimeType: 'text/csv', name: filename)],
-            subject: filename,
-          ),
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l.payrollCsvExportFail('$e'))),
         );
       }
-      messenger.showSnackBar(
-        SnackBar(content: Text(l.payrollCsvPrepared(csv.length))),
-      );
+      return;
+    }
+
+    final action = await showModalBottomSheet<_CsvExportAction>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l.payrollCsvChooseTitle,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.ios_share, color: AppColors.navy),
+              title: Text(l.payrollCsvShare),
+              subtitle: Text(l.payrollCsvShareSub),
+              onTap: () => Navigator.of(ctx).pop(_CsvExportAction.share),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.download_outlined, color: AppColors.navy),
+              title: Text(l.payrollCsvSave),
+              subtitle: Text(l.payrollCsvSaveSub),
+              onTap: () => Navigator.of(ctx).pop(_CsvExportAction.save),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    try {
+      final bytes = Uint8List.fromList(utf8.encode('$_utf8Bom$csv'));
+      switch (action) {
+        case _CsvExportAction.share:
+          final dir = await getTemporaryDirectory();
+          final file = File('${dir.path}/$filename');
+          await file.writeAsBytes(bytes, flush: true);
+          await SharePlus.instance.share(
+            ShareParams(
+              files: [XFile(file.path, mimeType: 'text/csv', name: filename)],
+              subject: filename,
+            ),
+          );
+          messenger.showSnackBar(
+            SnackBar(content: Text(l.payrollCsvPrepared(csv.length))),
+          );
+        case _CsvExportAction.save:
+          // saveFile writes the bytes at the user-chosen location on mobile
+          // and returns the path (null if the user cancelled the dialog).
+          final path = await FilePicker.platform.saveFile(
+            dialogTitle: l.payrollCsvSave,
+            fileName: filename,
+            type: FileType.custom,
+            allowedExtensions: const ['csv'],
+            bytes: bytes,
+          );
+          if (path == null) return;
+          messenger.showSnackBar(
+            SnackBar(content: Text(l.payrollCsvSaved)),
+          );
+      }
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('CSV export failed: $e')),
+        SnackBar(content: Text(l.payrollCsvExportFail('$e'))),
       );
     }
   }
 }
+
+/// How the user wants to export the weekly report CSV on mobile.
+enum _CsvExportAction { share, save }
 
 class _ReportBody extends StatelessWidget {
   final dynamic report;
