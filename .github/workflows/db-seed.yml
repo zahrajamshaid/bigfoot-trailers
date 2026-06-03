@@ -46,6 +46,7 @@ on:
           - seed-jig-coupler-checks # add "Correct coupler installed" check to every jig dept (worker self-check) + QC_1 (inspection)
           - fix-parts-b-role # one-shot: set parts_b@bigfoot.dev role from `worker` to `parts`
           - apply-scheduled-date-column # one-shot: ALTER TABLE deliveries ADD scheduled_date DATE (idempotent)
+          - fix-batches-back-to-building # one-shot: flip scheduled batches with no dispatched deliveries → building so the deployed app shows Edit
 
 concurrency:
   group: db-seed-prod
