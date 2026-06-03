@@ -988,8 +988,10 @@
   "userMgmtNameLabel": "Name",
   "userMgmtPasswordOptional": "Password (optional)",
   "userMgmtPhoneOptional": "Phone (optional)",
-  "userMgmtDeptIdLabel": "Primary Department ID",
-  "userMgmtLocationIdLabel": "Primary Location ID",
+  "userMgmtDeptIdLabel": "Primary Department",
+  "userMgmtLocationIdLabel": "Primary Location",
+  "userMgmtDeptNone": "None",
+  "userMgmtLocationNone": "N/A",
 
   "roleOwner": "Owner",
   "roleProductionManager": "Production Manager",
@@ -1003,6 +1005,7 @@
   "roleSales": "Sales",
   "roleOffice": "Office",
   "rolePurchasing": "Purchasing",
+  "roleParts": "Parts",
 
   "deptTypeQc": "QC",
   "deptTypeProduction": "Production",

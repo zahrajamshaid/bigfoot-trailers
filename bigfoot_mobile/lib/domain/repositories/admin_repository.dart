@@ -1,4 +1,5 @@
 import '../../data/models/department.dart';
+import '../../data/models/role_option.dart';
 import '../../data/models/trailer.dart';
 import '../../data/models/user.dart';
 
@@ -197,6 +198,11 @@ abstract class AdminRepository {
   Future<void> hardDeleteUser(int id);
 
   Future<List<Department>> getDepartments();
+
+  /// All user roles + display labels for admin pickers. Source of truth
+  /// lives in the backend's UserRole enum so additions surface here without
+  /// a mobile rebuild.
+  Future<List<RoleOption>> getRoles();
 
   Future<Department> updateDepartmentThreshold({
     required int id,

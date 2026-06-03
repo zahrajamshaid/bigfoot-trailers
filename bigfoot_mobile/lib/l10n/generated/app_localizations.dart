@@ -4319,14 +4319,26 @@ abstract class AppLocalizations {
   /// No description provided for @userMgmtDeptIdLabel.
   ///
   /// In en, this message translates to:
-  /// **'Primary Department ID'**
+  /// **'Primary Department'**
   String get userMgmtDeptIdLabel;
 
   /// No description provided for @userMgmtLocationIdLabel.
   ///
   /// In en, this message translates to:
-  /// **'Primary Location ID'**
+  /// **'Primary Location'**
   String get userMgmtLocationIdLabel;
+
+  /// No description provided for @userMgmtDeptNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get userMgmtDeptNone;
+
+  /// No description provided for @userMgmtLocationNone.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get userMgmtLocationNone;
 
   /// No description provided for @roleOwner.
   ///
@@ -4399,6 +4411,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Purchasing'**
   String get rolePurchasing;
+
+  /// No description provided for @roleParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Parts'**
+  String get roleParts;
 
   /// No description provided for @deptTypeQc.
   ///

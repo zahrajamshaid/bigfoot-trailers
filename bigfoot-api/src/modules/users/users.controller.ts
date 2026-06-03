@@ -56,6 +56,22 @@ export class UsersController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /users/roles — all user roles + display labels
+  // (owner + production_manager; must be BEFORE the :id route)
+  //
+  // Source of truth for the admin role-picker dropdowns on mobile. Returns
+  // every enum value so additions (`parts`, `purchasing`, …) propagate
+  // automatically without a mobile rebuild.
+  // ---------------------------------------------------------------------------
+  @Get('roles')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({ summary: 'List every user role with a display label' })
+  @ApiResponse({ status: 200, description: 'Array of { value, label } objects' })
+  async listRoles() {
+    return this.usersService.listRoles();
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /users/drivers — active drivers for delivery assignment
   // (transport_manager + owner; must be BEFORE the :id route)
   // ---------------------------------------------------------------------------

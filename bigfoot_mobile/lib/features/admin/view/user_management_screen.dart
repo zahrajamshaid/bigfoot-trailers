@@ -3,9 +3,47 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/validation/validators.dart';
+import '../../../data/models/department.dart';
+import '../../../data/models/location.dart';
+import '../../../data/models/role_option.dart';
 import '../../../data/models/user.dart';
+import '../../../domain/repositories/location_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/admin_viewmodel.dart';
+
+/// Returns the localized label for a role value when one exists; falls back
+/// to the backend-supplied [serverLabel] otherwise (so a newly-added enum
+/// value shows up immediately without a mobile rebuild).
+String _localizedRoleLabel(
+  String value,
+  String serverLabel,
+  AppLocalizations l,
+) {
+  switch (value) {
+    case 'owner':
+      return l.roleOwner;
+    case 'production_manager':
+      return l.roleProductionManager;
+    case 'transport_manager':
+      return l.roleTransportManager;
+    case 'qc_inspector':
+      return l.roleQcInspector;
+    case 'worker':
+      return l.roleWorker;
+    case 'driver':
+      return l.roleDriver;
+    case 'sales':
+      return l.roleSales;
+    case 'office':
+      return l.roleOffice;
+    case 'purchasing':
+      return l.rolePurchasing;
+    case 'parts':
+      return l.roleParts;
+    default:
+      return serverLabel;
+  }
+}
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -21,6 +59,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   bool? _isActive;
   List<User> _users = const [];
 
+  /// Picker data fetched once from the backend so admin pickers stay in sync
+  /// with the source of truth (enum values, seeded departments, locations).
+  /// A failure to load any of these is non-fatal — the form falls back to
+  /// disabled dropdowns rather than the old free-text IDs.
+  List<RoleOption> _roles = const [];
+  List<Department> _departments = const [];
+  List<Location> _locations = const [];
+
   @override
   void initState() {
     super.initState();
@@ -29,17 +75,33 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final vm = context.read<AdminViewModel>();
+    final locationRepo = context.read<LocationRepository>();
     try {
-      final result = await context.read<AdminViewModel>().getUsers(
-            role: _role,
-            isActive: _isActive,
-            page: 1,
-        limit: 100,
-          );
+      // Run picker loads alongside the user list — the create/edit sheet
+      // can't open until at least one of these completes, but failures on
+      // any single picker shouldn't block the user list itself.
+      final results = await Future.wait<dynamic>([
+        vm.getUsers(
+          role: _role,
+          isActive: _isActive,
+          page: 1,
+          limit: 100,
+        ),
+        vm.getRoles().catchError((_) => <RoleOption>[]),
+        vm.getDepartments().catchError((_) => <Department>[]),
+        locationRepo.getAllLocations().catchError((_) => <Location>[]),
+      ]);
       if (!mounted) return;
+      final result = results[0] as AdminUsersResult;
       // Newest first so a freshly-created user is at the top of the list.
       final sorted = [...result.users]..sort((a, b) => b.id.compareTo(a.id));
-      setState(() => _users = sorted);
+      setState(() {
+        _users = sorted;
+        _roles = (results[1] as List).cast<RoleOption>();
+        _departments = (results[2] as List).cast<Department>();
+        _locations = (results[3] as List).cast<Location>();
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _users = const []);
@@ -93,16 +155,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         value: _role,
                         hint: Text(l.userMgmtFilterRole),
                         items: [
-                          DropdownMenuItem(value: null, child: Text(l.customersFilterAll)),
-                          DropdownMenuItem(value: 'owner', child: Text(l.roleOwner)),
-                          DropdownMenuItem(value: 'production_manager', child: Text(l.roleProductionManagerShort)),
-                          DropdownMenuItem(value: 'transport_manager', child: Text(l.roleTransportManagerShort)),
-                          DropdownMenuItem(value: 'qc_inspector', child: Text(l.roleQcShort)),
-                          DropdownMenuItem(value: 'worker', child: Text(l.roleWorker)),
-                          DropdownMenuItem(value: 'driver', child: Text(l.roleDriver)),
-                          DropdownMenuItem(value: 'sales', child: Text(l.roleSales)),
-                          DropdownMenuItem(value: 'office', child: Text(l.roleOffice)),
-                          DropdownMenuItem(value: 'purchasing', child: Text(l.rolePurchasing)),
+                          DropdownMenuItem<String?>(
+                              value: null, child: Text(l.customersFilterAll)),
+                          ..._roles.map(
+                            (r) => DropdownMenuItem<String?>(
+                              value: r.value,
+                              child: Text(_localizedRoleLabel(r.value, r.label, l)),
+                            ),
+                          ),
                         ],
                         onChanged: (v) {
                           setState(() => _role = v);
@@ -305,7 +365,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _UserEditorSheet(),
+      builder: (_) => _UserEditorSheet(
+        roles: _roles,
+        departments: _departments,
+        locations: _locations,
+      ),
     );
     if (result == true && mounted) {
       // Clear any active filters/search so the new user is guaranteed to be
@@ -323,7 +387,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _UserEditorSheet(existing: user),
+      builder: (_) => _UserEditorSheet(
+        existing: user,
+        roles: _roles,
+        departments: _departments,
+        locations: _locations,
+      ),
     );
     if (result == true && mounted) _load();
   }
@@ -429,8 +498,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
 class _UserEditorSheet extends StatefulWidget {
   final User? existing;
+  final List<RoleOption> roles;
+  final List<Department> departments;
+  final List<Location> locations;
 
-  const _UserEditorSheet({this.existing});
+  const _UserEditorSheet({
+    this.existing,
+    required this.roles,
+    required this.departments,
+    required this.locations,
+  });
 
   @override
   State<_UserEditorSheet> createState() => _UserEditorSheetState();
@@ -442,9 +519,9 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
   late final TextEditingController _email;
   late final TextEditingController _password;
   late final TextEditingController _phone;
-  late final TextEditingController _dept;
-  late final TextEditingController _loc;
   late String _role;
+  int? _departmentId;
+  int? _locationId;
   bool _saving = false;
 
   @override
@@ -454,13 +531,22 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     _email = TextEditingController(text: widget.existing?.email ?? '');
     _password = TextEditingController();
     _phone = TextEditingController();
-    _dept = TextEditingController(
-      text: widget.existing?.departmentId?.toString() ?? '',
-    );
-    _loc = TextEditingController(
-      text: widget.existing?.locationId?.toString() ?? '',
-    );
-    _role = widget.existing?.role ?? UserRole.worker;
+    // Coerce the existing IDs to null when they don't resolve to a known
+    // dept/location — protects the DropdownButtonFormField from blowing up
+    // with "no item matches the current value" if the row was deleted.
+    final existingDeptId = widget.existing?.departmentId;
+    _departmentId = widget.departments.any((d) => d.id == existingDeptId)
+        ? existingDeptId
+        : null;
+    final existingLocId = widget.existing?.locationId;
+    _locationId = widget.locations.any((loc) => loc.id == existingLocId)
+        ? existingLocId
+        : null;
+    // Default to the first server-reported role on create. Fall back to
+    // 'worker' only if the role list failed to load — that matches the
+    // pre-refactor behaviour and keeps the form usable offline.
+    _role = widget.existing?.role ??
+        (widget.roles.isNotEmpty ? widget.roles.first.value : UserRole.worker);
   }
 
   @override
@@ -469,8 +555,6 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
     _email.dispose();
     _password.dispose();
     _phone.dispose();
-    _dept.dispose();
-    _loc.dispose();
     super.dispose();
   }
 
@@ -525,22 +609,21 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: _role,
+              value: widget.roles.any((r) => r.value == _role) ? _role : null,
               decoration: InputDecoration(
                   labelText: l.userMgmtFilterRole,
                   border: const OutlineInputBorder()),
-              items: [
-                DropdownMenuItem(value: 'owner', child: Text(l.roleOwner)),
-                DropdownMenuItem(value: 'production_manager', child: Text(l.roleProductionManager)),
-                DropdownMenuItem(value: 'transport_manager', child: Text(l.roleTransportManager)),
-                DropdownMenuItem(value: 'qc_inspector', child: Text(l.roleQcInspector)),
-                DropdownMenuItem(value: 'worker', child: Text(l.roleWorker)),
-                DropdownMenuItem(value: 'driver', child: Text(l.roleDriver)),
-                DropdownMenuItem(value: 'sales', child: Text(l.roleSales)),
-                DropdownMenuItem(value: 'office', child: Text(l.roleOffice)),
-                DropdownMenuItem(value: 'purchasing', child: Text(l.rolePurchasing)),
-              ],
-              onChanged: (v) => setState(() => _role = v ?? UserRole.worker),
+              items: widget.roles
+                  .map(
+                    (r) => DropdownMenuItem(
+                      value: r.value,
+                      child: Text(_localizedRoleLabel(r.value, r.label, l)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: widget.roles.isEmpty
+                  ? null
+                  : (v) => setState(() => _role = v ?? widget.roles.first.value),
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -552,22 +635,50 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
               validator: Validators.optionalPhone,
             ),
             const SizedBox(height: 10),
-            TextFormField(
-              controller: _dept,
-              keyboardType: TextInputType.number,
+            DropdownButtonFormField<int?>(
+              value: _departmentId,
               decoration: InputDecoration(
-                  labelText: l.userMgmtDeptIdLabel,
-                  border: const OutlineInputBorder()),
-              validator: Validators.optionalPositiveInt,
+                labelText: l.userMgmtDeptIdLabel,
+                border: const OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem<int?>(
+                    value: null, child: Text(l.userMgmtDeptNone)),
+                ...widget.departments.map(
+                  (d) => DropdownMenuItem<int?>(
+                    value: d.id,
+                    child: Text('${d.displayName} (${d.code})'),
+                  ),
+                ),
+              ],
+              onChanged: widget.departments.isEmpty
+                  ? null
+                  : (v) => setState(() => _departmentId = v),
             ),
             const SizedBox(height: 10),
-            TextFormField(
-              controller: _loc,
-              keyboardType: TextInputType.number,
+            DropdownButtonFormField<int?>(
+              value: _locationId,
               decoration: InputDecoration(
-                  labelText: l.userMgmtLocationIdLabel,
-                  border: const OutlineInputBorder()),
-              validator: Validators.optionalPositiveInt,
+                labelText: l.userMgmtLocationIdLabel,
+                border: const OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem<int?>(
+                    value: null, child: Text(l.userMgmtLocationNone)),
+                ...widget.locations.map(
+                  (loc) => DropdownMenuItem<int?>(
+                    value: loc.id,
+                    child: Text(
+                      loc.cityState.isEmpty
+                          ? '${loc.chipLabel} · ${loc.name}'
+                          : '${loc.chipLabel} · ${loc.name} (${loc.cityState})',
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: widget.locations.isEmpty
+                  ? null
+                  : (v) => setState(() => _locationId = v),
             ),
             const SizedBox(height: 12),
             FilledButton(
@@ -593,8 +704,8 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
               password: _password.text,
               role: _role,
               phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-              primaryDepartmentId: int.tryParse(_dept.text.trim()),
-              primaryLocationId: int.tryParse(_loc.text.trim()),
+              primaryDepartmentId: _departmentId,
+              primaryLocationId: _locationId,
             );
       } else {
         await context.read<AdminViewModel>().updateUser(
@@ -604,8 +715,8 @@ class _UserEditorSheetState extends State<_UserEditorSheet> {
               password: _password.text.trim().isEmpty ? null : _password.text,
               role: _role,
               phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-              primaryDepartmentId: int.tryParse(_dept.text.trim()),
-              primaryLocationId: int.tryParse(_loc.text.trim()),
+              primaryDepartmentId: _departmentId,
+              primaryLocationId: _locationId,
             );
       }
       if (!mounted) return;

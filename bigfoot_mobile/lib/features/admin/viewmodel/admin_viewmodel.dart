@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/models/role_option.dart';
 import '../../../data/models/trailer.dart';
 import '../../../domain/repositories/admin_repository.dart';
 
@@ -69,6 +70,8 @@ class AdminViewModel extends Cubit<int> {
   Future<void> hardDeleteUser(int id) => _repository.hardDeleteUser(id);
 
   Future<dynamic> getDepartments() => _repository.getDepartments();
+
+  Future<List<RoleOption>> getRoles() => _repository.getRoles();
 
   Future<dynamic> updateDepartmentThreshold({
     required int id,

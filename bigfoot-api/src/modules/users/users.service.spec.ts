@@ -102,6 +102,38 @@ describe('UsersService', () => {
   });
 
   // =========================================================================
+  // listRoles
+  // =========================================================================
+  describe('listRoles', () => {
+    it('returns every UserRole enum value with a non-empty label', async () => {
+      const result = await service.listRoles();
+
+      const expectedValues = [
+        'owner',
+        'production_manager',
+        'transport_manager',
+        'qc_inspector',
+        'worker',
+        'sales',
+        'driver',
+        'office',
+        'purchasing',
+        'parts',
+      ];
+      expect(result.map((r) => r.value)).toEqual(expectedValues);
+      for (const r of result) {
+        expect(r.label.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('returns roles in a stable order on every call', async () => {
+      const a = await service.listRoles();
+      const b = await service.listRoles();
+      expect(a.map((r) => r.value)).toEqual(b.map((r) => r.value));
+    });
+  });
+
+  // =========================================================================
   // findOne
   // =========================================================================
   describe('findOne', () => {

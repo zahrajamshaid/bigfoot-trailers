@@ -49,6 +49,11 @@ const workerPayload: JwtPayload = {
 // Service mock
 // ---------------------------------------------------------------------------
 
+const mockRoleList = [
+  { value: 'owner', label: 'Owner' },
+  { value: 'parts', label: 'Parts' },
+];
+
 const mockUsersService = {
   findAll: jest
     .fn()
@@ -57,6 +62,7 @@ const mockUsersService = {
   create: jest.fn().mockResolvedValue(mockUser),
   update: jest.fn().mockResolvedValue(mockUser),
   softDelete: jest.fn().mockResolvedValue({ ...mockUser, isActive: false }),
+  listRoles: jest.fn().mockResolvedValue(mockRoleList),
 };
 
 // ---------------------------------------------------------------------------
@@ -74,6 +80,15 @@ describe('UsersController', () => {
 
     controller = module.get<UsersController>(UsersController);
     jest.clearAllMocks();
+  });
+
+  describe('GET /users/roles', () => {
+    it('returns the role list from the service unchanged', async () => {
+      const result = await controller.listRoles();
+
+      expect(mockUsersService.listRoles).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockRoleList);
+    });
   });
 
   describe('GET /users', () => {

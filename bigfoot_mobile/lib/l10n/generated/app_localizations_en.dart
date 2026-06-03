@@ -2491,10 +2491,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get userMgmtPhoneOptional => 'Phone (optional)';
 
   @override
-  String get userMgmtDeptIdLabel => 'Primary Department ID';
+  String get userMgmtDeptIdLabel => 'Primary Department';
 
   @override
-  String get userMgmtLocationIdLabel => 'Primary Location ID';
+  String get userMgmtLocationIdLabel => 'Primary Location';
+
+  @override
+  String get userMgmtDeptNone => 'None';
+
+  @override
+  String get userMgmtLocationNone => 'N/A';
 
   @override
   String get roleOwner => 'Owner';
@@ -2531,6 +2537,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rolePurchasing => 'Purchasing';
+
+  @override
+  String get roleParts => 'Parts';
 
   @override
   String get deptTypeQc => 'QC';

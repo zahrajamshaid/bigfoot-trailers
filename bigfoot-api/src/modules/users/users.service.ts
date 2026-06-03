@@ -9,6 +9,32 @@ import { Prisma, UserRole } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 12;
 
+/**
+ * Display labels for every UserRole enum value, in the order roles should
+ * appear in pickers. Source of truth for what the admin UI shows.
+ *
+ * The mobile already does locale-specific overrides on the `value` key
+ * (e.g. `roleParts` in app_es.arb), so `label` here is the English default
+ * the mobile falls back to when no localized override exists.
+ */
+const ROLE_LABELS: Record<UserRole, string> = {
+  owner: 'Owner',
+  production_manager: 'Production Manager',
+  transport_manager: 'Transport Manager',
+  qc_inspector: 'QC Inspector',
+  worker: 'Worker',
+  sales: 'Sales',
+  driver: 'Driver',
+  office: 'Office',
+  purchasing: 'Purchasing',
+  parts: 'Parts',
+};
+
+export interface RoleOption {
+  value: UserRole;
+  label: string;
+}
+
 /** Fields returned for every user query — password_hash is NEVER included. */
 const USER_SELECT = {
   id: true,
@@ -64,6 +90,20 @@ export class UsersService {
     ]);
 
     return { users, total, page, limit };
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /users/roles — enumerate every UserRole + display label
+  //
+  // Static list derived from the Prisma enum; safe to compute synchronously
+  // and small enough that the mobile picker can fetch on every form-open
+  // without caching. Wrapped in an async signature so the controller layer
+  // stays uniform with the other endpoints.
+  // ---------------------------------------------------------------------------
+  async listRoles(): Promise<RoleOption[]> {
+    return (Object.entries(ROLE_LABELS) as [UserRole, string][]).map(
+      ([value, label]) => ({ value, label }),
+    );
   }
 
   // ---------------------------------------------------------------------------

@@ -2504,10 +2504,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get userMgmtPhoneOptional => 'Teléfono (opcional)';
 
   @override
-  String get userMgmtDeptIdLabel => 'ID de departamento principal';
+  String get userMgmtDeptIdLabel => 'Departamento principal';
 
   @override
-  String get userMgmtLocationIdLabel => 'ID de ubicación principal';
+  String get userMgmtLocationIdLabel => 'Ubicación principal';
+
+  @override
+  String get userMgmtDeptNone => 'Ninguno';
+
+  @override
+  String get userMgmtLocationNone => 'N/D';
 
   @override
   String get roleOwner => 'Propietario';
@@ -2544,6 +2550,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get rolePurchasing => 'Compras';
+
+  @override
+  String get roleParts => 'Repuestos';
 
   @override
   String get deptTypeQc => 'QC';

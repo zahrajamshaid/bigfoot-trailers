@@ -10,6 +10,7 @@ abstract final class ApiEndpoints {
   // ── Users ────────────────────────────────────────────────────────────────
   static const String users = '/users';
   static const String usersDrivers = '/users/drivers';
+  static const String usersRoles = '/users/roles';
   static String user(int id) => '/users/$id';
   static String userRole(int id) => '/users/$id/role';
   static String userReactivate(int id) => '/users/$id/reactivate';
