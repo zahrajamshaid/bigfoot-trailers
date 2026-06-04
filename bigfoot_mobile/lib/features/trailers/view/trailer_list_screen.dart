@@ -82,9 +82,13 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final authState = context.watch<AuthViewModel>().state;
+    // Mirror the backend gate (trailers.controller.ts POST /trailers):
+    // owner + production_manager + sales. Sales lands customer orders and
+    // drops the SO into production directly.
     final canCreate = authState is Authenticated &&
         (authState.user.role == UserRole.owner ||
-            authState.user.role == UserRole.productionManager);
+            authState.user.role == UserRole.productionManager ||
+            authState.user.role == UserRole.sales);
 
     return Scaffold(
       body: Column(
