@@ -47,6 +47,7 @@ on:
           - fix-parts-b-role # one-shot: set parts_b@bigfoot.dev role from `worker` to `parts`
           - apply-scheduled-date-column # one-shot: ALTER TABLE deliveries ADD scheduled_date DATE (idempotent)
           - fix-batches-back-to-building # one-shot: flip scheduled batches with no dispatched deliveries → building so the deployed app shows Edit
+          - skip-gn-fin-for-inflight # one-shot: auto-complete GN_FIN + QC_2 on in-flight goosenecks, advance to PAINT_PREP
 
 concurrency:
   group: db-seed-prod

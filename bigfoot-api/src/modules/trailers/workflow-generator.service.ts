@@ -120,9 +120,23 @@ export class WorkflowGeneratorService {
     for (const template of templates) {
       // First non-QC step (step_order=1) is always a production step → active
       const isFirstStep = template.stepOrder === 1;
+
+      // Gooseneck-only bypass: there is no physical Gooseneck Finish Weld
+      // station on the floor, so the GN_FIN step (step 3) and its QC_2
+      // inspection (step 4) are pre-completed at trailer creation. After
+      // GN_WELD finishes and QC_1 passes, the advance logic walks to the
+      // next `waiting` step — which lands directly at PAINT_PREP. We keep
+      // the rows in the database (with synthetic timestamps and a null
+      // completedByUserId) so the audit history reflects the workflow
+      // shape and the bypass is reversible by removing this branch.
+      const isGooseneckSkippedStep =
+        isGooseneck && (template.stepOrder === 3 || template.stepOrder === 4);
+
       const status: ProductionStepStatus = isFirstStep
         ? ProductionStepStatus.active
-        : ProductionStepStatus.waiting;
+        : isGooseneckSkippedStep
+          ? ProductionStepStatus.complete
+          : ProductionStepStatus.waiting;
 
       const isPaintBoothStep =
         template.department.code === PAINT_A_CODE ||
@@ -142,7 +156,8 @@ export class WorkflowGeneratorService {
           stepOrder: template.stepOrder,
           status,
           queuePosition: isFirstStep ? 1 : null,
-          becameActiveAt: isFirstStep ? now : null,
+          becameActiveAt: isFirstStep || isGooseneckSkippedStep ? now : null,
+          completedAt: isGooseneckSkippedStep ? now : null,
         },
         select: { id: true },
       });

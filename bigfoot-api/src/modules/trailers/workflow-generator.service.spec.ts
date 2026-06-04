@@ -603,4 +603,49 @@ describe('WorkflowGeneratorService', () => {
       expect(mockTx.department.findFirst).not.toHaveBeenCalled();
     });
   });
+
+  // =========================================================================
+  // Gooseneck GN_FIN + QC_2 bypass
+  // =========================================================================
+  describe('gooseneck GN_FIN + QC_2 bypass', () => {
+    it.each(['gooseneck_dump'] as const)(
+      '%s: pre-completes steps 3 (GN_FIN) and 4 (QC_2)',
+      async (series) => {
+        mockTx.workflowTemplate.findMany.mockResolvedValue(
+          buildTemplateRows(series),
+        );
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any);
+
+        // Step 1 (GN_WELD) — active as before.
+        expect(createdSteps[0].status).toBe('active');
+
+        // Steps 3 + 4 (zero-indexed 2 + 3) → complete with synthetic
+        // timestamps so the advance logic walks past them.
+        const skipped = [createdSteps[2], createdSteps[3]];
+        for (const s of skipped) {
+          expect(s.status).toBe('complete');
+          expect(s.becameActiveAt).toBeInstanceOf(Date);
+          expect(s.completedAt).toBeInstanceOf(Date);
+        }
+
+        // Step 2 (QC_1) — still waiting so QC inspects the jig as usual.
+        expect(createdSteps[1].status).toBe('waiting');
+        // Step 5 (PAINT_PREP) — still waiting; advance from QC_1 will
+        // land here once its prerequisite step finishes.
+        expect(createdSteps[4].status).toBe('waiting');
+      },
+    );
+
+    it('non-gooseneck (xp) leaves step 3 + 4 as waiting (no bypass)', async () => {
+      mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows('xp'));
+
+      await service.generateSteps(BigInt(1), 'xp' as any, mockTx as any);
+
+      expect(createdSteps[2].status).toBe('waiting');
+      expect(createdSteps[2].completedAt).toBeNull();
+      expect(createdSteps[3].status).toBe('waiting');
+      expect(createdSteps[3].completedAt).toBeNull();
+    });
+  });
 });
