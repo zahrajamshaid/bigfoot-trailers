@@ -27,6 +27,16 @@ const ownerPayload: JwtPayload = {
   exp: 0,
 };
 
+const salesPayload: JwtPayload = {
+  sub: 11,
+  email: 'sales@bigfoot.com',
+  role: 'sales',
+  departmentId: null,
+  extraDepartmentIds: [],
+  iat: 0,
+  exp: 0,
+};
+
 // ---------------------------------------------------------------------------
 // Service mock
 // ---------------------------------------------------------------------------
@@ -97,6 +107,14 @@ describe('TrailersController', () => {
 
       expect(mockTrailersService.create).toHaveBeenCalledWith(dto, BigInt(10));
       expect(result.stepsSummary.totalSteps).toBe(12);
+    });
+
+    it('should forward the sales user id to the service when sales creates', async () => {
+      const dto = { soNumber: 'SO-2002', trailerModelId: 1 };
+
+      await controller.create(dto, salesPayload);
+
+      expect(mockTrailersService.create).toHaveBeenCalledWith(dto, BigInt(11));
     });
   });
 

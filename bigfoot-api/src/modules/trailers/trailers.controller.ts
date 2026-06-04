@@ -50,10 +50,14 @@ export class TrailersController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /trailers — owner + production_manager
+  // POST /trailers — owner + production_manager + sales
+  //
+  // Sales lands customer orders and needs to drop the SO into production
+  // without waiting for a production manager to type it in. Production
+  // managers + the owner already had access.
   // ---------------------------------------------------------------------------
   @Post()
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.SALES)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new trailer SO and auto-generate 12 workflow steps',
