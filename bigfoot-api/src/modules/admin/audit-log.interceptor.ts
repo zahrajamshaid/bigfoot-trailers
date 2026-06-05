@@ -22,47 +22,77 @@ const METHOD_ACTION_MAP: Record<string, string> = {
 };
 
 /**
+ * Singularises a plural URL segment heuristically. Handles the three plural
+ * shapes we use:
+ *   • -ies   → -y         (deliveries → delivery, factories → factory)
+ *   • -ses   → unchanged  (statuses, passes — keep the -es)
+ *   • -ches / -shes / -xes / -zes → strip "es" (batches → batch)
+ *   • -s     → strip "s"  (trailers → trailer, users → user)
+ *
+ * Returns the word unchanged if no rule applies (e.g. "qc", "info").
+ */
+function singularise(word: string): string {
+  if (word.endsWith('ies')) return word.slice(0, -3) + 'y';
+  if (word.endsWith('ses')) return word;
+  if (
+    word.endsWith('ches') ||
+    word.endsWith('shes') ||
+    word.endsWith('xes') ||
+    word.endsWith('zes')
+  ) {
+    return word.slice(0, -2);
+  }
+  if (word.endsWith('s') && !word.endsWith('ss')) {
+    return word.slice(0, -1);
+  }
+  return word;
+}
+
+/**
  * Extracts entity type and entity ID from the request path.
+ *
+ * The parser walks segments until it hits the first numeric ID; everything
+ * before that ID is the resource path. Multi-segment resources concatenate
+ * with underscores so the entity type matches the database column the
+ * mobile filter dropdown queries by. Hyphens become underscores throughout.
+ *
  * Examples:
- *   /trailers/123       → { entityType: 'trailer', entityId: 123 }
- *   /qc/inspections/45  → { entityType: 'qc_inspection', entityId: 45 }
- *   /deliveries/10/mark-complete → { entityType: 'delivery', entityId: 10 }
+ *   /trailers/123                       → { entityType: 'trailer',           entityId: 123n }
+ *   /trailers/123/qb-pdf                → { entityType: 'trailer',           entityId: 123n }
+ *   /qc/inspections                     → { entityType: 'qc_inspection',     entityId: null }
+ *   /qc/inspections/45                  → { entityType: 'qc_inspection',     entityId: 45n  }
+ *   /qc/inspections/45/send-customer-sms→ { entityType: 'qc_inspection',     entityId: 45n  }
+ *   /qc/checklist-items                 → { entityType: 'qc_checklist_item', entityId: null }
+ *   /deliveries/batches/10/depart       → { entityType: 'delivery_batch',    entityId: 10n  }
+ *   /deliveries/10                      → { entityType: 'delivery',          entityId: 10n  }
+ *   /users/5/reactivate                 → { entityType: 'user',              entityId: 5n   }
  */
 function parseEntityFromPath(path: string): {
   entityType: string;
   entityId: bigint | null;
 } {
-  // Remove query string and leading /api or /
   const clean = path
     .split('?')[0]
     .replace(/^\/api\//, '/')
     .replace(/^\//, '');
   const segments = clean.split('/').filter(Boolean);
 
-  let entityType = segments[0] ?? 'unknown';
+  const resourceSegments: string[] = [];
   let entityId: bigint | null = null;
-
-  // Walk segments to find the last numeric ID that follows a resource name
-  for (let i = 0; i < segments.length; i++) {
-    const num = Number(segments[i]);
-    if (!Number.isNaN(num) && Number.isInteger(num) && i > 0) {
-      // The segment before the number is the resource name
-      entityType = segments[i - 1];
+  for (const seg of segments) {
+    const num = Number(seg);
+    if (!Number.isNaN(num) && Number.isInteger(num) && resourceSegments.length > 0) {
       entityId = BigInt(num);
+      // Everything after the numeric ID is an action verb (e.g. "depart",
+      // "send-customer-sms") and shouldn't shape the entity type.
+      break;
     }
+    resourceSegments.push(seg);
   }
 
-  // Singularize common plural resource names
-  if (entityType.endsWith('ies')) {
-    entityType = entityType.slice(0, -3) + 'y'; // deliveries → delivery
-  } else if (entityType.endsWith('ses')) {
-    // keep as-is (e.g. "statuses")
-  } else if (entityType.endsWith('s') && !entityType.endsWith('ss')) {
-    entityType = entityType.slice(0, -1); // trailers → trailer
-  }
-
-  // Replace hyphens with underscores for consistency
-  entityType = entityType.replace(/-/g, '_');
+  const entityType = resourceSegments
+    .map((seg) => singularise(seg).replace(/-/g, '_'))
+    .join('_') || 'unknown';
 
   return { entityType, entityId };
 }

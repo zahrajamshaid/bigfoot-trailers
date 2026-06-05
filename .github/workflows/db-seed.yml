@@ -49,6 +49,8 @@ on:
           - fix-batches-back-to-building # one-shot: flip scheduled batches with no dispatched deliveries → building so the deployed app shows Edit
           - skip-gn-fin-for-inflight # one-shot: auto-complete GN_FIN + QC_2 on in-flight goosenecks, advance to PAINT_PREP
           - fix-mulberry-open-stock-and-6567 # one-shot: normalise 7 Mulberry open-stock trailers + move SO 6567 → Virginia
+          - retag-audit-log-entity-types # one-shot: rewrite historical audit_logs entity_type so QC/batch rows surface in the mobile dropdown
+          - qc-today-report # read-only: list every QC inspection submitted today (SO, dept, inspector)
 
 concurrency:
   group: db-seed-prod

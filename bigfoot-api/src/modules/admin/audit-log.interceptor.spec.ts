@@ -147,6 +147,132 @@ describe('AuditLogInterceptor', () => {
     });
   });
 
+  // ===========================================================================
+  // Multi-segment resource paths — locked because every dropdown filter on
+  // the mobile audit-log screen queries by these exact strings.
+  // ===========================================================================
+  describe('multi-segment resource paths', () => {
+    it('POST /qc/inspections logs as qc_inspection with id from response', (done) => {
+      const ctx = createMockContext('POST', '/qc/inspections', { sub: 9 });
+      const handler = createMockHandler({ id: 333, result: 'pass' });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'qc_inspection',
+                entityId: 333n,
+                action: 'CREATE',
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('POST /qc/inspections/45/send-customer-sms logs as qc_inspection action', (done) => {
+      const ctx = createMockContext(
+        'POST',
+        '/qc/inspections/45/send-customer-sms',
+        { sub: 1 },
+      );
+      const handler = createMockHandler({ smsLogId: 1 });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'qc_inspection',
+                entityId: 45n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('PATCH /qc/checklist-items/7 logs as qc_checklist_item', (done) => {
+      const ctx = createMockContext('PATCH', '/qc/checklist-items/7', { sub: 1 });
+      const handler = createMockHandler({ id: 7 });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'qc_checklist_item',
+                entityId: 7n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('PATCH /deliveries/batches/10/depart logs as delivery_batch', (done) => {
+      const ctx = createMockContext('PATCH', '/deliveries/batches/10/depart', { sub: 1 });
+      const handler = createMockHandler({ id: 10, status: 'in_transit' });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'delivery_batch',
+                entityId: 10n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('POST /deliveries/batches logs as delivery_batch CREATE', (done) => {
+      const ctx = createMockContext('POST', '/deliveries/batches', { sub: 1 });
+      const handler = createMockHandler({ id: 88, batchNumber: 'B-1' });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'delivery_batch',
+                entityId: 88n,
+                action: 'CREATE',
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('POST /users/5/reactivate logs as user (action verb stays out of type)', (done) => {
+      const ctx = createMockContext('POST', '/users/5/reactivate', { sub: 1 });
+      const handler = createMockHandler({ id: 5 });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'user',
+                entityId: 5n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+  });
+
   it('should use x-forwarded-for header for IP', (done) => {
     const ctx = {
       switchToHttp: () => ({
