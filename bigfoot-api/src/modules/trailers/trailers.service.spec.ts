@@ -170,6 +170,36 @@ describe('TrailersService', () => {
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
+
+    it('hides Mulberry stock-builds-without-customer when status=ready_for_delivery', async () => {
+      mockPrisma.$transaction.mockResolvedValue([[], 0]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.count.mockResolvedValue(0);
+
+      await service.findAll({ status: 'ready_for_delivery' as any });
+
+      // findMany is called as the first leg of the $transaction; the spec
+      // can introspect the where clause directly because the service builds
+      // it eagerly and passes both calls to $transaction.
+      const findManyCall = mockPrisma.trailer.findMany.mock.calls[0]?.[0];
+      expect(findManyCall.where.NOT).toMatchObject({
+        isStockBuild: true,
+        customerId: null,
+        soldToName: null,
+        currentLocation: { code: 'MULBERRY' },
+      });
+    });
+
+    it('does not apply the Mulberry exclusion on other statuses', async () => {
+      mockPrisma.$transaction.mockResolvedValue([[], 0]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.count.mockResolvedValue(0);
+
+      await service.findAll({ status: 'in_production' as any });
+
+      const findManyCall = mockPrisma.trailer.findMany.mock.calls[0]?.[0];
+      expect(findManyCall.where.NOT).toBeUndefined();
+    });
   });
 
   // =========================================================================

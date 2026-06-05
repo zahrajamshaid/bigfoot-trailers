@@ -178,6 +178,23 @@ export class TrailersService {
         { customer: { company: { contains: term, mode: 'insensitive' } } },
       ];
     }
+    // A Mulberry stock-build with no customer attached is open inventory at
+    // the factory — it shouldn't surface as "ready" for a customer pickup
+    // until someone claims it. We only apply this exclusion when the caller
+    // is filtering specifically for `ready_for_delivery`; queries that ask
+    // for all trailers (e.g. the inventory screen) still see them. Stock
+    // builds parked at *other* yards continue to show as ready by design,
+    // because those yards rely on the ready list to know what's available.
+    if (query.status === TrailerStatus.ready_for_delivery) {
+      where.NOT = {
+        ...(where.NOT as Prisma.TrailerWhereInput | undefined),
+        isStockBuild: true,
+        customerId: null,
+        soldToName: null,
+        currentLocation: { code: 'MULBERRY' },
+      };
+    }
+
     if (query.completedSince) {
       // Drilldown for the "Completed this week" dashboard tile. We match on
       // the Delivery row rather than trailer.updatedAt so a record edit

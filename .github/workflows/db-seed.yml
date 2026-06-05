@@ -48,6 +48,7 @@ on:
           - apply-scheduled-date-column # one-shot: ALTER TABLE deliveries ADD scheduled_date DATE (idempotent)
           - fix-batches-back-to-building # one-shot: flip scheduled batches with no dispatched deliveries → building so the deployed app shows Edit
           - skip-gn-fin-for-inflight # one-shot: auto-complete GN_FIN + QC_2 on in-flight goosenecks, advance to PAINT_PREP
+          - fix-mulberry-open-stock-and-6567 # one-shot: normalise 7 Mulberry open-stock trailers + move SO 6567 → Virginia
 
 concurrency:
   group: db-seed-prod
