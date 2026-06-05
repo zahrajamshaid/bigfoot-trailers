@@ -19,6 +19,7 @@ const mockPrisma: Record<string, any> = {
   },
   trailer: {
     findUnique: jest.fn(),
+    findMany: jest.fn(),
     update: jest.fn(),
   },
   smsLog: {
@@ -530,6 +531,95 @@ describe('DeliveriesService', () => {
       await expect(service.completeFactoryPickup(BigInt(103), {})).rejects.toMatchObject({
         errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE,
       });
+    });
+  });
+
+  // =========================================================================
+  // getStockInventory — includes Mulberry-born stock builds (no delivery)
+  // =========================================================================
+  describe('getStockInventory', () => {
+    const mulberry = {
+      id: 1,
+      code: 'MULBERRY',
+      name: 'Bigfoot Mulberry',
+      city: 'Mulberry',
+      state: 'FL',
+    };
+    const tappahannock = {
+      id: 3,
+      code: 'TAPPAHANNOCK',
+      name: 'Bigfoot Tappahannock',
+      city: 'Tappahannock',
+      state: 'VA',
+    };
+
+    it('unions delivered-stock + Mulberry-born stock and groups by yard', async () => {
+      mockPrisma.delivery.findMany.mockResolvedValue([
+        {
+          id: BigInt(500),
+          deliveredAt: new Date('2026-06-01T10:00:00Z'),
+          destinationLocation: tappahannock,
+          trailer: {
+            id: BigInt(20),
+            soNumber: '5500',
+            sizeFt: '20',
+            isHot: false,
+            saleStatus: 'available',
+            soldToName: null,
+            trailerModel: { displayName: 'XP 20', series: 'xp' },
+            customer: null,
+          },
+          driverUser: { id: BigInt(11), fullName: 'Driver Bob' },
+          createdByUser: null,
+        },
+      ]);
+      mockPrisma.trailer.findMany.mockResolvedValue([
+        {
+          id: BigInt(40),
+          soNumber: '6791',
+          sizeFt: '14',
+          isHot: false,
+          saleStatus: 'available',
+          soldToName: null,
+          createdAt: new Date('2026-05-15T08:00:00Z'),
+          currentLocation: mulberry,
+          trailerModel: { displayName: 'XP 14', series: 'xp' },
+          customer: null,
+          createdByUser: { id: BigInt(12), fullName: 'Sales Sue' },
+        },
+      ]);
+
+      const result = await service.getStockInventory();
+
+      expect(result).toHaveLength(2);
+      const mulberryEntry = result.find((e) => e.location.code === 'MULBERRY');
+      expect(mulberryEntry).toBeDefined();
+      expect(mulberryEntry!.trailers).toHaveLength(1);
+      // Yard-born stock carries no delivery id and falls back to createdAt.
+      expect(mulberryEntry!.trailers[0].deliveryId).toBeNull();
+      expect(mulberryEntry!.trailers[0].soNumber).toBe('6791');
+      expect(mulberryEntry!.trailers[0].deliveredBy).toBe('Sales Sue');
+
+      const tappEntry = result.find((e) => e.location.code === 'TAPPAHANNOCK');
+      expect(tappEntry!.trailers[0].deliveryId).toBe('500');
+    });
+
+    it('queries trailers scoped to Mulberry + ready_for_delivery + no delivered delivery', async () => {
+      mockPrisma.delivery.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+
+      await service.getStockInventory();
+
+      expect(mockPrisma.trailer.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isStockBuild: true,
+            status: 'ready_for_delivery',
+            currentLocation: { code: 'MULBERRY' },
+            deliveries: { none: { status: 'delivered' } },
+          }),
+        }),
+      );
     });
   });
 });

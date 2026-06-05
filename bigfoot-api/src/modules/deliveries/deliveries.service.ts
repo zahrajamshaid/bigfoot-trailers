@@ -714,9 +714,16 @@ export class DeliveriesService {
   // ---------------------------------------------------------------------------
   // GET /deliveries/stock-inventory — trailers currently parked at each yard
   // ---------------------------------------------------------------------------
-  // A trailer is "stock" at a location if its most recent *delivered* delivery
-  // landed at that location. Once it is delivered out again (to a customer, or
-  // a different yard) it drops off that yard's list automatically.
+  // Two sources feed this list:
+  //   (1) trailers whose most recent *delivered* delivery landed at a yard
+  //       — they were trucked there from somewhere else;
+  //   (2) trailers created as stock at a yard that have NEVER had a delivery
+  //       — they were born there (typically Mulberry stock builds). Without
+  //       this leg those trailers would silently never appear in inventory,
+  //       since the legacy query only counted delivery-arrived stock.
+  //
+  // Both sources skip trailers that are currently in-transit on a customer
+  // delivery (those aren't at any yard right now).
   async getStockInventory() {
     const latestPerTrailer = await this.prisma.delivery.findMany({
       where: { status: DeliveryStatus.delivered },
@@ -745,13 +752,45 @@ export class DeliveriesService {
       },
     });
 
+    // Leg (2): stock builds born at Mulberry. Mulberry is the factory, so
+    // it's the only yard where a stock build can appear "at a yard" without
+    // ever having a delivery record (other yards always receive trailers
+    // via a stack_to_location delivery, which leg 1 already catches).
+    // Scoping to Mulberry keeps this leg narrow and reversible.
+    // ready_for_delivery only — in-production stock joins later when the
+    // workflow flips them.
+    const yardBornStock = await this.prisma.trailer.findMany({
+      where: {
+        isStockBuild: true,
+        status: TrailerStatus.ready_for_delivery,
+        currentLocation: { code: 'MULBERRY' },
+        deliveries: { none: { status: DeliveryStatus.delivered } },
+      },
+      select: {
+        id: true,
+        soNumber: true,
+        sizeFt: true,
+        isHot: true,
+        saleStatus: true,
+        soldToName: true,
+        createdAt: true,
+        currentLocation: {
+          select: { id: true, code: true, name: true, city: true, state: true },
+        },
+        trailerModel: { select: { displayName: true, series: true } },
+        customer: { select: { name: true } },
+        createdByUser: { select: { id: true, fullName: true } },
+      },
+    });
+
     // Group the at-a-yard trailers by their location.
     const byLocation = new Map<
       number,
       {
         location: { id: number; code: string; name: string; city: string; state: string };
         trailers: Array<{
-          deliveryId: string;
+          /// Null for yard-born stock (no delivery brought it here).
+          deliveryId: string | null;
           trailerId: string;
           soNumber: string;
           model: string | null;
@@ -787,6 +826,32 @@ export class DeliveriesService {
           d.trailer.customer?.name ?? d.trailer.soldToName ?? null,
         deliveredAt: d.deliveredAt,
         deliveredBy: (d.driverUser ?? d.createdByUser)?.fullName ?? null,
+      });
+    }
+
+    // Leg (2) merge: stock builds born at the yard. deliveryId is null and
+    // deliveredAt falls back to createdAt so the "newest arrivals first"
+    // sort still orders them sensibly within each yard.
+    for (const t of yardBornStock) {
+      if (!t.currentLocation) continue;
+      const loc = t.currentLocation;
+      let entry = byLocation.get(loc.id);
+      if (!entry) {
+        entry = { location: loc, trailers: [] };
+        byLocation.set(loc.id, entry);
+      }
+      entry.trailers.push({
+        deliveryId: null,
+        trailerId: t.id.toString(),
+        soNumber: t.soNumber,
+        model: t.trailerModel?.displayName ?? null,
+        series: t.trailerModel?.series ?? null,
+        sizeFt: t.sizeFt ?? null,
+        isHot: t.isHot,
+        saleStatus: t.saleStatus,
+        customerName: t.customer?.name ?? t.soldToName ?? null,
+        deliveredAt: t.createdAt,
+        deliveredBy: t.createdByUser?.fullName ?? null,
       });
     }
 
