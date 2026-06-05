@@ -234,9 +234,14 @@ export class TrailersController {
 
   // ---------------------------------------------------------------------------
   // POST /trailers/:id/qb-pdf
+  //
+  // Sales attaches the QB SO PDF right after creating the trailer (their
+  // create flow uploads the file to Spaces via the presign endpoint, then
+  // links the storage key here). Office + production_manager + owner
+  // already had access for catch-up attaches.
   // ---------------------------------------------------------------------------
   @Post(':id/qb-pdf')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.OFFICE, UserRole.SALES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Attach QuickBooks SO PDF to a trailer' })
   @ApiParam({ name: 'id', type: 'number' })
