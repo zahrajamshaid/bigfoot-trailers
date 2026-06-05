@@ -2,7 +2,9 @@
 // Returned by `GET /deliveries/stock-inventory`, grouped by location.
 
 class StockTrailer {
-  final int deliveryId;
+  /// Null for stock builds born at a yard (no delivery brought them there).
+  /// The API surfaces these with deliveryId=null since 0ee94be.
+  final int? deliveryId;
   final int trailerId;
   final String soNumber;
   final String? model;
@@ -29,7 +31,10 @@ class StockTrailer {
   });
 
   factory StockTrailer.fromJson(Map<String, dynamic> json) => StockTrailer(
-        deliveryId: int.parse(json['deliveryId'].toString()),
+        // tryParse handles the null case (yard-born stock) without throwing
+        // a FormatException, and still falls back to null for malformed
+        // payloads that slipped past the API.
+        deliveryId: int.tryParse(json['deliveryId']?.toString() ?? ''),
         trailerId: int.parse(json['trailerId'].toString()),
         soNumber: (json['soNumber'] as String?) ?? '',
         model: json['model'] as String?,
