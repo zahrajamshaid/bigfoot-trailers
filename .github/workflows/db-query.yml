@@ -1,0 +1,62 @@
+name: DB · Query (manual)
+
+# Read-only ad-hoc SQL runner for production. Paste a SELECT (or WITH
+# … SELECT) into the `sql` input and the runner executes it against the
+# managed Postgres on the droplet, prints the rows as a table in the run
+# log. Write statements (INSERT, UPDATE, DELETE, DROP, etc.) are rejected
+# before they touch Postgres — use a TS script in bigfoot-api/prisma/ for
+# anything that mutates state.
+#
+# See bigfoot-api/prisma/HOW-TO-PULL-REPORTS.md for recipe queries.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sql:
+        description: 'SELECT … (or WITH … SELECT …). Multi-statement input is rejected.'
+        required: true
+        type: string
+      limit:
+        description: 'Max rows to print (the query itself isn''t LIMITed; this just trims the log).'
+        required: false
+        type: string
+        default: '50'
+
+concurrency:
+  group: db-query-prod
+  cancel-in-progress: false
+
+jobs:
+  query:
+    name: Run ad-hoc SELECT on droplet
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: SSH in and run the query inside the api container
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          BIGFOOT_SQL: ${{ inputs.sql }}
+          BIGFOOT_LIMIT: ${{ inputs.limit }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          command_timeout: 5m
+          # The two env vars below are made available inside the SSH session;
+          # docker exec then re-exports them into the api container so
+          # run-query.ts can read process.env['BIGFOOT_SQL'] / _LIMIT.
+          envs: BIGFOOT_SQL,BIGFOOT_LIMIT
+          script: |
+            set -euo pipefail
+            echo "→ Running prisma/run-query.ts inside bigfoot-api-api-1..."
+
+            docker exec \
+              -e NPM_CONFIG_UPDATE_NOTIFIER=false \
+              -e BIGFOOT_SQL="$BIGFOOT_SQL" \
+              -e BIGFOOT_LIMIT="$BIGFOOT_LIMIT" \
+              bigfoot-api-api-1 \
+              sh -c "cd /app && npx -y -p tsx@4 tsx prisma/run-query.ts"
+
+            echo "✓ Query completed"

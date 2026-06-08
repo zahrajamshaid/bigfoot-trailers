@@ -273,6 +273,104 @@ describe('AuditLogInterceptor', () => {
     });
   });
 
+  // ===========================================================================
+  // Response-shape edge cases that previously caused silent audit-log drops
+  // ===========================================================================
+  describe('response-shape resilience', () => {
+    it('extracts entity id from inspectionId when response has no plain `id`', (done) => {
+      const ctx = createMockContext('POST', '/qc/inspections', { sub: 9 });
+      const handler = createMockHandler({
+        inspectionId: 333n,
+        result: 'pass' as const,
+      });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'qc_inspection',
+                entityId: 333n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('extracts entity id from deliveryId when response has no plain `id`', (done) => {
+      const ctx = createMockContext('POST', '/deliveries/200/photos', { sub: 1 });
+      const handler = createMockHandler({
+        deliveryId: 200n,
+        photosAdded: 3,
+      });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'delivery',
+                entityId: 200n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('sanitises BigInt fields in newValues so the Json column accepts them', (done) => {
+      const ctx = createMockContext('POST', '/qc/inspections', { sub: 1 });
+      const handler = createMockHandler({
+        inspectionId: 42n,
+        trailerId: 99n,
+        result: 'fail' as const,
+        reworkSentToStepId: 500n,
+      });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            const args = (mockAuditLogService.create as jest.Mock).mock.calls[0][0];
+            // newValues should be present, and every BigInt converted to its
+            // string form — JSON.stringify proves the structure is now safe.
+            expect(args.newValues).toEqual({
+              inspectionId: '42',
+              trailerId: '99',
+              result: 'fail',
+              reworkSentToStepId: '500',
+            });
+            expect(() => JSON.stringify(args.newValues)).not.toThrow();
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('sanitises nested BigInts in newValues', (done) => {
+      const ctx = createMockContext('PATCH', '/deliveries/batches/10', { sub: 1 });
+      const handler = createMockHandler({
+        id: 10n,
+        deliveries: [{ id: 1n, trailerId: 5n }],
+      });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            const args = (mockAuditLogService.create as jest.Mock).mock.calls[0][0];
+            expect(args.newValues).toEqual({
+              id: '10',
+              deliveries: [{ id: '1', trailerId: '5' }],
+            });
+            done();
+          }, 10);
+        },
+      });
+    });
+  });
+
   it('should use x-forwarded-for header for IP', (done) => {
     const ctx = {
       switchToHttp: () => ({

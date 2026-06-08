@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NestInterceptor,
   ExecutionContext,
   CallHandler,
@@ -97,8 +98,48 @@ function parseEntityFromPath(path: string): {
   return { entityType, entityId };
 }
 
+/**
+ * Recursively converts BigInts to strings so the result is JSON-safe.
+ * The Postgres `Json` column type Prisma writes to can't carry BigInts —
+ * we lose absolute precision in the very rare 53-bit overflow case, but
+ * the IDs were never meant to round-trip from the audit log anyway.
+ * Returns the same value for non-BigInt primitives and recurses through
+ * plain objects + arrays. Dates serialise as ISO strings via JSON
+ * defaults; that's already the desired shape.
+ */
+function sanitiseForJson(value: unknown): unknown {
+  if (typeof value === 'bigint') return value.toString();
+  if (Array.isArray(value)) return value.map(sanitiseForJson);
+  if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = sanitiseForJson(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Coerces something that might be a string / number / bigint into a
+ * BigInt, or null when it isn't a parseable integer. We use this for the
+ * various id-shaped keys responses might carry (`id`, `inspectionId`,
+ * `deliveryId`, `batchId`, …) — different controllers return different
+ * conventions and we don't want one stylistic choice to silently drop
+ * the audit log row.
+ */
+function tryParseBigInt(value: unknown): bigint | null {
+  if (value == null) return null;
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number' && Number.isInteger(value)) return BigInt(value);
+  if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value);
+  return null;
+}
+
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditLogInterceptor.name);
+
   constructor(private readonly auditLogService: AuditLogService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -122,18 +163,35 @@ export class AuditLogInterceptor implements NestInterceptor {
       tap({
         next: (responseBody: unknown) => {
           // Fire-and-forget — don't block the response
-          const newValues =
+          const rawNewValues =
             responseBody && typeof responseBody === 'object'
               ? (responseBody as Record<string, unknown>)
               : null;
 
-          // For CREATE, the entity ID comes from the response
+          // For CREATE, the entity ID isn't in the path — it comes from
+          // the response. Different controllers use different conventions
+          // (`id`, `inspectionId`, `deliveryId`, …), so try the plain `id`
+          // first and then fall back to any key shaped like `<word>Id`.
           let resolvedEntityId = entityId;
-          if (action === 'CREATE' && !resolvedEntityId && newValues?.id != null) {
-            resolvedEntityId = BigInt(newValues.id as string | number | bigint);
+          if (action === 'CREATE' && !resolvedEntityId && rawNewValues) {
+            resolvedEntityId =
+              tryParseBigInt(rawNewValues['id']) ??
+              tryParseBigInt(
+                rawNewValues[
+                  Object.keys(rawNewValues).find((k) => /Id$/.test(k)) ?? ''
+                ],
+              );
           }
 
           if (!resolvedEntityId) return; // Can't log without an entity ID
+
+          // Sanitise BigInts (and nested objects' BigInts) before handing
+          // to Prisma. Without this the Json column write throws a
+          // TypeError on inspectionId / trailerId fields, which the
+          // catch below would silently swallow.
+          const newValues = rawNewValues
+            ? (sanitiseForJson(rawNewValues) as Prisma.InputJsonValue)
+            : null;
 
           this.auditLogService
             .create({
@@ -142,11 +200,18 @@ export class AuditLogInterceptor implements NestInterceptor {
               entityId: resolvedEntityId,
               action,
               oldValues: null, // Interceptor doesn't have pre-update state
-              newValues: newValues as Prisma.InputJsonValue | null,
+              newValues,
               ipAddress,
             })
-            .catch(() => {
-              // Silently ignore audit log failures — never block business logic
+            .catch((err) => {
+              // Never block business logic on an audit-log write — but
+              // surface the failure to the app logs so a recurring miss
+              // doesn't go invisible for weeks like the BigInt issue did.
+              this.logger.warn(
+                `audit log write failed for ${entityType}#${resolvedEntityId} ${action}: ${
+                  (err as Error)?.message ?? err
+                }`,
+              );
             });
         },
       }),
