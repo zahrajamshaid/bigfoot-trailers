@@ -151,6 +151,62 @@ describe('AuditLogInterceptor', () => {
   // Multi-segment resource paths — locked because every dropdown filter on
   // the mobile audit-log screen queries by these exact strings.
   // ===========================================================================
+  describe('global API prefix (v1, api) is stripped before parsing', () => {
+    it('POST /v1/qc/inspections/45 logs as qc_inspection (not v1_qc_inspection)', (done) => {
+      const ctx = createMockContext('POST', '/v1/qc/inspections/45', { sub: 1 });
+      const handler = createMockHandler({ inspectionId: 45 });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'qc_inspection',
+                entityId: 45n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('PATCH /v1/trailers/100 logs as trailer (not v1_trailer)', (done) => {
+      const ctx = createMockContext('PATCH', '/v1/trailers/100', { sub: 1 });
+      const handler = createMockHandler({ id: 100 });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({ entityType: 'trailer', entityId: 100n }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+
+    it('POST /v2/deliveries/batches/9/depart logs as delivery_batch', (done) => {
+      const ctx = createMockContext('POST', '/v2/deliveries/batches/9/depart', { sub: 1 });
+      const handler = createMockHandler({ id: 9 });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'delivery_batch',
+                entityId: 9n,
+              }),
+            );
+            done();
+          }, 10);
+        },
+      });
+    });
+  });
+
   describe('multi-segment resource paths', () => {
     it('POST /qc/inspections logs as qc_inspection with id from response', (done) => {
       const ctx = createMockContext('POST', '/qc/inspections', { sub: 9 });

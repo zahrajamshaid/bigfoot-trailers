@@ -72,9 +72,14 @@ function parseEntityFromPath(path: string): {
   entityType: string;
   entityId: bigint | null;
 } {
+  // Strip the global `/v1`, `/v2`, … API prefix (set in main.ts via
+  // setGlobalPrefix) as well as any `/api/` mount, otherwise every
+  // entityType ends up prefixed with `v1_` (e.g. `v1_qc_inspection`)
+  // and the mobile dropdown filters never match.
   const clean = path
     .split('?')[0]
     .replace(/^\/api\//, '/')
+    .replace(/^\/v\d+(?:\/|$)/, '/')
     .replace(/^\//, '');
   const segments = clean.split('/').filter(Boolean);
 

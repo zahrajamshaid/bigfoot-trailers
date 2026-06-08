@@ -57,6 +57,33 @@ async function main(): Promise<void> {
     console.log(`  ${from.padEnd(18)} → ${to.padEnd(20)} (${res.count} rows)`);
   }
 
+  // ─── 1b. Strip the `/v1/` prefix that leaked into every entity_type ──
+  // For the brief window between commits 72184e4 and the v1-strip fix,
+  // the path parser concatenated the API prefix with the resource name,
+  // so every row landed with `v1_<resource>` instead of `<resource>`.
+  // We can fix those server-side by trimming the prefix.
+  const v1Prefixed = await prisma.auditLog.findMany({
+    where: { entityType: { startsWith: 'v1_' } },
+    select: { id: true, entityType: true },
+  });
+  console.log(`\n📋 Stripping v1_ prefix from ${v1Prefixed.length} rows`);
+
+  // Group by current value so we can issue one UPDATE per distinct
+  // entity_type rather than per-row.
+  const v1Groups = new Map<string, string[]>();
+  for (const row of v1Prefixed) {
+    const target = row.entityType.replace(/^v1_/, '');
+    if (!v1Groups.has(target)) v1Groups.set(target, []);
+    v1Groups.get(target)!.push(row.id.toString());
+  }
+  for (const [target, ids] of v1Groups) {
+    const res = await prisma.auditLog.updateMany({
+      where: { id: { in: ids.map((id) => BigInt(id)) } },
+      data: { entityType: target },
+    });
+    console.log(`  v1_${target.padEnd(18 - 3)} → ${target.padEnd(20)} (${res.count} rows)`);
+  }
+
   // ─── 2. Disambiguate `qc` rows ────────────────────────────────────────
   // Need to look at each row and decide qc_inspection vs qc_checklist_item.
   // We do this by joining the audit_log row's createdAt + entityId against
