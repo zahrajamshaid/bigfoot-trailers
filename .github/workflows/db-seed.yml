@@ -51,6 +51,7 @@ on:
           - fix-mulberry-open-stock-and-6567 # one-shot: normalise 7 Mulberry open-stock trailers + move SO 6567 → Virginia
           - retag-audit-log-entity-types # one-shot: rewrite historical audit_logs entity_type so QC/batch rows surface in the mobile dropdown
           - qc-today-report # read-only: list every QC inspection submitted today (SO, dept, inspector)
+          - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
 
 concurrency:
   group: db-seed-prod
@@ -74,6 +75,18 @@ jobs:
           script: |
             set -euo pipefail
             SCRIPT="${{ inputs.script }}"
+
+            # Special case: dump-api-logs prints the container's stdout via
+            # `docker logs` from the host. There is no .ts script for it —
+            # the api container's logs aren't reachable from inside the
+            # container itself (PID 1's stdout is a pipe, not a file).
+            if [ "$SCRIPT" = "dump-api-logs" ]; then
+              echo "→ Dumping last 300 lines from bigfoot-api-api-1..."
+              docker logs bigfoot-api-api-1 --tail 300 2>&1
+              echo "✓ Log dump completed"
+              exit 0
+            fi
+
             echo "→ Running prisma/${SCRIPT}.ts inside bigfoot-api-api-1..."
 
             # tsx is fetched on-the-fly via npx (it's a devDep, not in the

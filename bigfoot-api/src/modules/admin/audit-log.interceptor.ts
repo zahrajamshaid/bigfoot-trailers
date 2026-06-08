@@ -188,7 +188,19 @@ export class AuditLogInterceptor implements NestInterceptor {
               );
           }
 
-          if (!resolvedEntityId) return; // Can't log without an entity ID
+          // Temporary diagnostic — surfaces the interceptor's view of the
+          // request so a recurring "audit log empty" issue can be debugged
+          // from container logs without redeploying.
+          this.logger.debug(
+            `audit-log trace: path=${request.path} method=${method} entityType=${entityType} entityId=${entityId ?? 'null'} resolvedEntityId=${resolvedEntityId ?? 'null'} responseKeys=${rawNewValues ? Object.keys(rawNewValues).join(',') : 'null'}`,
+          );
+
+          if (!resolvedEntityId) {
+            this.logger.warn(
+              `audit-log: no entity id for ${method} ${request.path} (type=${entityType}) — response keys: ${rawNewValues ? Object.keys(rawNewValues).join(',') : 'null'}`,
+            );
+            return;
+          }
 
           // Sanitise BigInts (and nested objects' BigInts) before handing
           // to Prisma. Without this the Json column write throws a
