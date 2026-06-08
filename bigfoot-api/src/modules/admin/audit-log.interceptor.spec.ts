@@ -333,6 +333,38 @@ describe('AuditLogInterceptor', () => {
   // Response-shape edge cases that previously caused silent audit-log drops
   // ===========================================================================
   describe('response-shape resilience', () => {
+    it('unwraps the ResponseEnvelope wrapper before reading id keys', (done) => {
+      // The global ResponseEnvelopeInterceptor wraps every payload in
+      // { success, data, meta }, which is what APP_INTERCEPTOR-bound
+      // interceptors see — this proves we unwrap and look inside `data`.
+      const ctx = createMockContext('POST', '/v1/qc/inspections', { sub: 9 });
+      const handler = createMockHandler({
+        success: true,
+        data: { inspectionId: 777n, result: 'pass' as const },
+        meta: { timestamp: '2026-06-08T16:44:14.000Z', path: '/v1/qc/inspections', method: 'POST' },
+      });
+
+      interceptor.intercept(ctx, handler).subscribe({
+        complete: () => {
+          setTimeout(() => {
+            expect(mockAuditLogService.create).toHaveBeenCalledWith(
+              expect.objectContaining({
+                entityType: 'qc_inspection',
+                entityId: 777n,
+              }),
+            );
+            const args = (mockAuditLogService.create as jest.Mock).mock.calls[0][0];
+            // newValues should be the unwrapped inner object, not the envelope.
+            expect(args.newValues).toEqual({
+              inspectionId: '777',
+              result: 'pass',
+            });
+            done();
+          }, 10);
+        },
+      });
+    });
+
     it('extracts entity id from inspectionId when response has no plain `id`', (done) => {
       const ctx = createMockContext('POST', '/qc/inspections', { sub: 9 });
       const handler = createMockHandler({

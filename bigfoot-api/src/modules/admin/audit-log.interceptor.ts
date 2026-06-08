@@ -168,10 +168,26 @@ export class AuditLogInterceptor implements NestInterceptor {
       tap({
         next: (responseBody: unknown) => {
           // Fire-and-forget — don't block the response
-          const rawNewValues =
+          let rawNewValues =
             responseBody && typeof responseBody === 'object'
               ? (responseBody as Record<string, unknown>)
               : null;
+
+          // The global ResponseEnvelopeInterceptor (registered in main.ts via
+          // useGlobalInterceptors) wraps every response in
+          // { success, data, meta } before this APP_INTERCEPTOR sees it on
+          // the way out. Unwrap so the rest of the logic looks at the
+          // controller's actual payload, where the `id` / `*Id` keys live.
+          if (
+            rawNewValues &&
+            'success' in rawNewValues &&
+            'data' in rawNewValues &&
+            'meta' in rawNewValues &&
+            rawNewValues.data &&
+            typeof rawNewValues.data === 'object'
+          ) {
+            rawNewValues = rawNewValues.data as Record<string, unknown>;
+          }
 
           // For CREATE, the entity ID isn't in the path — it comes from
           // the response. Different controllers use different conventions
