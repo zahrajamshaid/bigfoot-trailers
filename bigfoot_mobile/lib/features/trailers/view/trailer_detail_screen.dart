@@ -1390,12 +1390,15 @@ class _WorkflowTab extends StatelessWidget {
   }
 
   /// Manual workflow override matches the backend RBAC on
-  /// POST /production/trailers/:id/jump-to-step (owner + production_manager).
+  /// POST /production/trailers/:id/jump-to-step
+  /// (owner + production_manager + qc_inspector — QC routinely bounces
+  /// trailers back to a rework department when an inspection fails).
   static bool _canManageWorkflow(BuildContext context) {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
-        auth.user.role == UserRole.productionManager;
+        auth.user.role == UserRole.productionManager ||
+        auth.user.role == UserRole.qcInspector;
   }
 }
 

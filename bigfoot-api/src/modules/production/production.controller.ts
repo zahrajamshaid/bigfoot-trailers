@@ -140,11 +140,11 @@ export class ProductionController {
   // POST /production/trailers/:trailer_id/jump-to-step — admin override
   // ---------------------------------------------------------------------------
   @Post('trailers/:trailer_id/jump-to-step')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
-      'Admin: place a trailer at an arbitrary production step (forces upstream complete, resets downstream to waiting).',
+      'Admin override: place a trailer at an arbitrary production step (forces upstream complete, resets downstream to waiting). QC inspectors also use this to bounce a trailer back to a rework department.',
   })
   @ApiParam({ name: 'trailer_id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer moved to target step' })
@@ -170,7 +170,7 @@ export class ProductionController {
   // PATCH /production/queue/:dept_id/reorder — production_manager, owner
   // ---------------------------------------------------------------------------
   @Patch('queue/:dept_id/reorder')
-  @Roles(UserRole.PRODUCTION_MANAGER, UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
   @ApiOperation({ summary: 'Reorder the queue for a department' })
   @ApiParam({ name: 'dept_id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Queue reordered' })

@@ -98,10 +98,10 @@ export class TrailersController {
   }
 
   // ---------------------------------------------------------------------------
-  // PATCH /trailers/:id/priority — production_manager, owner
+  // PATCH /trailers/:id/priority — production_manager, owner, qc_inspector
   // ---------------------------------------------------------------------------
   @Patch(':id/priority')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
   @ApiOperation({ summary: 'Set global priority on a trailer' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Priority updated' })
@@ -111,10 +111,10 @@ export class TrailersController {
   }
 
   // ---------------------------------------------------------------------------
-  // PATCH /trailers/:id/hot — toggle is_hot
+  // PATCH /trailers/:id/hot — toggle is_hot (owner / production_manager / qc_inspector)
   // ---------------------------------------------------------------------------
   @Patch(':id/hot')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
   @ApiOperation({ summary: 'Toggle is_hot flag on a trailer' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Hot flag updated' })

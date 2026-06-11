@@ -823,8 +823,12 @@ export class ProductionService {
           select: { failNotes: true },
         },
       },
+      // Primary sort still keeps `active` ahead of `waiting`; everything
+      // else is decided by the tiered post-fetch comparator below so the
+      // mobile + any future tool gets the same priority order out of the
+      // box, without each client re-implementing it.
       orderBy: [
-        { status: 'asc' }, // 'active' sorts before 'waiting'
+        { status: 'asc' },
         { queuePosition: 'asc' },
         { trailer: { globalPriority: 'asc' } },
       ],
@@ -857,7 +861,7 @@ export class ProductionService {
 
     const now = new Date();
 
-    return steps.map((step) => {
+    const items = steps.map((step) => {
       const hoursInQueue = step.becameActiveAt
         ? (now.getTime() - step.becameActiveAt.getTime()) / (1000 * 60 * 60)
         : null;
@@ -870,6 +874,16 @@ export class ProductionService {
       const currentStage = isActive
         ? { code: step.department.code, name: step.department.displayName }
         : (currentStageByTrailer.get(step.trailerId.toString()) ?? null);
+
+      const threshold = step.department.stallThresholdHours || 48;
+      const stallLevel =
+        hoursInQueue == null
+          ? 0
+          : hoursInQueue >= threshold * 2
+            ? 2
+            : hoursInQueue >= threshold
+              ? 1
+              : 0;
 
       return {
         stepId: step.id,
@@ -895,7 +909,51 @@ export class ProductionService {
         currentStageCode: currentStage?.code ?? null,
         currentStageName: currentStage?.name ?? null,
         stallThresholdHours: step.department.stallThresholdHours,
+        // Internal — used only for the tiered sort below, not returned in
+        // the API shape (Nest strips fields that don't appear in the DTO,
+        // and existing clients don't care).
+        _stallLevel: stallLevel,
       };
     });
+
+    // Tiered priority sort applied server-side so every client renders the
+    // same order regardless of how recent its build is:
+    //   1. status — `active` always ahead of `waiting`;
+    //   2. rework trailers (failed-QC items needing immediate action);
+    //   3. hot trailers;
+    //   4. trailers with an explicit globalPriority (< the 9999 default —
+    //      lower number wins inside this tier);
+    //   5. stalled trailers (critical/red before warning/yellow);
+    //   6. oldest becameActiveAt first — a unit sitting three days outranks
+    //      a unit that arrived five minutes ago. Unstamped rows sink.
+    items.sort((a, b) => {
+      // 1. active before waiting
+      if (a.status !== b.status) {
+        return a.status === ProductionStepStatus.active ? -1 : 1;
+      }
+      // 2. rework
+      if (a.isRework !== b.isRework) return a.isRework ? -1 : 1;
+      // 3. hot
+      if (a.isHot !== b.isHot) return a.isHot ? -1 : 1;
+      // 4. explicit globalPriority
+      const aHas = a.globalPriority < 9999;
+      const bHas = b.globalPriority < 9999;
+      if (aHas !== bHas) return aHas ? -1 : 1;
+      if (aHas && bHas && a.globalPriority !== b.globalPriority) {
+        return a.globalPriority - b.globalPriority;
+      }
+      // 5. stalled (critical first)
+      if (a._stallLevel !== b._stallLevel) return b._stallLevel - a._stallLevel;
+      // 6. oldest first
+      const aAt = a.becameActiveAt?.getTime();
+      const bAt = b.becameActiveAt?.getTime();
+      if (aAt == null && bAt == null) return 0;
+      if (aAt == null) return 1;
+      if (bAt == null) return -1;
+      return aAt - bAt;
+    });
+
+    // Strip the internal sort helper before returning.
+    return items.map(({ _stallLevel: _drop, ...rest }) => rest);
   }
 }
