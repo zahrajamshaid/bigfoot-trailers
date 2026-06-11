@@ -18,7 +18,9 @@ const HYDRAULICS_CODE = 'HYDRAULICS';
 
 // PAINT_A is the smaller booth — only fits trailers under this length.
 // Anything at or above goes to PAINT_B regardless of queue balance.
-const PAINT_A_MAX_FT = 25;
+// Lowered from 25 → 20 per the floor — anything 20ft and up now needs the
+// taller booth even if it would have fit dimensionally in the old setup.
+const PAINT_A_MAX_FT = 20;
 
 // Anything strictly OVER this length on XP/Yeti/Deck-Over series — which
 // would normally land at WIRE on step 9 — gets diverted to HYDRAULICS

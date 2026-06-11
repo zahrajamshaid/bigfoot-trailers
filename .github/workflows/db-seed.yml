@@ -32,7 +32,8 @@ on:
           - backfill-size-ft-suffix # one-shot: strip trailing "ft" from trailers.size_ft so UI doesn't render "ftft"
           - backfill-inventory-size-ft # one-shot: populate sizeFt on in-inventory trailers from seeded PDF JSONs
           - stats-trailers # read-only: tally trailers across lifecycle / stock yards / series
-          - backfill-paint-b-25ft # one-shot: reroute existing ≥25ft trailers from PAINT_A → PAINT_B
+          - backfill-paint-b-25ft # one-shot: reroute existing ≥25ft trailers from PAINT_A → PAINT_B (legacy)
+          - backfill-paint-b-20ft # one-shot: reroute existing ≥20ft trailers from PAINT_A → PAINT_B (waiting + active only)
           - seed-parts-user # new `parts` role + parts@bigfoot.dev login covering all 4 jig departments
           - fix-trailer-6770-yeti # one-shot: reroute SO 6770's production steps to YETI departments after model swap
           - seed-gn-yeti-model # new gooseneck_yeti series + GN_YETI model (GN workflow with YETI_FIN at step 3)
@@ -46,6 +47,7 @@ on:
           - seed-jig-coupler-checks # add "Correct coupler installed" check to every jig dept (worker self-check) + QC_1 (inspection)
           - fix-parts-b-role # one-shot: set parts_b@bigfoot.dev role from `worker` to `parts`
           - apply-scheduled-date-column # one-shot: ALTER TABLE deliveries ADD scheduled_date DATE (idempotent)
+          - apply-system-announcements-tables # one-shot: create system_announcements + acks tables (idempotent)
           - fix-batches-back-to-building # one-shot: flip scheduled batches with no dispatched deliveries → building so the deployed app shows Edit
           - skip-gn-fin-for-inflight # one-shot: auto-complete GN_FIN + QC_2 on in-flight goosenecks, advance to PAINT_PREP
           - fix-mulberry-open-stock-and-6567 # one-shot: normalise 7 Mulberry open-stock trailers + move SO 6567 → Virginia

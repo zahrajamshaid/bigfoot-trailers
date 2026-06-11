@@ -477,6 +477,36 @@ describe('WorkflowGeneratorService', () => {
       },
     );
 
+    it.each(NON_GN_SERIES)(
+      '%s @ 20ft: forces PAINT_B even when PAINT_A queue is empty',
+      async (series) => {
+        // Size threshold is 20 with `>=` — 20ft must hit PAINT_B regardless
+        // of queue balance. Locks the post-2026-06-08 cutover from 25 → 20.
+        mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows(series));
+        paintAQueueDepth = 0;
+        paintBQueueDepth = 100;
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any, '20ft');
+
+        const paintStep = createdSteps[6];
+        expect(paintStep.departmentId).toBe(DEPT.PAINT_B.id);
+      },
+    );
+
+    it.each(NON_GN_SERIES)(
+      '%s @ 19.5ft: still picks PAINT_A by queue (below 20ft threshold)',
+      async (series) => {
+        mockTx.workflowTemplate.findMany.mockResolvedValue(buildTemplateRows(series));
+        paintAQueueDepth = 0;
+        paintBQueueDepth = 100;
+
+        await service.generateSteps(BigInt(1), series as any, mockTx as any, '19.5ft');
+
+        const paintStep = createdSteps[6];
+        expect(paintStep.departmentId).toBe(DEPT.PAINT_A.id);
+      },
+    );
+
     it('gooseneck_dump always uses PAINT_B regardless of queue depth', async () => {
       mockTx.workflowTemplate.findMany.mockResolvedValue(
         buildTemplateRows('gooseneck_dump'),
