@@ -1078,6 +1078,71 @@ class AppLocalizationsEs extends AppLocalizations {
   String get qcInfoSpecialNote => 'Nota especial';
 
   @override
+  String get announcementDefaultTitle => 'Anuncio';
+
+  @override
+  String announcementPostedBy(String name) {
+    return 'Publicado por $name';
+  }
+
+  @override
+  String get announcementsTitle => 'Anuncios';
+
+  @override
+  String get announcementsNew => 'Nuevo anuncio';
+
+  @override
+  String get announcementsEmpty => 'Aún no hay anuncios.';
+
+  @override
+  String get announcementsActive => 'Activo';
+
+  @override
+  String get announcementsInactive => 'Inactivo';
+
+  @override
+  String announcementsAckProgress(int acked, int total) {
+    return '$acked de $total reconocidos';
+  }
+
+  @override
+  String get announcementsActivate => 'Activar';
+
+  @override
+  String get announcementsDeactivate => 'Desactivar';
+
+  @override
+  String get announcementsDeleteTitle => '¿Eliminar anuncio?';
+
+  @override
+  String get announcementsDeleteBody =>
+      'Esto borra el anuncio y todo el historial de reconocimientos. Usa Activo=falso si quieres conservar el rastro.';
+
+  @override
+  String get announcementsTitleField => 'Título (opcional)';
+
+  @override
+  String get announcementsBodyField => 'Mensaje';
+
+  @override
+  String get announcementsBodyRequired => 'El mensaje es obligatorio';
+
+  @override
+  String get announcementsNoExpiry =>
+      'Sin caducidad — activo hasta desactivarse';
+
+  @override
+  String announcementsExpiresOn(String date) {
+    return 'Caduca $date';
+  }
+
+  @override
+  String get announcementsSetExpiry => 'Definir caducidad';
+
+  @override
+  String get announcementsPublish => 'Publicar a todos los usuarios';
+
+  @override
   String get qcEarlierStageFallback => 'una etapa anterior';
 
   @override
@@ -2255,6 +2320,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get adminNavReportsSubtitle =>
       'Resumen semanal y producción por trabajador';
+
+  @override
+  String get adminNavAnnouncementsSubtitle =>
+      'Publica un mensaje que todos deben reconocer';
 
   @override
   String get adminNavReports => 'Informes de producción';

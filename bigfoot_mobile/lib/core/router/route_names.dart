@@ -48,6 +48,7 @@ abstract final class RouteNames {
   static const String workflowViewer = 'workflowViewer';
   static const String auditLog = 'auditLog';
   static const String adminReports = 'adminReports';
+  static const String announcementsAdmin = 'announcementsAdmin';
 
   // ── Customers ────────────────────────────────────────────────────────────
   static const String customerList = 'customerList';

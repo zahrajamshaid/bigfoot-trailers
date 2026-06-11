@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/admin/view/admin_dashboard_screen.dart';
 import '../../features/admin/view/audit_log_screen.dart';
+import '../../features/announcements/view/announcements_admin_screen.dart';
 import '../../features/admin/view/department_config_screen.dart';
 import '../../features/admin/view/reports_screen.dart';
 import '../../features/admin/view/user_management_screen.dart';
@@ -307,6 +308,12 @@ class AppRouter {
                   name: RouteNames.auditLog,
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) => const AuditLogScreen(),
+                ),
+                GoRoute(
+                  path: 'announcements',
+                  name: RouteNames.announcementsAdmin,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) => const AnnouncementsAdminScreen(),
                 ),
                 GoRoute(
                   path: 'reports',

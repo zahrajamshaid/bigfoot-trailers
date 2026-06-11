@@ -15,6 +15,8 @@ import '../data/repositories/payroll_repository_impl.dart';
 import '../data/repositories/production_repository_impl.dart';
 import '../data/repositories/qc_repository_impl.dart';
 import '../data/repositories/storage_repository_impl.dart';
+import '../data/repositories/announcement_repository_impl.dart';
+import '../domain/repositories/announcement_repository.dart';
 import '../data/repositories/trailer_repository_impl.dart';
 import '../domain/repositories/admin_repository.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -55,6 +57,7 @@ class ServiceLocator {
     required this.messageRepository,
     required this.notificationRepository,
     required this.storageRepository,
+    required this.announcementRepository,
   });
 
   // Infrastructure
@@ -78,6 +81,7 @@ class ServiceLocator {
   final MessageRepository messageRepository;
   final NotificationRepository notificationRepository;
   final StorageRepository storageRepository;
+  final AnnouncementRepository announcementRepository;
 
   /// Builds the full dependency graph. `onAuthExpired` is called by the auth
   /// interceptor when refresh fails so the app can redirect to login.
@@ -123,6 +127,7 @@ class ServiceLocator {
       messageRepository: MessageRepositoryImpl(api: dioClient),
       notificationRepository: NotificationRepositoryImpl(api: dioClient),
       storageRepository: StorageRepositoryImpl(api: dioClient),
+      announcementRepository: AnnouncementRepositoryImpl(api: dioClient),
     );
   }
 

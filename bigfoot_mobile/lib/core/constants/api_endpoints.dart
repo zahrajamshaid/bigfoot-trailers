@@ -114,6 +114,12 @@ abstract final class ApiEndpoints {
       '/admin/audit-log/$entityType/$id';
   static const String adminWeeklyProduction = '/admin/reports/weekly-production';
 
+  // ── Announcements ────────────────────────────────────────────────────────
+  static const String announcementsPending = '/announcements/pending';
+  static String announcementAck(int id) => '/announcements/$id/ack';
+  static const String adminAnnouncements = '/admin/announcements';
+  static String adminAnnouncement(int id) => '/admin/announcements/$id';
+
   // ── Health ───────────────────────────────────────────────────────────────
   static const String health = '/health';
 }

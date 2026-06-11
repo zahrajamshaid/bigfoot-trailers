@@ -14,6 +14,7 @@ import '../../../core/websocket/ws_event_stream.dart';
 import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
+import '../../announcements/view/announcement_gate.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../notifications/viewmodel/notifications_viewmodel.dart';
 
@@ -128,7 +129,8 @@ class _AppShellState extends State<AppShell> {
                 if (didPop) return;
                 _handleBackPress(context);
               },
-              child: Scaffold(
+              child: AnnouncementGate(
+                child: Scaffold(
                 drawer: useDrawer
                     ? _NavDrawer(tabs: tabs, currentIndex: currentIndex)
                     : null,
@@ -294,6 +296,7 @@ class _AppShellState extends State<AppShell> {
                             .toList(),
                       )
                     : null,
+              ),
               ),
             );
           },

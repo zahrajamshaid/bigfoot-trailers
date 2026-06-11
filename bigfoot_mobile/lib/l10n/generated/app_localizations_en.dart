@@ -1068,6 +1068,70 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qcInfoSpecialNote => 'Special Note';
 
   @override
+  String get announcementDefaultTitle => 'Announcement';
+
+  @override
+  String announcementPostedBy(String name) {
+    return 'Posted by $name';
+  }
+
+  @override
+  String get announcementsTitle => 'Announcements';
+
+  @override
+  String get announcementsNew => 'New Announcement';
+
+  @override
+  String get announcementsEmpty => 'No announcements yet.';
+
+  @override
+  String get announcementsActive => 'Active';
+
+  @override
+  String get announcementsInactive => 'Inactive';
+
+  @override
+  String announcementsAckProgress(int acked, int total) {
+    return '$acked of $total acknowledged';
+  }
+
+  @override
+  String get announcementsActivate => 'Activate';
+
+  @override
+  String get announcementsDeactivate => 'Deactivate';
+
+  @override
+  String get announcementsDeleteTitle => 'Delete announcement?';
+
+  @override
+  String get announcementsDeleteBody =>
+      'This removes the announcement and all acknowledgement history. Set Active=false instead to keep the trail.';
+
+  @override
+  String get announcementsTitleField => 'Title (optional)';
+
+  @override
+  String get announcementsBodyField => 'Message';
+
+  @override
+  String get announcementsBodyRequired => 'Message is required';
+
+  @override
+  String get announcementsNoExpiry => 'No expiry — runs until deactivated';
+
+  @override
+  String announcementsExpiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String get announcementsSetExpiry => 'Set expiry';
+
+  @override
+  String get announcementsPublish => 'Publish to all users';
+
+  @override
   String get qcEarlierStageFallback => 'an earlier stage';
 
   @override
@@ -2242,6 +2306,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get adminNavReportsSubtitle =>
       'Weekly summary and worker output overview';
+
+  @override
+  String get adminNavAnnouncementsSubtitle =>
+      'Push a message every user must acknowledge';
 
   @override
   String get adminNavReports => 'Production Reports';

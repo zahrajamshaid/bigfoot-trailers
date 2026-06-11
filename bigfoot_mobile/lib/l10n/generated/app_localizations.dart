@@ -1982,6 +1982,120 @@ abstract class AppLocalizations {
   /// **'Special Note'**
   String get qcInfoSpecialNote;
 
+  /// No description provided for @announcementDefaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcement'**
+  String get announcementDefaultTitle;
+
+  /// No description provided for @announcementPostedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Posted by {name}'**
+  String announcementPostedBy(String name);
+
+  /// No description provided for @announcementsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Announcements'**
+  String get announcementsTitle;
+
+  /// No description provided for @announcementsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New Announcement'**
+  String get announcementsNew;
+
+  /// No description provided for @announcementsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No announcements yet.'**
+  String get announcementsEmpty;
+
+  /// No description provided for @announcementsActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get announcementsActive;
+
+  /// No description provided for @announcementsInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get announcementsInactive;
+
+  /// No description provided for @announcementsAckProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{acked} of {total} acknowledged'**
+  String announcementsAckProgress(int acked, int total);
+
+  /// No description provided for @announcementsActivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate'**
+  String get announcementsActivate;
+
+  /// No description provided for @announcementsDeactivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivate'**
+  String get announcementsDeactivate;
+
+  /// No description provided for @announcementsDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete announcement?'**
+  String get announcementsDeleteTitle;
+
+  /// No description provided for @announcementsDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the announcement and all acknowledgement history. Set Active=false instead to keep the trail.'**
+  String get announcementsDeleteBody;
+
+  /// No description provided for @announcementsTitleField.
+  ///
+  /// In en, this message translates to:
+  /// **'Title (optional)'**
+  String get announcementsTitleField;
+
+  /// No description provided for @announcementsBodyField.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get announcementsBodyField;
+
+  /// No description provided for @announcementsBodyRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Message is required'**
+  String get announcementsBodyRequired;
+
+  /// No description provided for @announcementsNoExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'No expiry — runs until deactivated'**
+  String get announcementsNoExpiry;
+
+  /// No description provided for @announcementsExpiresOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String announcementsExpiresOn(String date);
+
+  /// No description provided for @announcementsSetExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Set expiry'**
+  String get announcementsSetExpiry;
+
+  /// No description provided for @announcementsPublish.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish to all users'**
+  String get announcementsPublish;
+
   /// No description provided for @qcEarlierStageFallback.
   ///
   /// In en, this message translates to:
@@ -3889,6 +4003,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Weekly summary and worker output overview'**
   String get adminNavReportsSubtitle;
+
+  /// No description provided for @adminNavAnnouncementsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Push a message every user must acknowledge'**
+  String get adminNavAnnouncementsSubtitle;
 
   /// No description provided for @adminNavReports.
   ///

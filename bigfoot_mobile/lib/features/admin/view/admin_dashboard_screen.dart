@@ -127,6 +127,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       subtitle: l.adminNavReportsSubtitle,
                       onTap: () => context.pushNamed(RouteNames.adminReports),
                     ),
+                    _NavTile(
+                      icon: Icons.campaign,
+                      title: l.announcementsTitle,
+                      subtitle: l.adminNavAnnouncementsSubtitle,
+                      onTap: () =>
+                          context.pushNamed(RouteNames.announcementsAdmin),
+                    ),
                   ],
                 ),
               ),

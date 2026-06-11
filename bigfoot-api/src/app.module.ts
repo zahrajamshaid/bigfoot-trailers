@@ -28,6 +28,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { StorageModule } from './modules/storage/storage.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -81,6 +82,7 @@ import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
     StorageModule,
     AdminModule,
     JobsModule,
+    AnnouncementsModule,
   ],
   providers: [
     // Global guards — execution order: Throttler → JWT → Roles

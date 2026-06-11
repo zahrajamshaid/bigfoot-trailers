@@ -421,6 +421,8 @@ model User {
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
   productionStepChecks ProductionStepCheck[]
+  postedAnnouncements  SystemAnnouncement[]      @relation("AnnouncementPostedBy")
+  announcementAcks     SystemAnnouncementAck[]
 
   @@index([role, isActive], map: "idx_users_role_active")
   @@map("users")
@@ -864,6 +866,43 @@ model AuditLog {
   @@index([entityType, entityId, createdAt(sort: Desc)], map: "idx_audit_log_entity")
   @@index([userId, createdAt(sort: Desc)], map: "idx_audit_log_user")
   @@map("audit_log")
+}
+
+/// A floor-wide message owner/production-manager pushes to every user.
+/// On app launch + resume each user fetches `pending` announcements
+/// (active, unexpired, not yet acked by them) and must tap OK on each
+/// modal before they can keep using the app.
+model SystemAnnouncement {
+  id             BigInt    @id @default(autoincrement())
+  title          String?   @db.VarChar(120)
+  body           String
+  postedByUserId BigInt    @map("posted_by_user_id")
+  isActive       Boolean   @default(true) @map("is_active")
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  postedByUser   User                     @relation("AnnouncementPostedBy", fields: [postedByUserId], references: [id])
+  acks           SystemAnnouncementAck[]
+
+  @@index([isActive, createdAt], map: "idx_announcements_active_oldest")
+  @@map("system_announcements")
+}
+
+/// One row per (announcement, user) the moment the user taps OK on the
+/// dialog. The unique constraint guards against double-acks if the
+/// network retries; on conflict the upsert is a no-op.
+model SystemAnnouncementAck {
+  id             BigInt   @id @default(autoincrement())
+  announcementId BigInt   @map("announcement_id")
+  userId         BigInt   @map("user_id")
+  ackedAt        DateTime @default(now()) @map("acked_at") @db.Timestamptz
+
+  announcement   SystemAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User               @relation(fields: [userId], references: [id])
+
+  @@unique([announcementId, userId], map: "uq_announcement_ack_per_user")
+  @@index([userId, ackedAt(sort: Desc)], map: "idx_announcement_acks_user")
+  @@map("system_announcement_acks")
 }
 
 // =============================================================================
