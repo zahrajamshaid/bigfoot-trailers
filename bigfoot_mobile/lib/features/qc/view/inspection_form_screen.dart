@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/router/route_names.dart';
 import '../../../data/models/qc_inspection.dart';
 import '../../../data/models/department.dart';
+import '../../../data/models/trailer.dart';
 import '../../../domain/repositories/qc_repository.dart';
+import '../../../domain/repositories/trailer_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/qc_viewmodel.dart';
 import '../../../shared/widgets/photo_capture_widget.dart';
+import '../../../shared/widgets/pdf_viewer_screen.dart';
 
 /// Multi-step QC inspection form: Photos → Checklist → Result → Fail Details → Submit.
 class InspectionFormScreen extends StatefulWidget {
@@ -56,11 +61,30 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
   bool _isSubmitting = false;
   int _currentPage = 0;
 
+  // Trailer summary pinned above the inspection form. Loaded once on open
+  // so the inspector has model / customer / size / options visible before
+  // they take a single photo, and can pull the QB SO PDF without going
+  // back to the queue.
+  Trailer? _trailerDetail;
+
   @override
   void initState() {
     super.initState();
     _loadChecklist();
     _loadUpstreamChecks();
+    _loadTrailerDetail();
+  }
+
+  Future<void> _loadTrailerDetail() async {
+    try {
+      final trailer = await context
+          .read<TrailerRepository>()
+          .getTrailer(widget.item.trailerId);
+      if (!mounted) return;
+      setState(() => _trailerDetail = trailer);
+    } catch (_) {
+      // Non-fatal — the banner just falls back to the limited QC queue info.
+    }
   }
 
   Future<void> _loadUpstreamChecks() async {
@@ -318,7 +342,16 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                 ],
               ),
             )
-          : PageView(
+          : Column(children: [
+              // Trailer info banner — collapsed to one line by default, opens
+              // to show the full spec sheet. The "Open SO PDF" button uses
+              // the existing PDF viewer route and is hidden when the trailer
+              // has no QB PDF attached yet.
+              _TrailerInfoBanner(
+                item: widget.item,
+                trailer: _trailerDetail,
+              ),
+              Expanded(child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (i) => setState(() => _currentPage = i),
@@ -375,7 +408,149 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                   onSubmit: _canSubmit ? _submit : null,
                 ),
               ],
+            )),
+            ]),
+    );
+  }
+}
+
+/// One-line trailer summary that expands to the full spec + an "Open SO
+/// PDF" action. Pinned above the inspection PageView so the inspector
+/// always has the trailer's basics in view.
+class _TrailerInfoBanner extends StatelessWidget {
+  final QcQueueItem item;
+  final Trailer? trailer;
+
+  const _TrailerInfoBanner({required this.item, required this.trailer});
+
+  String? get _model => trailer?.trailerModel?.displayName ?? item.modelName;
+  String? get _customer =>
+      trailer?.customer?.name ?? trailer?.soldToName ?? item.customerName;
+  String? get _size => trailer?.size;
+  String? get _color => trailer?.color;
+  String? get _options => trailer?.optionsNotes;
+  String? get _specialNote => trailer?.specialNote;
+  String? get _saleStatus => trailer?.saleStatus;
+  String? get _qbPdfKey => trailer?.qbSoPdfStorageKey;
+
+  void _openPdf(BuildContext context) {
+    final key = _qbPdfKey;
+    if (key == null || key.isEmpty) return;
+    context.pushNamed(
+      RouteNames.pdfViewer,
+      extra: PdfViewerArgs(storageKey: key, title: item.soNumber),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final hasPdf = _qbPdfKey != null && _qbPdfKey!.isNotEmpty;
+    final summary = [_model, _customer]
+        .where((s) => s != null && s.isNotEmpty)
+        .join(' • ');
+
+    return Material(
+      color: AppColors.navy.withValues(alpha: 0.04),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        childrenPadding:
+            const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        leading: const Icon(Icons.local_shipping_outlined,
+            color: AppColors.navy, size: 22),
+        title: Row(
+          children: [
+            Text(
+              item.soNumber,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.navy,
+              ),
             ),
+            if (summary.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  summary,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ],
+        ),
+        trailing: hasPdf
+            ? IconButton(
+                tooltip: l.trailerDetailOpenPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined,
+                    color: AppColors.navy),
+                onPressed: () => _openPdf(context),
+              )
+            : null,
+        children: [
+          if (trailer == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: LinearProgressIndicator(),
+            )
+          else ...[
+            _kv(l.qcInfoModel, _model),
+            _kv(l.qcInfoSize, _size),
+            _kv(l.qcInfoColor, _color),
+            _kv(l.qcInfoCustomer, _customer),
+            _kv(l.qcInfoSaleStatus, _saleStatus),
+            _kv(l.qcInfoOptions, _options, multiline: true),
+            _kv(l.qcInfoSpecialNote, _specialNote, multiline: true),
+            if (hasPdf)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openPdf(context),
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: Text(l.trailerDetailOpenPdf),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _kv(String label, String? value, {bool multiline = false}) {
+    if (value == null || value.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: multiline ? 4 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

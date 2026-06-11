@@ -314,12 +314,18 @@ class TrailersViewModel extends Cubit<TrailersState> {
 
   void _onWsEvent(WsEvent event) {
     if (state is TrailersLoaded) {
+      // Delivery dispatch + completion both flip trailer.status (→ in_transit
+      // and → delivered / ready_for_delivery respectively), so the trailer
+      // list has to refetch when those land or operators see stale chips
+      // and trailers that should have dropped off the active filter linger.
       if ([
         WsEventType.stepCompleted,
         WsEventType.qcPass,
         WsEventType.qcFail,
         WsEventType.trailerReady,
         WsEventType.priorityChanged,
+        WsEventType.deliveryDispatched,
+        WsEventType.deliveryComplete,
       ].contains(event.type)) {
         final current = state as TrailersLoaded;
         load(

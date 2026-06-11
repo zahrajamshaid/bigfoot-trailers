@@ -1922,6 +1922,66 @@ abstract class AppLocalizations {
   /// **'All QC queues are clear.'**
   String get qcQueuesClearBody;
 
+  /// No description provided for @qcSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by SO number'**
+  String get qcSearchHint;
+
+  /// No description provided for @qcSearchNoMatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches'**
+  String get qcSearchNoMatchTitle;
+
+  /// No description provided for @qcSearchNoMatchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No active inspections match \"{query}\".'**
+  String qcSearchNoMatchBody(String query);
+
+  /// No description provided for @qcInfoModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get qcInfoModel;
+
+  /// No description provided for @qcInfoSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get qcInfoSize;
+
+  /// No description provided for @qcInfoColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get qcInfoColor;
+
+  /// No description provided for @qcInfoCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer'**
+  String get qcInfoCustomer;
+
+  /// No description provided for @qcInfoSaleStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale Status'**
+  String get qcInfoSaleStatus;
+
+  /// No description provided for @qcInfoOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get qcInfoOptions;
+
+  /// No description provided for @qcInfoSpecialNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Special Note'**
+  String get qcInfoSpecialNote;
+
   /// No description provided for @qcEarlierStageFallback.
   ///
   /// In en, this message translates to:

@@ -1046,6 +1046,38 @@ class AppLocalizationsEs extends AppLocalizations {
   String get qcQueuesClearBody => 'Todas las colas de QC están despejadas.';
 
   @override
+  String get qcSearchHint => 'Buscar por número SO';
+
+  @override
+  String get qcSearchNoMatchTitle => 'Sin coincidencias';
+
+  @override
+  String qcSearchNoMatchBody(String query) {
+    return 'Ninguna inspección activa coincide con \"$query\".';
+  }
+
+  @override
+  String get qcInfoModel => 'Modelo';
+
+  @override
+  String get qcInfoSize => 'Tamaño';
+
+  @override
+  String get qcInfoColor => 'Color';
+
+  @override
+  String get qcInfoCustomer => 'Cliente';
+
+  @override
+  String get qcInfoSaleStatus => 'Estado de venta';
+
+  @override
+  String get qcInfoOptions => 'Opciones';
+
+  @override
+  String get qcInfoSpecialNote => 'Nota especial';
+
+  @override
   String get qcEarlierStageFallback => 'una etapa anterior';
 
   @override

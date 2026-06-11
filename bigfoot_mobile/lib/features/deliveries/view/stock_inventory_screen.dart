@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/est_clock.dart';
 import '../../../core/router/route_names.dart';
+import '../../../core/websocket/ws_client.dart';
+import '../../../core/websocket/ws_event_stream.dart';
 import '../../../data/models/stock_inventory.dart';
 import '../viewmodel/deliveries_viewmodel.dart';
 
@@ -23,6 +27,12 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
   String? _error;
   List<StockLocationGroup> _groups = const [];
 
+  /// Live updates — delivery dispatch / completion + trailer ready events all
+  /// shift what's parked at a yard, so we refetch when any of them lands.
+  /// Without this the inventory screen happily shows a unit that's already
+  /// been driven off the lot until the user manually pulls to refresh.
+  StreamSubscription<WsEvent>? _wsSub;
+
   // ── Filters ──────────────────────────────────────────────────────────────
   // All applied client-side against the in-memory groups so refresh stays
   // free and the result is instant. Null/empty = no filter.
@@ -37,12 +47,25 @@ class _StockInventoryScreenState extends State<StockInventoryScreen> {
   void initState() {
     super.initState();
     _load();
+    _wsSub = context.read<WsClient>().events.listen(_onWsEvent);
   }
 
   @override
   void dispose() {
+    _wsSub?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onWsEvent(WsEvent event) {
+    const triggers = {
+      WsEventType.deliveryDispatched,
+      WsEventType.deliveryComplete,
+      WsEventType.trailerReady,
+    };
+    if (triggers.contains(event.type) && mounted) {
+      _load();
+    }
   }
 
   Future<void> _load() async {

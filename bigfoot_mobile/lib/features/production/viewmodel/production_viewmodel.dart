@@ -48,9 +48,53 @@ class ProductionQueueLoaded extends ProductionQueueState {
     this.stalledOnly = false,
   });
 
-  /// The queue after the stalled filter is applied — what the list renders.
-  List<QueueItem> get visibleQueue =>
-      stalledOnly ? queue.where((q) => q.stallLevel > 0).toList() : queue;
+  /// The queue after the stalled filter is applied and the priority sort
+  /// has run — what the list actually renders.
+  ///
+  /// Tiered priority order, requested by ops:
+  ///   1. Rework trailers come first (a failed inspection has to be
+  ///      handled before anything else).
+  ///   2. Hot trailers (truly urgent).
+  ///   3. Trailers with an explicit global priority set (used for
+  ///      "important but not hot" overrides — lower number = more
+  ///      urgent within this tier).
+  ///   4. Stalled trailers (critical before warning, then by stalled
+  ///      duration).
+  ///   5. Everything else, oldest `becameActiveAt` first — a unit
+  ///      that's been sitting for three days outranks a unit that's
+  ///      been there five minutes.
+  List<QueueItem> get visibleQueue {
+    final filtered =
+        stalledOnly ? queue.where((q) => q.stallLevel > 0).toList() : [...queue];
+    filtered.sort(_byPriority);
+    return filtered;
+  }
+
+  static int _byPriority(QueueItem a, QueueItem b) {
+    // 1. Rework
+    if (a.isRework != b.isRework) return a.isRework ? -1 : 1;
+    // 2. Hot
+    if (a.isHot != b.isHot) return a.isHot ? -1 : 1;
+    // 3. Explicit priority (anything < the 9999 default counts as set).
+    final aHasPriority = a.globalPriority < 9999;
+    final bHasPriority = b.globalPriority < 9999;
+    if (aHasPriority != bHasPriority) return aHasPriority ? -1 : 1;
+    if (aHasPriority && bHasPriority) {
+      // Lower number = more urgent within this tier.
+      final cmp = a.globalPriority.compareTo(b.globalPriority);
+      if (cmp != 0) return cmp;
+    }
+    // 4. Stalled (level 2 = critical/red before level 1 = warning/yellow).
+    if (a.stallLevel != b.stallLevel) return b.stallLevel.compareTo(a.stallLevel);
+    // 5. Oldest becameActiveAt first; items with no timestamp sink to the
+    //    bottom so an unstamped row doesn't accidentally outrank everyone.
+    final aAt = a.becameActiveAt;
+    final bAt = b.becameActiveAt;
+    if (aAt == null && bAt == null) return 0;
+    if (aAt == null) return 1;
+    if (bAt == null) return -1;
+    return aAt.compareTo(bAt);
+  }
 
   ProductionQueueLoaded copyWith({
     List<QueueItem>? queue,
@@ -264,18 +308,28 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
     final current = state;
     if (current is! ProductionQueueLoaded) return;
 
-    if ([
+    // Anything that can change what's in this queue or its ordering:
+    //   • step + qc events shift trailers between departments;
+    //   • queueReordered / priorityChanged shift positions within the dept;
+    //   • trailerStalled / trailerReady flip the stall badge or pull the
+    //     trailer out of production entirely. Without these last two the
+    //     queue would drift out of sync until the next manual refresh.
+    if (![
       WsEventType.stepCompleted,
       WsEventType.stepReversed,
       WsEventType.qcPass,
       WsEventType.qcFail,
       WsEventType.queueReordered,
       WsEventType.priorityChanged,
+      WsEventType.trailerStalled,
+      WsEventType.trailerReady,
     ].contains(event.type)) {
-      final eventDeptId = event.departmentId;
-      if (eventDeptId == null || eventDeptId == current.departmentId) {
-        refresh();
-      }
+      return;
+    }
+
+    final eventDeptId = event.departmentId;
+    if (eventDeptId == null || eventDeptId == current.departmentId) {
+      refresh();
     }
   }
 

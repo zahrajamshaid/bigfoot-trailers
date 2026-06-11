@@ -3,10 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/websocket/ws_client.dart';
-import '../../../data/models/user.dart';
 import '../../../domain/repositories/qc_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
-import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/qc_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
 
@@ -72,31 +70,44 @@ class _QcQueueView extends StatelessWidget {
   }
 }
 
-class _LoadedView extends StatelessWidget {
+class _LoadedView extends StatefulWidget {
   final QcLoaded state;
   const _LoadedView({required this.state});
 
-  /// QC inspectors only act on currently-active steps; managers/owner keep
-  /// seeing upcoming items so they can plan ahead.
-  bool _hideWaitingFor(BuildContext context) {
-    final auth = context.read<AuthViewModel>().state;
-    if (auth is! Authenticated) return false;
-    return auth.user.role == UserRole.qcInspector;
+  @override
+  State<_LoadedView> createState() => _LoadedViewState();
+}
+
+class _LoadedViewState extends State<_LoadedView> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
-  Map<String, List<QcQueueItem>> _filteredQueue(BuildContext context) {
-    final hideWaiting = _hideWaitingFor(context);
-    final reworkOnly = state.reworkOnly;
-    if (!hideWaiting && !reworkOnly) return state.groupedQueue;
-
+  /// Filters the grouped queue down to:
+  ///   • items whose backing trailer is currently *at* the QC station (we
+  ///     always hide upstream `isWaiting` entries — users only want to see
+  ///     inspections requiring action);
+  ///   • items matching the rework toggle if set;
+  ///   • items whose SO number contains the search query (case-insensitive).
+  /// Empty departments are dropped so the list doesn't show bare headers.
+  Map<String, List<QcQueueItem>> _filteredQueue() {
+    final reworkOnly = widget.state.reworkOnly;
+    final query = _query.trim().toLowerCase();
     final out = <String, List<QcQueueItem>>{};
-    state.groupedQueue.forEach((dept, items) {
-      var filtered = items;
-      if (hideWaiting) {
-        filtered = filtered.where((i) => !i.isWaiting).toList();
-      }
+    widget.state.groupedQueue.forEach((dept, items) {
+      var filtered = items.where((i) => !i.isWaiting).toList();
       if (reworkOnly) {
         filtered = filtered.where((i) => i.isRework).toList();
+      }
+      if (query.isNotEmpty) {
+        filtered = filtered
+            .where((i) => i.soNumber.toLowerCase().contains(query))
+            .toList();
       }
       if (filtered.isNotEmpty) out[dept] = filtered;
     });
@@ -106,10 +117,10 @@ class _LoadedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final hideWaiting = _hideWaitingFor(context);
-    final visibleQueue = _filteredQueue(context);
+    final visibleQueue = _filteredQueue();
     final totalCount =
         visibleQueue.values.fold<int>(0, (sum, list) => sum + list.length);
+    final hasQuery = _query.trim().isNotEmpty;
 
     // Sort department codes in order: QC_1, QC_2, ..., QC_5, FINAL_QC
     final sortedKeys = visibleQueue.keys.toList()
@@ -128,30 +139,63 @@ class _LoadedView extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           color: AppColors.navy.withValues(alpha: 0.05),
-          child: Row(
+          child: Column(
             children: [
-              const Icon(Icons.checklist, size: 20, color: AppColors.navy),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  hideWaiting
-                      ? l.qcReadyToInspect(totalCount)
-                      : l.qcInspectionsPending(totalCount),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.navy,
+              Row(
+                children: [
+                  const Icon(Icons.checklist, size: 20, color: AppColors.navy),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l.qcReadyToInspect(totalCount),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                  ),
+                  FilterChip(
+                    label: Text(l.qcFilterRework),
+                    avatar: const Icon(Icons.replay, size: 16),
+                    selected: widget.state.reworkOnly,
+                    selectedColor: AppColors.warning.withValues(alpha: 0.2),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (v) =>
+                        context.read<QcViewModel>().setReworkOnly(v),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // SO search bar — operators don't want to scroll through
+              // hundreds of trailers when they know the SO number.
+              TextField(
+                controller: _searchCtrl,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: l.qcSearchHint,
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: hasQuery
+                      ? IconButton(
+                          tooltip: l.commonClear,
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _query = '');
+                          },
+                        )
+                      : null,
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
-              ),
-              FilterChip(
-                label: Text(l.qcFilterRework),
-                avatar: const Icon(Icons.replay, size: 16),
-                selected: state.reworkOnly,
-                selectedColor: AppColors.warning.withValues(alpha: 0.2),
-                visualDensity: VisualDensity.compact,
-                onSelected: (v) =>
-                    context.read<QcViewModel>().setReworkOnly(v),
+                onChanged: (v) => setState(() => _query = v),
               ),
             ],
           ),
@@ -167,23 +211,32 @@ class _LoadedView extends StatelessWidget {
                       Center(
                         child: Column(
                           children: [
-                            const Icon(Icons.check_circle_outline,
-                                size: 64, color: AppColors.success),
+                            Icon(
+                              hasQuery
+                                  ? Icons.search_off
+                                  : Icons.check_circle_outline,
+                              size: 64,
+                              color: hasQuery
+                                  ? Colors.grey
+                                  : AppColors.success,
+                            ),
                             const SizedBox(height: 16),
                             Text(
-                              state.reworkOnly
-                                  ? l.qcNoReworkTitle
-                                  : l.qcNoInspectionsTitle,
+                              hasQuery
+                                  ? l.qcSearchNoMatchTitle
+                                  : widget.state.reworkOnly
+                                      ? l.qcNoReworkTitle
+                                      : l.qcNoInspectionsTitle,
                               style: const TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              state.reworkOnly
-                                  ? l.qcNoReworkBody
-                                  : hideWaiting
-                                      ? l.qcAllInspectedBody
-                                      : l.qcQueuesClearBody,
+                              hasQuery
+                                  ? l.qcSearchNoMatchBody(_query.trim())
+                                  : widget.state.reworkOnly
+                                      ? l.qcNoReworkBody
+                                      : l.qcAllInspectedBody,
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: Colors.grey),
                             ),

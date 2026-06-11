@@ -1036,6 +1036,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qcQueuesClearBody => 'All QC queues are clear.';
 
   @override
+  String get qcSearchHint => 'Search by SO number';
+
+  @override
+  String get qcSearchNoMatchTitle => 'No matches';
+
+  @override
+  String qcSearchNoMatchBody(String query) {
+    return 'No active inspections match \"$query\".';
+  }
+
+  @override
+  String get qcInfoModel => 'Model';
+
+  @override
+  String get qcInfoSize => 'Size';
+
+  @override
+  String get qcInfoColor => 'Color';
+
+  @override
+  String get qcInfoCustomer => 'Customer';
+
+  @override
+  String get qcInfoSaleStatus => 'Sale Status';
+
+  @override
+  String get qcInfoOptions => 'Options';
+
+  @override
+  String get qcInfoSpecialNote => 'Special Note';
+
+  @override
   String get qcEarlierStageFallback => 'an earlier stage';
 
   @override
