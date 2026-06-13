@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../platform/platform_support.dart';
+
 enum AppFlavor {
   development,
   staging,
@@ -10,6 +12,13 @@ class AppEnvironment {
   static const String _flavorDefine = String.fromEnvironment('FLAVOR');
   static const String _apiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
   static const String _wsUrlDefine = String.fromEnvironment('WS_URL');
+
+  /// The live hosted backend (duckdns). Desktop builds (Windows/macOS/Linux)
+  /// talk to this by default: there is no local emulator, and the
+  /// Android-emulator host alias (10.0.2.2) / `localhost` dev defaults don't
+  /// apply on a desktop machine. Override with `--dart-define=API_BASE_URL=...`
+  /// (and `WS_URL=...`) to point a desktop build at a local backend instead.
+  static const String _hostedHost = 'bigfoot-trailers.duckdns.org';
 
   static AppFlavor get flavor {
     switch (_flavorDefine.trim().toLowerCase()) {
@@ -33,6 +42,7 @@ class AppEnvironment {
 
   static String get apiBaseUrl {
     if (_apiBaseUrlDefine.isNotEmpty) return _apiBaseUrlDefine;
+    if (PlatformSupport.isDesktop) return 'https://$_hostedHost/v1';
     switch (flavor) {
       case AppFlavor.development:
         return kIsWeb ? 'http://localhost:3000/v1' : 'http://10.0.2.2:3000/v1';
@@ -45,6 +55,7 @@ class AppEnvironment {
 
   static String get wsUrl {
     if (_wsUrlDefine.isNotEmpty) return _wsUrlDefine;
+    if (PlatformSupport.isDesktop) return 'wss://$_hostedHost/ws';
     switch (flavor) {
       case AppFlavor.development:
         return kIsWeb ? 'ws://localhost:3000/ws' : 'ws://10.0.2.2:3000/ws';
