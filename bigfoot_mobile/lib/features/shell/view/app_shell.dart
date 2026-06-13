@@ -495,12 +495,22 @@ class _AppShellState extends State<AppShell> {
           ),
         ];
       case UserRole.qcInspector:
+        // QC gets the Trailers tab too so they can pull up any trailer's
+        // detail screen and use jump-to-step like admin / production
+        // manager — needed when an inspection fails and QC bounces a
+        // trailer into a rework department other than the canonical one.
         return [
           _NavTab(
             '/dashboard',
             l.navDashboard,
             Icons.dashboard_outlined,
             Icons.dashboard,
+          ),
+          _NavTab(
+            '/trailers',
+            l.navTrailers,
+            Icons.local_shipping_outlined,
+            Icons.local_shipping,
           ),
           _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
         ];
