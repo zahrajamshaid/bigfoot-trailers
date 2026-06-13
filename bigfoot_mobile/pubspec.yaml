@@ -62,6 +62,10 @@ dependencies:
   firebase_core: ^3.15.2
   firebase_messaging: ^15.1.6
 
+  # Desktop (Windows/macOS/Linux) native toast notifications. Mobile uses FCM;
+  # desktop surfaces live WebSocket events through the OS notification centre.
+  local_notifier: ^0.1.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -72,6 +76,8 @@ dev_dependencies:
   freezed: ^3.0.6
   flutter_launcher_icons: ^0.14.3
   flutter_native_splash: ^2.4.6
+  # Windows MSIX installer packaging (Phase 4 distribution).
+  msix: ^3.16.8
 
 flutter:
   uses-material-design: true
@@ -89,6 +95,27 @@ flutter_launcher_icons:
   min_sdk_android: 21
   remove_alpha_ios: true
   background_color_ios: "#FFFFFF"
+  windows:
+    generate: true
+    image_path: assets/branding/bigfoot_logo_launcher.png
+    icon_size: 256
+
+# Windows MSIX installer (Phase 4). Build with:
+#   dart run msix:create           # signed .msix (self-signed cert below)
+# The client trusts windows/packaging/bigfoot_trailers.cer once, then installs
+# the .msix. See DESKTOP-WINDOWS-PROGRESS.md → Phase 4.
+msix_config:
+  display_name: Bigfoot Trailers
+  publisher_display_name: Bigfoot Trailers
+  identity_name: com.bigfoottrailers.productionmanagement
+  msix_version: 1.0.0.0
+  logo_path: assets/branding/bigfoot_logo_launcher.png
+  capabilities: internetClient
+  publisher: CN=Bigfoot Trailers
+  certificate_path: windows/packaging/bigfoot_trailers.pfx
+  certificate_password: bigfoot
+  install_certificate: false
+  store: false
 
 flutter_native_splash:
   color: "#1B3A4B"

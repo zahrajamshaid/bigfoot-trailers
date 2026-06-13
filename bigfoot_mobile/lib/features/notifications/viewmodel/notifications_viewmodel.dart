@@ -7,6 +7,7 @@ import '../../../core/websocket/ws_client.dart';
 import '../../../core/websocket/ws_events.dart';
 import '../../../data/models/app_notification.dart';
 import '../../../domain/repositories/notification_repository.dart';
+import '../../../services/desktop_notification_service.dart';
 import '../../../services/push_notification_service.dart';
 
 class NotificationsState extends Equatable {
@@ -38,6 +39,7 @@ class NotificationsViewModel extends Cubit<NotificationsState> {
   final NotificationRepository _repository;
   final WsClient _ws;
   final PushNotificationService _pushService;
+  final DesktopNotificationService _desktopNotifier;
   StreamSubscription<WsEvent>? _wsSub;
   bool _initialized = false;
 
@@ -45,9 +47,11 @@ class NotificationsViewModel extends Cubit<NotificationsState> {
     required NotificationRepository repository,
     required WsClient ws,
     required PushNotificationService pushService,
+    required DesktopNotificationService desktopNotifier,
   })  : _repository = repository,
         _ws = ws,
         _pushService = pushService,
+        _desktopNotifier = desktopNotifier,
         super(const NotificationsState()) {
     _subscribeWs();
   }
@@ -156,6 +160,9 @@ class NotificationsViewModel extends Cubit<NotificationsState> {
       final mapped = _fromWsEvent(event);
       if (mapped != null) {
         _insertNotification(mapped, showBanner: false);
+        // Also raise a native OS toast on desktop so the event is seen even
+        // when the app is in the background (no-op on mobile/web).
+        _desktopNotifier.show(title: mapped.title, body: mapped.body);
       }
     });
   }

@@ -31,6 +31,7 @@ import '../domain/repositories/production_repository.dart';
 import '../domain/repositories/qc_repository.dart';
 import '../domain/repositories/storage_repository.dart';
 import '../domain/repositories/trailer_repository.dart';
+import '../services/desktop_notification_service.dart';
 import '../services/push_notification_service.dart';
 
 /// Simple, constructor-based service locator for the app's shared dependencies.
@@ -44,6 +45,7 @@ class ServiceLocator {
     required this.secureStorage,
     required this.cameraService,
     required this.pushNotificationService,
+    required this.desktopNotificationService,
     required this.authRepository,
     required this.dashboardRepository,
     required this.trailerRepository,
@@ -66,6 +68,7 @@ class ServiceLocator {
   final SecureStorage secureStorage;
   final CameraService cameraService;
   final PushNotificationService pushNotificationService;
+  final DesktopNotificationService desktopNotificationService;
 
   // Domain repositories (contracts)
   final AuthRepository authRepository;
@@ -111,6 +114,7 @@ class ServiceLocator {
       secureStorage: secureStorage,
       cameraService: CameraService(),
       pushNotificationService: PushNotificationService(),
+      desktopNotificationService: DesktopNotificationService(),
       authRepository: AuthRepositoryImpl(api: dioClient, storage: secureStorage),
       dashboardRepository: DashboardRepositoryImpl(api: dioClient),
       trailerRepository: TrailerRepositoryImpl(api: dioClient),

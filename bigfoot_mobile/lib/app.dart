@@ -9,6 +9,7 @@ import 'core/config/app_environment.dart';
 import 'core/constants/app_theme.dart';
 import 'core/i18n/locale_cubit.dart';
 import 'core/network/dio_client.dart';
+import 'core/platform/platform_support.dart';
 import 'core/router/app_router.dart';
 import 'core/security/mobile_security.dart';
 import 'core/security/pin_storage.dart';
@@ -117,7 +118,11 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
       repository: _sl.notificationRepository,
       ws: _sl.wsClient,
       pushService: _sl.pushNotificationService,
+      desktopNotifier: _sl.desktopNotificationService,
     );
+    // Register the desktop OS-toast channel (no-op on mobile/web). Fire and
+    // forget — toasts only fire on later WS events, so we don't block startup.
+    unawaited(_sl.desktopNotificationService.initialize());
 
     _departmentQueueRealtimeCubit =
         DepartmentQueueRealtimeCubit(ws: _sl.wsClient);
@@ -219,6 +224,9 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
 
   Future<void> _initializeSecurityGuards() async {
     if (!AppEnvironment.isProduction) return;
+    // Root/jailbreak detection is a mobile-only platform channel; desktop has
+    // no implementation, so skip it rather than swallow a MissingPluginException.
+    if (!PlatformSupport.isMobile) return;
     try {
       final rooted = await MobileSecurity.isDeviceRooted();
       if (!mounted) return;

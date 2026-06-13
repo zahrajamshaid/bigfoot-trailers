@@ -96,3 +96,9 @@ coverage/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# MSIX signing key — private, never commit (the public .cer is shared with clients)
+windows/packaging/*.pfx
+
+# Client distribution output (generated artifacts)
+dist/
