@@ -34,6 +34,7 @@ on:
           - stats-trailers # read-only: tally trailers across lifecycle / stock yards / series
           - backfill-paint-b-25ft # one-shot: reroute existing ≥25ft trailers from PAINT_A → PAINT_B (legacy)
           - backfill-paint-b-20ft # one-shot: reroute existing ≥20ft trailers from PAINT_A → PAINT_B (waiting + active only)
+          - fix-clear-trailer-6868-priority # one-shot: reset SO 6868's globalPriority 1 → 9999 default
           - seed-parts-user # new `parts` role + parts@bigfoot.dev login covering all 4 jig departments
           - fix-trailer-6770-yeti # one-shot: reroute SO 6770's production steps to YETI departments after model swap
           - seed-gn-yeti-model # new gooseneck_yeti series + GN_YETI model (GN workflow with YETI_FIN at step 3)
