@@ -14,6 +14,7 @@ import '../../../core/websocket/ws_event_stream.dart';
 import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
+import '../../../shared/widgets/hover_tap.dart';
 import '../../announcements/view/announcement_gate.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../notifications/viewmodel/notifications_viewmodel.dart';
@@ -154,8 +155,7 @@ class _AppShellState extends State<AppShell> {
                       // return to the dashboard. Fixes the "no way back to
                       // homepage" complaint without relying on the iOS swipe
                       // gesture or finding the right back chevron.
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
+                      HoverTap(
                         onTap: () => context.go('/dashboard'),
                         child: const BrandLogoAvatar(
                           size: 32,
@@ -164,8 +164,7 @@ class _AppShellState extends State<AppShell> {
                       ),
                       const SizedBox(width: 10),
                       Flexible(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
+                        child: HoverTap(
                           onTap: () => context.go('/dashboard'),
                           child: Text(
                             r.isCompact ? l.appTitleShort : l.appTitle,
@@ -210,7 +209,7 @@ class _AppShellState extends State<AppShell> {
                     ),
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
+                      child: HoverTap(
                         onTap: () => context.go('/settings'),
                         child: CircleAvatar(
                           radius: 16,
@@ -251,9 +250,16 @@ class _AppShellState extends State<AppShell> {
                                     ),
                                     onDestinationSelected: (index) =>
                                         context.go(tabs[index].path),
-                                    labelType: r.isExpanded || r.isLarge
-                                        ? NavigationRailLabelType.all
-                                        : NavigationRailLabelType.selected,
+                                    // An extended rail (isLarge) renders the
+                                    // label inline beside each icon, so Flutter
+                                    // asserts labelType must be none/null there.
+                                    // Only the non-extended widths pick all vs
+                                    // selected.
+                                    labelType: r.isLarge
+                                        ? NavigationRailLabelType.none
+                                        : (r.isExpanded
+                                            ? NavigationRailLabelType.all
+                                            : NavigationRailLabelType.selected),
                                     extended: r.isLarge,
                                     destinations: tabs
                                         .map(

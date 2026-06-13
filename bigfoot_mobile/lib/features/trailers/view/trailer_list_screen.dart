@@ -8,6 +8,7 @@ import '../../../domain/repositories/location_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/trailers_viewmodel.dart';
+import '../../../shared/widgets/hover_tap.dart';
 import '../../../shared/widgets/status_badge.dart';
 
 class TrailerListScreen extends StatefulWidget {
@@ -648,7 +649,7 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return HoverTap(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

@@ -7,6 +7,7 @@ import '../../../core/i18n/language_toggle_button.dart';
 import '../../../core/validation/validators.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
+import '../../../shared/widgets/hover_tap.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -224,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                             const SizedBox(width: 8),
-                            GestureDetector(
+                            HoverTap(
                               onTap: () => setState(
                                   () => _rememberEmail = !_rememberEmail),
                               child: Text(
