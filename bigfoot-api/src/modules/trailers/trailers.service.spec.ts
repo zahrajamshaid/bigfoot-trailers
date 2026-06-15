@@ -267,28 +267,33 @@ describe('TrailersService', () => {
       });
     });
 
-    it('should allow creating without customerId (stock build)', async () => {
+    it('should allow creating without customerId (stock build) — keeps trailer at factory, records intended destination', async () => {
+      const FACTORY_ID = 1;
+      const STOCK_DEST_ID = 5; // a satellite yard, e.g. Tappahannock
       const stockDto = {
         soNumber: 'SO-3001',
         trailerModelId: 1,
         isStockBuild: true,
-        stockLocationId: 1,
+        stockLocationId: STOCK_DEST_ID,
       };
 
       mockPrisma.trailer.findUnique.mockResolvedValue(null);
       mockPrisma.trailerModel.findUnique.mockResolvedValue({ id: 1, series: 'xp' });
-      mockPrisma.location.findFirst.mockResolvedValue({ id: 1 });
-      mockPrisma.location.findUnique.mockResolvedValue({ id: 1, isActive: true });
+      mockPrisma.location.findFirst.mockResolvedValue({ id: FACTORY_ID });
+      mockPrisma.location.findUnique.mockResolvedValue({
+        id: STOCK_DEST_ID,
+        isActive: true,
+      });
 
+      const createSpy = jest.fn().mockResolvedValue({
+        ...mockTrailer,
+        customerId: null,
+        isStockBuild: true,
+        intendedStockLocationId: STOCK_DEST_ID,
+      });
       mockPrisma.$transaction.mockImplementation(async (fn: any) => {
         const txClient = {
-          trailer: {
-            create: jest.fn().mockResolvedValue({
-              ...mockTrailer,
-              customerId: null,
-              isStockBuild: true,
-            }),
-          },
+          trailer: { create: createSpy },
         };
         mockWorkflowGenerator.generateSteps.mockResolvedValue({
           trailerId: BigInt(1),
@@ -302,6 +307,18 @@ describe('TrailersService', () => {
       const result = await service.create(stockDto, BigInt(10));
 
       expect(result.trailer).toBeDefined();
+      // Trailer is born at the factory regardless of stockLocationId — the
+      // destination yard goes into intendedStockLocationId so transport can
+      // schedule a stack_to_location delivery once production completes.
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            currentLocationId: FACTORY_ID,
+            intendedStockLocationId: STOCK_DEST_ID,
+            isStockBuild: true,
+          }),
+        }),
+      );
     });
 
     it('should throw AppError if no factory location exists', async () => {

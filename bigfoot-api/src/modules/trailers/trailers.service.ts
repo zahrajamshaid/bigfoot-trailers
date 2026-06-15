@@ -45,6 +45,7 @@ const TRAILER_DETAIL_SELECT = {
   trailerModelId: true,
   customerId: true,
   currentLocationId: true,
+  intendedStockLocationId: true,
   createdByUserId: true,
   color: true,
   sizeFt: true,
@@ -73,6 +74,9 @@ const TRAILER_DETAIL_SELECT = {
   currentLocation: {
     select: { id: true, code: true, name: true },
   },
+  intendedStockLocation: {
+    select: { id: true, code: true, name: true },
+  },
   addons: {
     select: { id: true, addonName: true, notes: true, addedAt: true },
     orderBy: { addedAt: 'asc' as const },
@@ -94,6 +98,7 @@ const TRAILER_LIST_SELECT = {
   soldToName: true,
   globalPriority: true,
   isStockBuild: true,
+  intendedStockLocationId: true,
   isHot: true,
   createdAt: true,
   trailerModel: {
@@ -110,6 +115,16 @@ const TRAILER_LIST_SELECT = {
     },
   },
   currentLocation: {
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      city: true,
+      state: true,
+      shortLabel: true,
+    },
+  },
+  intendedStockLocation: {
     select: {
       id: true,
       code: true,
@@ -273,7 +288,13 @@ export class TrailersService {
       throw new AppError(ErrorCode.NOT_FOUND, 'No factory location found in the system');
     }
 
-    let currentLocationId = factory.id;
+    // Every trailer — customer or stock — is physically built at the factory.
+    // Stock builds capture their destination yard in intendedStockLocationId
+    // so the trailer surfaces in Mulberry inventory the moment FINAL_QC
+    // passes; it only moves to the destination once a stack_to_location
+    // delivery is dispatched + completed.
+    const currentLocationId = factory.id;
+    let intendedStockLocationId: number | null = null;
     if (dto.isStockBuild) {
       if (!dto.stockLocationId) {
         throw new AppError(
@@ -291,7 +312,7 @@ export class TrailersService {
           `Stock location ${dto.stockLocationId} is invalid or inactive`,
         );
       }
-      currentLocationId = stockLocation.id;
+      intendedStockLocationId = stockLocation.id;
     }
 
     // Inventory-only models (Triple Crown, Enclosed, Misc) are tracked for
@@ -308,6 +329,7 @@ export class TrailersService {
           trailerModelId: dto.trailerModelId,
           customerId: dto.customerId ? BigInt(dto.customerId) : null,
           currentLocationId,
+          intendedStockLocationId,
           createdByUserId,
           color: dto.color ?? null,
           sizeFt: dto.sizeFt ?? null,
@@ -448,8 +470,10 @@ export class TrailersService {
       }
     }
 
-    // Stock-build flag drives currentLocationId. Recompute it only when the
-    // flag is explicitly toggled OR a new stock destination is supplied.
+    // Stock-build flag drives intendedStockLocationId (the destination yard
+    // the trailer is built for). currentLocationId is *never* touched here —
+    // the trailer stays at the factory until a stack_to_location delivery
+    // physically moves it.
     const data: Prisma.TrailerUpdateInput = {};
     const nextIsStockBuild = dto.isStockBuild ?? existing.isStockBuild;
 
@@ -469,7 +493,7 @@ export class TrailersService {
             `Stock location ${dto.stockLocationId} is invalid or inactive`,
           );
         }
-        data.currentLocation = { connect: { id: stockLocation.id } };
+        data.intendedStockLocation = { connect: { id: stockLocation.id } };
       } else if (dto.isStockBuild === true && existing.isStockBuild === false) {
         // Toggled ON without a destination — caller must supply one.
         throw new AppError(
@@ -478,18 +502,9 @@ export class TrailersService {
         );
       }
     } else if (dto.isStockBuild === false && existing.isStockBuild === true) {
-      // Toggled OFF — bring trailer back to the factory.
-      const factory = await this.prisma.location.findFirst({
-        where: { isFactory: true },
-        select: { id: true },
-      });
-      if (!factory) {
-        throw new AppError(
-          ErrorCode.NOT_FOUND,
-          'No factory location found in the system',
-        );
-      }
-      data.currentLocation = { connect: { id: factory.id } };
+      // Toggled OFF — drop the intended destination so it doesn't leak into
+      // a future stack_to_location delivery default.
+      data.intendedStockLocation = { disconnect: true };
     }
 
     if (dto.soNumber !== undefined) data.soNumber = dto.soNumber;

@@ -210,12 +210,13 @@ model Location {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
-  trailers         Trailer[]
-  users            User[]
-  deliveryBatches  DeliveryBatch[]
-  deliveries       Delivery[]
-  locationReceipts LocationReceipt[]
-  stockCustomers   Customer[]        @relation("CustomerStockLocation")
+  trailers                Trailer[]         @relation("TrailerCurrentLocation")
+  intendedStockTrailers   Trailer[]         @relation("TrailerIntendedStockLocation")
+  users                   User[]
+  deliveryBatches         DeliveryBatch[]
+  deliveries              Delivery[]
+  locationReceipts        LocationReceipt[]
+  stockCustomers          Customer[]        @relation("CustomerStockLocation")
 
   @@map("locations")
 }
@@ -269,6 +270,11 @@ model Trailer {
   trailerModelId    Int     @map("trailer_model_id")
   customerId        BigInt? @map("customer_id")
   currentLocationId Int     @map("current_location_id")
+  // Where a stock build is destined to ship after production. Captured at
+  // creation so transport knows the target yard, but the trailer stays at
+  // the factory until a stack_to_location delivery actually moves it. Null
+  // for customer trailers.
+  intendedStockLocationId Int? @map("intended_stock_location_id")
   createdByUserId   BigInt  @map("created_by_user_id")
 
   // Physical specs
@@ -306,7 +312,8 @@ model Trailer {
   // Relations
   trailerModel      TrailerModel       @relation(fields: [trailerModelId], references: [id])
   customer          Customer?          @relation(fields: [customerId], references: [id])
-  currentLocation   Location           @relation(fields: [currentLocationId], references: [id])
+  currentLocation        Location  @relation("TrailerCurrentLocation", fields: [currentLocationId], references: [id])
+  intendedStockLocation  Location? @relation("TrailerIntendedStockLocation", fields: [intendedStockLocationId], references: [id])
   createdByUser     User               @relation("TrailerCreatedBy", fields: [createdByUserId], references: [id])
   addons            TrailerAddon[]
   productionSteps   ProductionStep[]
