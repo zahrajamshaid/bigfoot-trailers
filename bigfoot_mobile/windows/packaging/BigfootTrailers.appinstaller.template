@@ -23,7 +23,9 @@
       ProcessorArchitecture="x64"
       Uri="{{BASE_URL}}/BigfootTrailers-Setup.msix" />
   <UpdateSettings>
+    <!-- On-launch check only. AutomaticBackgroundTask is intentionally omitted:
+         its update-task registration is a common source of 0x80070005
+         (Access denied) when a .appinstaller is opened by double-click. -->
     <OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="true" UpdateBlocksActivation="false" />
-    <AutomaticBackgroundTask />
   </UpdateSettings>
 </AppInstaller>
