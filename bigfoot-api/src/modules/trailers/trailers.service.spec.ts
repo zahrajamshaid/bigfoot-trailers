@@ -200,6 +200,71 @@ describe('TrailersService', () => {
       const findManyCall = mockPrisma.trailer.findMany.mock.calls[0]?.[0];
       expect(findManyCall.where.NOT).toBeUndefined();
     });
+
+    it('location filter matches currentLocationId OR intendedStockLocationId', async () => {
+      mockPrisma.$transaction.mockResolvedValue([[], 0]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.count.mockResolvedValue(0);
+
+      const JAX_ID = 4;
+      await service.findAll({ locationId: JAX_ID });
+
+      const where = mockPrisma.trailer.findMany.mock.calls[0]?.[0]?.where;
+      // The OR group lives inside an AND clause so it composes cleanly with
+      // the implicit delivered-trailer exclusion + future filters.
+      expect(where.AND).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            OR: [
+              { currentLocationId: JAX_ID },
+              { intendedStockLocationId: JAX_ID },
+            ],
+          }),
+        ]),
+      );
+      // currentLocationId is no longer set as a top-level scalar — that
+      // would AND with the OR group and re-introduce the old behavior.
+      expect(where.currentLocationId).toBeUndefined();
+    });
+
+    it('hides delivered trailers by default — they belong in Completed Deliveries', async () => {
+      mockPrisma.$transaction.mockResolvedValue([[], 0]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.count.mockResolvedValue(0);
+
+      await service.findAll({});
+
+      const where = mockPrisma.trailer.findMany.mock.calls[0]?.[0]?.where;
+      expect(where.AND).toEqual(
+        expect.arrayContaining([
+          { status: { not: 'delivered' } },
+        ]),
+      );
+    });
+
+    it('keeps delivered trailers visible when explicitly filtered for delivered', async () => {
+      mockPrisma.$transaction.mockResolvedValue([[], 0]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.count.mockResolvedValue(0);
+
+      await service.findAll({ status: 'delivered' as any });
+
+      const where = mockPrisma.trailer.findMany.mock.calls[0]?.[0]?.where;
+      // No AND clause means the default exclusion was skipped.
+      expect(where.AND).toBeUndefined();
+      expect(where.status).toBe('delivered');
+    });
+
+    it('keeps delivered trailers visible for the completedSince dashboard tile', async () => {
+      mockPrisma.$transaction.mockResolvedValue([[], 0]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.count.mockResolvedValue(0);
+
+      await service.findAll({ completedSince: '2026-06-01' });
+
+      const where = mockPrisma.trailer.findMany.mock.calls[0]?.[0]?.where;
+      expect(where.AND).toBeUndefined();
+    });
   });
 
   // =========================================================================

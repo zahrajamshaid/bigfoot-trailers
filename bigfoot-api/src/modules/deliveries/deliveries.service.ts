@@ -726,7 +726,14 @@ export class DeliveriesService {
   // delivery (those aren't at any yard right now).
   async getStockInventory() {
     const latestPerTrailer = await this.prisma.delivery.findMany({
-      where: { status: DeliveryStatus.delivered },
+      where: {
+        status: DeliveryStatus.delivered,
+        // Skip trailers a customer has since picked up. Their last delivered
+        // delivery is the old stack_to_location that parked them at a yard,
+        // but the trailer itself is gone — without this filter we'd keep
+        // showing picked-up units under their previous yard forever.
+        trailer: { status: { not: TrailerStatus.delivered } },
+      },
       distinct: ['trailerId'],
       orderBy: [{ trailerId: 'asc' }, { deliveredAt: 'desc' }],
       select: {

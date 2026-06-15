@@ -158,11 +158,32 @@ export class TrailersService {
     const skip = (page - 1) * limit;
 
     const where: Prisma.TrailerWhereInput = {};
+    const andClauses: Prisma.TrailerWhereInput[] = [];
     if (query.status) where.status = query.status as TrailerStatus;
     if (query.isHot !== undefined) where.isHot = query.isHot;
     if (query.customerId) where.customerId = BigInt(query.customerId);
-    if (query.locationId) where.currentLocationId = query.locationId;
+    if (query.locationId) {
+      // Stock builds now stay at the factory until delivered, so the trailer's
+      // intended yard (e.g. JAX) doesn't match currentLocationId. The yard
+      // chip should still pick them up — operators expect "JAX" to mean
+      // "everything earmarked for JAX", not just "what's physically there".
+      andClauses.push({
+        OR: [
+          { currentLocationId: query.locationId },
+          { intendedStockLocationId: query.locationId },
+        ],
+      });
+    }
     if (query.saleStatus) where.saleStatus = query.saleStatus as TrailerSaleStatus;
+    // Delivered trailers are history — they belong in Completed Deliveries,
+    // not the active inventory list. Hide them by default so location /
+    // status chips show only what's still in play. The caller can opt back
+    // in by passing `status=delivered` explicitly. `completedSince` (the
+    // dashboard "completed this week" tile) is also exempt — it's a
+    // history view by design.
+    if (query.status !== TrailerStatus.delivered && !query.completedSince) {
+      andClauses.push({ status: { not: TrailerStatus.delivered } });
+    }
     if (query.series) {
       where.trailerModel = { series: query.series };
     }
@@ -214,6 +235,10 @@ export class TrailersService {
           deliveredAt: { gte: new Date(query.completedSince) },
         },
       };
+    }
+
+    if (andClauses.length > 0) {
+      where.AND = andClauses;
     }
 
     const [trailers, total] = await this.prisma.$transaction([

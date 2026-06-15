@@ -621,5 +621,24 @@ describe('DeliveriesService', () => {
         }),
       );
     });
+
+    it('leg 1 excludes trailers that have since been picked up by a customer', async () => {
+      mockPrisma.delivery.findMany.mockResolvedValue([]);
+      mockPrisma.trailer.findMany.mockResolvedValue([]);
+
+      await service.getStockInventory();
+
+      // Picked-up trailers carry trailer.status=delivered. Their last
+      // delivered delivery (the old stack_to_location to JAX, say) would
+      // otherwise keep them sticky to that yard's inventory tile.
+      expect(mockPrisma.delivery.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: 'delivered',
+            trailer: { status: { not: 'delivered' } },
+          }),
+        }),
+      );
+    });
   });
 });
