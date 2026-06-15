@@ -56,6 +56,7 @@ on:
           - fix-stock-builds-route-via-mulberry # one-shot: move in-flight stock builds back to Mulberry, preserve destination in intended_stock_location_id
           - fix-stuck-batches-reconcile # one-shot: flip batches w/ all-terminal deliveries from scheduled → complete (e.g. OPEN-BATCH-TROPIC)
           - fix-so-test-pickup-delivery # one-shot: back-fill the missing factory_pickup row for SO TEST so both legs show in Completed Deliveries
+          - fix-open-stock-status-revert # one-shot: flip mis-encoded open-stock trailers (status=delivered + saleStatus=available + isStockBuild) back to ready_for_delivery so they reappear in Stock Inventory (incl. TAL)
           - retag-audit-log-entity-types # one-shot: rewrite historical audit_logs entity_type so QC/batch rows surface in the mobile dropdown
           - qc-today-report # read-only: list every QC inspection submitted today (SO, dept, inspector)
           - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
