@@ -604,6 +604,18 @@ class _InfoTab extends StatelessWidget {
                         (t.isStockBuild
                             ? l.trailersStockBuild
                             : l.trailerDetailNoCustomer)),
+                // Stock builds: where this trailer is intended to ship after
+                // production. Stays at Mulberry (currentLocation) during the
+                // build — the destination yard goes into intendedStockLocation
+                // and only takes effect when a stack_to_location delivery is
+                // dispatched + completed.
+                if (t.isStockBuild && t.intendedStockLocation != null)
+                  _DetailRow(
+                    'Intended for',
+                    (t.intendedStockLocation!.name as String?) ??
+                        (t.intendedStockLocation!.code as String?) ??
+                        '-',
+                  ),
                 _DetailRow(l.trailerDetailFieldColor, t.color ?? '-'),
                 _DetailRow(l.trailerDetailFieldSize, t.size ?? '-'),
                 _DetailRow(

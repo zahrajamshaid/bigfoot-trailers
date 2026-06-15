@@ -104,6 +104,9 @@ const TRAILER_LIST_SELECT = {
   trailerModel: {
     select: { id: true, code: true, displayName: true, series: true },
   },
+  intendedStockLocation: {
+    select: { id: true, code: true, name: true, shortLabel: true },
+  },
   customer: {
     select: {
       id: true,

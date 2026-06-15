@@ -17,6 +17,26 @@ String? _trailerLocationLabel(Map<String, dynamic> t) {
       (loc['city'] as String?);
 }
 
+/// Yard a stock build is destined to ship to once production completes — set
+/// at trailer creation, surfaces in the dropdown so transport can pick the
+/// right trailer + delivery type at a glance. Returns null for non-stock
+/// trailers (and stock builds destined for Mulberry itself).
+String? _trailerIntendedYardLabel(Map<String, dynamic> t) {
+  final loc = t['intendedStockLocation'] as Map<String, dynamic>?;
+  if (loc == null) return null;
+  return (loc['name'] as String?) ??
+      (loc['shortLabel'] as String?) ??
+      (loc['code'] as String?);
+}
+
+int? _trailerIntendedYardId(Map<String, dynamic> t) {
+  final id = t['intendedStockLocationId'];
+  if (id is num) return id.toInt();
+  final loc = t['intendedStockLocation'] as Map<String, dynamic>?;
+  final nested = loc?['id'];
+  return nested is num ? nested.toInt() : null;
+}
+
 /// Create-delivery entry point. A toggle at the top switches between:
 ///  • Single Delivery — one ready trailer, optionally added to a batch.
 ///  • Batch Delivery  — a named batch with several ready trailers selected.
@@ -245,17 +265,36 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
               (t['trailerModel'] as Map<String, dynamic>?)?['displayName'] ??
                   'Model';
           final loc = _trailerLocationLabel(t);
+          final intended = _trailerIntendedYardLabel(t);
+          final tail = intended != null ? '  →  $intended' : '';
           return DropdownMenuItem<int>(
             value: t['id'] as int,
             child: Text(
               loc == null
-                  ? '${t['soNumber']} • $model'
-                  : '${t['soNumber']} • $model  ·  $loc',
+                  ? '${t['soNumber']} • $model$tail'
+                  : '${t['soNumber']} • $model  ·  $loc$tail',
               overflow: TextOverflow.ellipsis,
             ),
           );
         }).toList(),
-        onChanged: (v) => setState(() => _trailerId = v),
+        onChanged: (v) => setState(() {
+          _trailerId = v;
+          // Stock builds carry their intended destination yard from create
+          // time. If the user picks one and the form has no destination yet,
+          // pre-fill it so they're one tap closer to dispatch.
+          if (v != null && _destinationLocationId == null) {
+            final picked = data.trailers.firstWhere(
+              (t) => t['id'] == v,
+              orElse: () => const <String, dynamic>{},
+            );
+            final intendedId = _trailerIntendedYardId(picked);
+            if (intendedId != null) {
+              _destinationLocationId = intendedId;
+              _deliveryType = 'stack_to_location';
+              _addressCtrl.clear();
+            }
+          }
+        }),
       ),
       const SizedBox(height: 12),
       Text(l.deliveryListFilterType, style: const TextStyle(fontWeight: FontWeight.w600)),

@@ -13,6 +13,7 @@ Trailer _$TrailerFromJson(Map<String, dynamic> json) => Trailer(
   trailerModelId: (json['trailerModelId'] as num?)?.toInt(),
   customerId: (json['customerId'] as num?)?.toInt(),
   currentLocationId: (json['currentLocationId'] as num?)?.toInt(),
+  intendedStockLocationId: (json['intendedStockLocationId'] as num?)?.toInt(),
   createdByUserId: (json['createdByUserId'] as num?)?.toInt(),
   color: json['color'] as String?,
   size: json['sizeFt'] as String?,
@@ -44,6 +45,10 @@ Trailer _$TrailerFromJson(Map<String, dynamic> json) => Trailer(
   currentLocation: json['currentLocation'] == null
       ? null
       : LocationInfo.fromJson(json['currentLocation'] as Map<String, dynamic>),
+  intendedStockLocation: json['intendedStockLocation'] == null
+      ? null
+      : LocationInfo.fromJson(
+          json['intendedStockLocation'] as Map<String, dynamic>),
   addons: (json['addons'] as List<dynamic>?)
       ?.map((e) => TrailerAddon.fromJson(e as Map<String, dynamic>))
       .toList(),
@@ -59,6 +64,7 @@ Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
   'trailerModelId': instance.trailerModelId,
   'customerId': instance.customerId,
   'currentLocationId': instance.currentLocationId,
+  'intendedStockLocationId': instance.intendedStockLocationId,
   'createdByUserId': instance.createdByUserId,
   'color': instance.color,
   'sizeFt': instance.size,
@@ -78,6 +84,7 @@ Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
   'trailerModel': instance.trailerModel,
   'customer': instance.customer,
   'currentLocation': instance.currentLocation,
+  'intendedStockLocation': instance.intendedStockLocation,
   'addons': instance.addons,
   'productionSteps': instance.productionSteps,
 };

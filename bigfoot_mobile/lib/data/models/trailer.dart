@@ -14,6 +14,10 @@ class Trailer {
   final int? trailerModelId;
   final int? customerId;
   final int? currentLocationId;
+  /// The yard a stock build is destined to ship to. Captured at trailer
+  /// creation; the trailer stays at the factory until a stack_to_location
+  /// delivery completes. Null for customer trailers.
+  final int? intendedStockLocationId;
   final int? createdByUserId;
   final String? color;
   @JsonKey(name: 'sizeFt')
@@ -47,6 +51,7 @@ class Trailer {
   final TrailerModelInfo? trailerModel;
   final CustomerInfo? customer;
   final LocationInfo? currentLocation;
+  final LocationInfo? intendedStockLocation;
   final List<TrailerAddon>? addons;
   final List<ProductionStepSummary>? productionSteps;
 
@@ -57,6 +62,7 @@ class Trailer {
     this.trailerModelId,
     this.customerId,
     this.currentLocationId,
+    this.intendedStockLocationId,
     this.createdByUserId,
     this.color,
     this.size,
@@ -76,6 +82,7 @@ class Trailer {
     this.trailerModel,
     this.customer,
     this.currentLocation,
+    this.intendedStockLocation,
     this.addons,
     this.productionSteps,
   });
