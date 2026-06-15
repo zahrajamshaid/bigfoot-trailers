@@ -127,16 +127,6 @@ const TRAILER_LIST_SELECT = {
       shortLabel: true,
     },
   },
-  intendedStockLocation: {
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      city: true,
-      state: true,
-      shortLabel: true,
-    },
-  },
   // Only the active step — used to render the current department on the card.
   productionSteps: {
     where: { status: 'active' as const },
