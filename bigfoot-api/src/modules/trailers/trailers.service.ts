@@ -211,9 +211,13 @@ export class TrailersService {
     // the factory — it shouldn't surface as "ready" for a customer pickup
     // until someone claims it. We only apply this exclusion when the caller
     // is filtering specifically for `ready_for_delivery`; queries that ask
-    // for all trailers (e.g. the inventory screen) still see them. Stock
-    // builds parked at *other* yards continue to show as ready by design,
-    // because those yards rely on the ready list to know what's available.
+    // for all trailers (e.g. the inventory screen) still see them.
+    //
+    // Since 2026-06-14 every stock build is built at Mulberry regardless of
+    // destination, so a Mulberry currentLocation no longer means "destined
+    // for Mulberry." We additionally require intent to be Mulberry (or
+    // unset) before hiding — a stock build destined for TAL / JAX / VA IS
+    // ready, transport just hasn't dispatched the stack_to_location yet.
     if (query.status === TrailerStatus.ready_for_delivery) {
       where.NOT = {
         ...(where.NOT as Prisma.TrailerWhereInput | undefined),
@@ -221,6 +225,10 @@ export class TrailersService {
         customerId: null,
         soldToName: null,
         currentLocation: { code: 'MULBERRY' },
+        OR: [
+          { intendedStockLocationId: null },
+          { intendedStockLocation: { code: 'MULBERRY' } },
+        ],
       };
     }
 

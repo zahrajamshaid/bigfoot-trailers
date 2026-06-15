@@ -174,7 +174,7 @@ describe('TrailersService', () => {
       expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
 
-    it('hides Mulberry stock-builds-without-customer when status=ready_for_delivery', async () => {
+    it('hides Mulberry-destined stock-builds-without-customer when status=ready_for_delivery', async () => {
       mockPrisma.$transaction.mockResolvedValue([[], 0]);
       mockPrisma.trailer.findMany.mockResolvedValue([]);
       mockPrisma.trailer.count.mockResolvedValue(0);
@@ -185,11 +185,19 @@ describe('TrailersService', () => {
       // can introspect the where clause directly because the service builds
       // it eagerly and passes both calls to $transaction.
       const findManyCall = mockPrisma.trailer.findMany.mock.calls[0]?.[0];
+      // The exclusion fires when ALL conditions are true: stock build with
+      // no customer/soldTo, sitting at Mulberry, AND destined for Mulberry
+      // (or unset). Stock builds destined for a satellite yard fail the
+      // OR sub-clause and stay visible.
       expect(findManyCall.where.NOT).toMatchObject({
         isStockBuild: true,
         customerId: null,
         soldToName: null,
         currentLocation: { code: 'MULBERRY' },
+        OR: [
+          { intendedStockLocationId: null },
+          { intendedStockLocation: { code: 'MULBERRY' } },
+        ],
       });
     });
 
