@@ -91,6 +91,9 @@ const mockPrisma = {
   },
   delivery: {
     findMany: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
   },
   auditLog: {
     findMany: jest.fn(),
@@ -658,6 +661,80 @@ describe('TrailersService', () => {
       await expect(service.getHistory(BigInt(999))).rejects.toMatchObject({
         errorCode: ErrorCode.NOT_FOUND,
       });
+    });
+  });
+
+  // =========================================================================
+  // markCompleted — auto-creates a factory_pickup row when none open
+  // =========================================================================
+  describe('markCompleted', () => {
+    beforeEach(() => {
+      mockPrisma.$transaction.mockImplementation(
+        (fn: (tx: any) => Promise<any>) => fn(mockPrisma),
+      );
+    });
+
+    it('completes the open delivery when one exists — no new row created', async () => {
+      mockPrisma.trailer.findUnique
+        .mockResolvedValueOnce({ id: BigInt(1), status: 'ready_for_delivery' })
+        .mockResolvedValueOnce(mockTrailer); // post-update fetch
+      mockPrisma.delivery.findFirst.mockResolvedValue({ id: BigInt(500) });
+      mockPrisma.delivery.update.mockResolvedValue({});
+      mockPrisma.trailer.update.mockResolvedValue({});
+
+      await service.markCompleted(BigInt(1), BigInt(10));
+
+      expect(mockPrisma.delivery.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: BigInt(500) },
+          data: expect.objectContaining({ status: 'delivered' }),
+        }),
+      );
+      expect(mockPrisma.delivery.create).not.toHaveBeenCalled();
+      expect(mockPrisma.trailer.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'delivered' } }),
+      );
+    });
+
+    it('auto-creates a factory_pickup row when no live delivery exists', async () => {
+      // Trailer is at a yard with no open delivery — the "Mark Picked Up"
+      // click needs to register as a delivery row so the pickup shows in
+      // Completed Deliveries alongside the prior inbound leg.
+      mockPrisma.trailer.findUnique
+        .mockResolvedValueOnce({ id: BigInt(1), status: 'ready_for_delivery' })
+        .mockResolvedValueOnce(mockTrailer);
+      mockPrisma.delivery.findFirst.mockResolvedValue(null);
+      mockPrisma.delivery.create.mockResolvedValue({ id: BigInt(700) });
+      mockPrisma.trailer.update.mockResolvedValue({});
+
+      await service.markCompleted(BigInt(1), BigInt(10));
+
+      expect(mockPrisma.delivery.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            trailerId: BigInt(1),
+            deliveryType: 'factory_pickup',
+            status: 'delivered',
+            createdByUserId: BigInt(10),
+          }),
+        }),
+      );
+      expect(mockPrisma.delivery.update).not.toHaveBeenCalled();
+      expect(mockPrisma.trailer.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'delivered' } }),
+      );
+    });
+
+    it('is a no-op for already-delivered trailers', async () => {
+      mockPrisma.trailer.findUnique
+        .mockResolvedValueOnce({ id: BigInt(1), status: 'delivered' })
+        .mockResolvedValueOnce(mockTrailer);
+
+      await service.markCompleted(BigInt(1), BigInt(10));
+
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockPrisma.delivery.create).not.toHaveBeenCalled();
+      expect(mockPrisma.delivery.update).not.toHaveBeenCalled();
     });
   });
 });

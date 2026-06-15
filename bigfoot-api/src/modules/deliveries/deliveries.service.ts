@@ -602,7 +602,7 @@ export class DeliveriesService {
   async completeFactoryPickup(id: bigint, dto: CompleteFactoryPickupDto) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id },
-      select: { id: true, status: true, deliveryType: true, trailerId: true },
+      select: { id: true, status: true, deliveryType: true, trailerId: true, deliveryBatchId: true },
     });
 
     if (!delivery) {
@@ -643,6 +643,15 @@ export class DeliveriesService {
         where: { id: delivery.trailerId },
         data: { status: TrailerStatus.delivered },
       });
+
+      // Factory pickups can land inside a dealer batch (a customer picking
+      // up multiple trailers at once). Without this reconcile the parent
+      // batch keeps `scheduled` status forever — that's how OPEN-BATCH-TROPIC
+      // got stuck. markComplete + markFailed already call this; we were the
+      // odd one out.
+      if (delivery.deliveryBatchId != null) {
+        await this.reconcileBatchCompletion(tx, delivery.deliveryBatchId);
+      }
 
       return updated;
     });

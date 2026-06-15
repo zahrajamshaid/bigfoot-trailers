@@ -967,17 +967,27 @@ export class TrailersService {
             deliveredAt: now,
           },
         });
+      } else {
+        // No live delivery — record the pickup as a fresh factory_pickup
+        // row already in the delivered state. Without this, "Mark Picked Up"
+        // silently flips trailer.status to delivered with no entry in the
+        // deliveries history, so two-leg flows (stack_to_location to a yard,
+        // then customer pickup at that yard) look like one event.
+        await tx.delivery.create({
+          data: {
+            trailerId: id,
+            deliveryType: DeliveryType.factory_pickup,
+            status: DeliveryStatus.delivered,
+            deliveredAt: now,
+            createdByUserId: completedByUserId,
+          },
+        });
       }
 
       await tx.trailer.update({
         where: { id },
         data: { status: TrailerStatus.delivered },
       });
-
-      // Side note: future-us could record completedByUserId on a Delivery /
-      // audit log column. Right now the field is unused — preserved in the
-      // signature so the API contract is stable when we add the column.
-      void completedByUserId;
 
       return tx.trailer.findUnique({
         where: { id },

@@ -16,6 +16,12 @@ const mockPrisma: Record<string, any> = {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
+  },
+  deliveryBatch: {
+    findUnique: jest.fn(),
+    updateMany: jest.fn(),
+    update: jest.fn(),
   },
   trailer: {
     findUnique: jest.fn(),
@@ -531,6 +537,37 @@ describe('DeliveriesService', () => {
       await expect(service.completeFactoryPickup(BigInt(103), {})).rejects.toMatchObject({
         errorCode: ErrorCode.DELIVERY_NOT_DISPATCHABLE,
       });
+    });
+
+    it('reconciles the parent batch when the pickup belongs to one', async () => {
+      // Dealer batches occasionally bundle a factory_pickup row (e.g.
+      // customer collecting one of several units in a single trip). Without
+      // the reconcile call the batch sticks at scheduled even after every
+      // delivery is terminal — that's exactly how OPEN-BATCH-TROPIC stuck.
+      mockPrisma.delivery.findUnique.mockResolvedValue({
+        ...mockFactoryPickup,
+        deliveryBatchId: BigInt(7),
+      });
+      mockPrisma.delivery.update.mockResolvedValue({
+        ...mockFactoryPickup,
+        status: 'delivered',
+      });
+      mockPrisma.trailer.update.mockResolvedValue({});
+      mockPrisma.delivery.count.mockResolvedValue(0); // no more open in batch
+      mockPrisma.deliveryBatch.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.completeFactoryPickup(BigInt(103), {});
+
+      expect(mockPrisma.delivery.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ deliveryBatchId: BigInt(7) }),
+        }),
+      );
+      expect(mockPrisma.deliveryBatch.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'complete' }),
+        }),
+      );
     });
   });
 
