@@ -1,7 +1,7 @@
 name: bigfoot_mobile
 description: "Bigfoot Trailers — Production Management System"
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.8.1
@@ -108,7 +108,7 @@ msix_config:
   display_name: Bigfoot Trailers
   publisher_display_name: Bigfoot Trailers
   identity_name: com.bigfoottrailers.productionmanagement
-  msix_version: 1.0.1.0
+  msix_version: 1.0.2.0
   logo_path: assets/branding/bigfoot_logo_launcher.png
   capabilities: internetClient
   publisher: CN=Bigfoot Trailers

@@ -174,7 +174,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
-              'v1.0.1',
+              'v1.0.2',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.white.withValues(alpha: 0.3),
