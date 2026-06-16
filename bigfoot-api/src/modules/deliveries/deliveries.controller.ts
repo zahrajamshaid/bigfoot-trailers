@@ -77,10 +77,10 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /deliveries/batches — transport_manager, owner
+  // POST /deliveries/batches — sales, transport_manager, owner
   // ---------------------------------------------------------------------------
   @Post('batches')
-  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @Roles(UserRole.SALES, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new delivery batch' })
   @ApiResponse({ status: 201, description: 'Batch created' })
@@ -89,10 +89,10 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
-  // PATCH /deliveries/batches/:id — transport_manager, owner
+  // PATCH /deliveries/batches/:id — sales, transport_manager, owner
   // ---------------------------------------------------------------------------
   @Patch('batches/:id')
-  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @Roles(UserRole.SALES, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
   @ApiOperation({ summary: 'Update batch (add/remove trailers while building)' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Batch updated' })
@@ -106,10 +106,10 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
-  // DELETE /deliveries/batches/:id — transport_manager, owner
+  // DELETE /deliveries/batches/:id — sales, transport_manager, owner
   // ---------------------------------------------------------------------------
   @Delete('batches/:id')
-  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @Roles(UserRole.SALES, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Delete a batch — removes its deliveries and frees their trailers',
@@ -122,10 +122,10 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /deliveries/batches/:id/depart — transport_manager, owner
+  // POST /deliveries/batches/:id/depart — sales, transport_manager, owner
   // ---------------------------------------------------------------------------
   @Post('batches/:id/depart')
-  @Roles(UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @Roles(UserRole.SALES, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Dispatch a delivery batch' })
   @ApiParam({ name: 'id', type: 'number' })
