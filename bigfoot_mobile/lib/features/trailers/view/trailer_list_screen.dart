@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/platform/platform_support.dart';
 import '../../../data/models/location.dart' as loc_model;
 import '../../../data/models/user.dart';
 import '../../../domain/repositories/location_repository.dart';
@@ -134,8 +135,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
               final hotOnly =
                   state is TrailersLoaded ? state.hotOnly : false;
 
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              return _HorizontalFilterScroller(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: Row(
                   children: [
@@ -679,6 +679,148 @@ class _FilterChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Horizontal filter scroller ───────────────────────────────────────────────
+
+/// Wraps the filter-chip [Row] in a horizontal scroll view. On touch platforms
+/// it behaves exactly like a plain `SingleChildScrollView` (drag to scroll).
+/// On desktop — where there's no touch drag and the OS scrollbar is awkward on
+/// a single short row — it adds clickable left/right chevrons that page through
+/// the chips. The arrows appear only when the chips actually overflow and each
+/// disables itself at its end of the range.
+class _HorizontalFilterScroller extends StatefulWidget {
+  final Widget child;
+  final EdgeInsets padding;
+
+  const _HorizontalFilterScroller({
+    required this.child,
+    required this.padding,
+  });
+
+  @override
+  State<_HorizontalFilterScroller> createState() =>
+      _HorizontalFilterScrollerState();
+}
+
+class _HorizontalFilterScrollerState extends State<_HorizontalFilterScroller> {
+  final _controller = ScrollController();
+
+  /// How far one arrow click scrolls — roughly a couple of chips.
+  static const _step = 220.0;
+
+  bool _canLeft = false;
+  bool _canRight = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_recompute);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recompute());
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_recompute);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _recompute() {
+    if (!_controller.hasClients) return;
+    final pos = _controller.position;
+    final canLeft = pos.pixels > 0.5;
+    final canRight = pos.pixels < pos.maxScrollExtent - 0.5;
+    if (canLeft != _canLeft || canRight != _canRight) {
+      setState(() {
+        _canLeft = canLeft;
+        _canRight = canRight;
+      });
+    }
+  }
+
+  void _scrollBy(double delta) {
+    if (!_controller.hasClients) return;
+    final target = (_controller.offset + delta)
+        .clamp(0.0, _controller.position.maxScrollExtent);
+    _controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scrollView = SingleChildScrollView(
+      controller: _controller,
+      scrollDirection: Axis.horizontal,
+      padding: widget.padding,
+      child: widget.child,
+    );
+
+    if (!PlatformSupport.isDesktop) return scrollView;
+
+    // Re-evaluate the arrows whenever the chip row's extent changes (e.g. the
+    // filter set rebuilds after locations load or a filter is toggled).
+    final scroller = NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _recompute());
+        return false;
+      },
+      child: scrollView,
+    );
+
+    // Everything fits — no arrows needed.
+    if (!_canLeft && !_canRight) return scroller;
+
+    return Row(
+      children: [
+        _ArrowButton(
+          icon: Icons.chevron_left,
+          enabled: _canLeft,
+          onTap: () => _scrollBy(-_step),
+        ),
+        Expanded(child: scroller),
+        _ArrowButton(
+          icon: Icons.chevron_right,
+          enabled: _canRight,
+          onTap: () => _scrollBy(_step),
+        ),
+      ],
+    );
+  }
+}
+
+class _ArrowButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _ArrowButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      child: IconButton(
+        icon: Icon(icon, size: 22),
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        splashRadius: 18,
+        tooltip: enabled
+            ? (icon == Icons.chevron_left ? 'Scroll left' : 'Scroll right')
+            : null,
+        color: AppColors.navy,
+        disabledColor: AppColors.disabled.withValues(alpha: 0.4),
+        onPressed: enabled ? onTap : null,
       ),
     );
   }
