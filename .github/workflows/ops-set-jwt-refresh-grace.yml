@@ -1,0 +1,77 @@
+name: Ops · Set JWT_REFRESH_REUSE_GRACE (manual)
+
+# One-shot ops workflow — idempotently sets JWT_REFRESH_REUSE_GRACE in the
+# droplet's .env.production, then recreates only the api container so it
+# picks up the new value. The AuthService code defaults to 30s when the
+# var is absent, so this workflow is for making the value explicit /
+# changing it from the default.
+#
+# Trigger via: gh workflow run "Ops · Set JWT_REFRESH_REUSE_GRACE (manual)" \
+#               --ref main --field value=30s
+
+on:
+  workflow_dispatch:
+    inputs:
+      value:
+        description: 'Grace window duration (ms / s / m / h / d). Default 30s.'
+        required: true
+        default: '30s'
+
+concurrency:
+  group: ops-env-prod
+  cancel-in-progress: false
+
+jobs:
+  set:
+    name: Set ${{ inputs.value }} in .env.production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: SSH in, patch env file, recreate api container
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          envs: GRACE_VALUE
+          script: |
+            set -euo pipefail
+            ENV_FILE=/opt/bigfoot/.env.production
+
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "✗ $ENV_FILE missing — refusing to write." >&2
+              exit 1
+            fi
+
+            # Idempotent: replace the existing line if present, otherwise
+            # append. The | sed delimiter avoids escaping problems with /.
+            if grep -q '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE"; then
+              sed -i "s|^JWT_REFRESH_REUSE_GRACE=.*|JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}|" "$ENV_FILE"
+              echo "→ Updated JWT_REFRESH_REUSE_GRACE → ${GRACE_VALUE}"
+            else
+              # Drop it in under the other JWT_* knobs for tidiness.
+              if grep -q '^JWT_REFRESH_EXPIRY=' "$ENV_FILE"; then
+                sed -i "/^JWT_REFRESH_EXPIRY=/a JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}" "$ENV_FILE"
+              else
+                echo "JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}" >> "$ENV_FILE"
+              fi
+              echo "→ Inserted JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}"
+            fi
+
+            echo "→ Verifying line in env file:"
+            grep '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE"
+
+            cd /opt/bigfoot/bigfoot-api
+            echo "→ Recreating api container with the new env..."
+            docker compose --env-file /opt/bigfoot/.env.production \
+              -f docker-compose.prod.yml up -d --force-recreate --no-deps api
+
+            echo "→ Waiting briefly for container health..."
+            sleep 5
+            docker ps --filter name=bigfoot-api-api-1 --format 'table {{.Names}}\t{{.Status}}'
+
+            echo "✓ Done."
+        env:
+          GRACE_VALUE: ${{ inputs.value }}
