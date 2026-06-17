@@ -50,16 +50,18 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Bump build number from CI run number
-        # Each Firebase App Distribution upload doesn't strictly require a
-        # higher build number, but bumping it keeps the version visible in
-        # the tester app distinct and aligned with the iOS workflow.
+      - name: Stamp version 1.0.0 + CI build number
+        # Marketing version (versionName) is pinned to 1.0.0 for phone
+        # Firebase distributions — desktop releases use their own version
+        # stream out of pubspec, so we override here instead of mutating
+        # pubspec globally. versionCode (the build number, right of `+`)
+        # is the CI run number, kept in lock-step with iOS for sanity.
         run: |
-          BASE_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1 | tr -d '\r\n ')
+          MARKETING_VERSION=1.0.0
           BUILD_NUMBER=${{ github.run_number }}
-          sed -i.bak "s/^version:.*/version: ${BASE_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          sed -i.bak "s/^version:.*/version: ${MARKETING_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
           rm pubspec.yaml.bak
-          echo "Building ${BASE_VERSION}+${BUILD_NUMBER}"
+          echo "Building ${MARKETING_VERSION}+${BUILD_NUMBER}"
 
       - name: Restore upload keystore
         env:

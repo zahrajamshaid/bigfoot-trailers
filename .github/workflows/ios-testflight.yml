@@ -44,16 +44,18 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Bump build number from CI run number
-        # Each TestFlight upload needs a strictly higher CFBundleVersion than
-        # the previous one. Using github.run_number guarantees that without
-        # anyone having to hand-edit pubspec.yaml.
+      - name: Stamp version 1.0.0 + CI build number
+        # Marketing version (CFBundleShortVersionString) is pinned to 1.0.0 for
+        # phone TestFlight builds — desktop releases use their own version
+        # stream out of pubspec, so we override here instead of mutating
+        # pubspec globally. CFBundleVersion (the build number, right of `+`)
+        # is the CI run number, which strictly increases per upload.
         run: |
-          BASE_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1 | tr -d '\r\n ')
+          MARKETING_VERSION=1.0.0
           BUILD_NUMBER=${{ github.run_number }}
-          sed -i.bak "s/^version:.*/version: ${BASE_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
+          sed -i.bak "s/^version:.*/version: ${MARKETING_VERSION}+${BUILD_NUMBER}/" pubspec.yaml
           rm pubspec.yaml.bak
-          echo "Building ${BASE_VERSION}+${BUILD_NUMBER}"
+          echo "Building ${MARKETING_VERSION}+${BUILD_NUMBER}"
 
       - name: Install signing certificate into a temp keychain
         env:
