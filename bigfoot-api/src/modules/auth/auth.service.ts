@@ -26,6 +26,7 @@ export interface TokenPair {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly refreshExpiryMs: number;
+  private readonly reuseGraceMs: number;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -35,6 +36,13 @@ export class AuthService {
     // Parse JWT_REFRESH_EXPIRY (e.g. "7d") into milliseconds
     this.refreshExpiryMs = this.parseDurationToMs(
       this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d'),
+    );
+    // Grace window during which a *just-rotated* refresh token can be presented
+    // again without tripping the "reuse attack → kill every session" path. This
+    // absorbs benign client races (a proactive timer refresh firing alongside a
+    // 401-triggered retry) while still catching genuine reuse minutes/hours later.
+    this.reuseGraceMs = this.parseDurationToMs(
+      this.configService.get<string>('JWT_REFRESH_REUSE_GRACE', '30s'),
     );
   }
 
@@ -110,8 +118,31 @@ export class AuthService {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Invalid refresh token');
     }
 
-    // 3. Check if already revoked — possible token reuse attack
+    // 3. Token already revoked. Distinguish a benign client race from a real
+    //    reuse attack by how long ago it was rotated.
     if (storedToken.revokedAt) {
+      const msSinceRevoked = Date.now() - storedToken.revokedAt.getTime();
+
+      if (msSinceRevoked <= this.reuseGraceMs) {
+        // Within the grace window: a concurrent refresh just rotated this token
+        // a moment ago. Re-issue a fresh pair instead of nuking every session.
+        if (!storedToken.user.isActive) {
+          throw new AppError(ErrorCode.FORBIDDEN, 'Account has been deactivated');
+        }
+        this.logger.log(
+          `Refresh token reused ${msSinceRevoked}ms after rotation for user ` +
+            `${storedToken.userId} (within ${this.reuseGraceMs}ms grace) — re-issuing.`,
+        );
+        return this.generateTokenPair({
+          sub: Number(storedToken.user.id),
+          email: storedToken.user.email!,
+          role: storedToken.user.role,
+          departmentId: storedToken.user.primaryDepartmentId,
+          extraDepartmentIds: storedToken.user.extraDepartmentIds,
+        });
+      }
+
+      // Reuse well after rotation — possible token theft. Revoke everything.
       this.logger.warn(
         `Refresh token reuse detected for user ${storedToken.userId}. Revoking all tokens.`,
       );

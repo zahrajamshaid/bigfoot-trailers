@@ -216,14 +216,16 @@ describe('AuthService', () => {
       });
     });
 
-    it('should revoke all tokens on reuse of revoked token', async () => {
+    it('should revoke all tokens on reuse of a token revoked beyond the grace window', async () => {
       const rawToken = 'reused-revoked-token';
       const hashedToken = service.hashToken(rawToken);
 
       mockPrisma.refreshToken.findUnique.mockResolvedValue({
         ...mockRefreshToken,
         tokenHash: hashedToken,
-        revokedAt: new Date(), // Already revoked — reuse detected
+        // Revoked a full minute ago — well past the default 30s grace
+        // window, so this looks like genuine reuse, not a client race.
+        revokedAt: new Date(Date.now() - 60_000),
       });
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 3 });
 
@@ -236,6 +238,28 @@ describe('AuthService', () => {
         where: { userId: mockRefreshToken.userId, revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
+    });
+
+    it('should re-issue (not revoke all) when a just-rotated token is reused within the grace window', async () => {
+      const rawToken = 'raced-refresh-token';
+      const hashedToken = service.hashToken(rawToken);
+
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        ...mockRefreshToken,
+        tokenHash: hashedToken,
+        // Rotated 2s ago — a benign proactive-vs-reactive refresh race.
+        revokedAt: new Date(Date.now() - 2_000),
+      });
+      mockPrisma.refreshToken.create.mockResolvedValue({ id: BigInt(103) });
+
+      const result = await service.refresh(rawToken);
+
+      expect(result).toHaveProperty('accessToken');
+      expect(result).toHaveProperty('refreshToken');
+      // A fresh pair is minted...
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
+      // ...and crucially no mass revocation happens.
+      expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
     });
 
     it('should throw AppError for expired token', async () => {
