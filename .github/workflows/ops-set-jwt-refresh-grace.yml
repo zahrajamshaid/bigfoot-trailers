@@ -40,28 +40,33 @@ jobs:
             set -euo pipefail
             ENV_FILE=/opt/bigfoot/.env.production
 
-            if [ ! -f "$ENV_FILE" ]; then
+            # The .env.production lives root-owned with restrictive perms so
+            # secrets aren't readable by the deploy user. Use sudo for every
+            # read + edit. (Deploys touch it via docker, which runs as root.)
+            if ! sudo test -f "$ENV_FILE"; then
               echo "✗ $ENV_FILE missing — refusing to write." >&2
               exit 1
             fi
 
+            echo "→ Current line (if any):"
+            sudo grep '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE" || echo "  (not set)"
+
             # Idempotent: replace the existing line if present, otherwise
-            # append. The | sed delimiter avoids escaping problems with /.
-            if grep -q '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE"; then
-              sed -i "s|^JWT_REFRESH_REUSE_GRACE=.*|JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}|" "$ENV_FILE"
+            # insert after JWT_REFRESH_EXPIRY (or append if that's missing
+            # too). The | sed delimiter avoids escaping problems with /.
+            if sudo grep -q '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE"; then
+              sudo sed -i "s|^JWT_REFRESH_REUSE_GRACE=.*|JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}|" "$ENV_FILE"
               echo "→ Updated JWT_REFRESH_REUSE_GRACE → ${GRACE_VALUE}"
+            elif sudo grep -q '^JWT_REFRESH_EXPIRY=' "$ENV_FILE"; then
+              sudo sed -i "/^JWT_REFRESH_EXPIRY=/a JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}" "$ENV_FILE"
+              echo "→ Inserted JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE} after JWT_REFRESH_EXPIRY"
             else
-              # Drop it in under the other JWT_* knobs for tidiness.
-              if grep -q '^JWT_REFRESH_EXPIRY=' "$ENV_FILE"; then
-                sed -i "/^JWT_REFRESH_EXPIRY=/a JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}" "$ENV_FILE"
-              else
-                echo "JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}" >> "$ENV_FILE"
-              fi
-              echo "→ Inserted JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}"
+              echo "JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}" | sudo tee -a "$ENV_FILE" > /dev/null
+              echo "→ Appended JWT_REFRESH_REUSE_GRACE=${GRACE_VALUE}"
             fi
 
-            echo "→ Verifying line in env file:"
-            grep '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE"
+            echo "→ Verified line in env file:"
+            sudo grep '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE"
 
             cd /opt/bigfoot/bigfoot-api
             echo "→ Recreating api container with the new env..."
