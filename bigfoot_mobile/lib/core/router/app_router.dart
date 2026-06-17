@@ -13,6 +13,7 @@ import '../../features/auth/view/login_screen.dart';
 import '../../features/auth/view/splash_screen.dart';
 import '../../features/auth/viewmodel/auth_viewmodel.dart';
 import '../../features/dashboard/view/dashboard_screen.dart';
+import '../../features/help/view/sales_guide_screen.dart';
 import '../../features/deliveries/view/batch_screen.dart';
 import '../../features/deliveries/view/create_delivery_screen.dart';
 import '../../features/deliveries/view/delivery_detail_screen.dart';
@@ -327,6 +328,11 @@ class AppRouter {
               path: '/settings',
               name: RouteNames.settings,
               builder: (context, state) => const SettingsScreen(),
+            ),
+            GoRoute(
+              path: '/sales-guide',
+              name: RouteNames.salesGuide,
+              builder: (context, state) => const SalesGuideScreen(),
             ),
           ],
         ),

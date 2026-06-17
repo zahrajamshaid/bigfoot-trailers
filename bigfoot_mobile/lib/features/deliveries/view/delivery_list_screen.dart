@@ -27,6 +27,8 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
 
   late final TabController _tabController;
   late final VoidCallback _tabListener;
+  final _searchController = TextEditingController();
+  String _query = '';
   String? _deliveryType;
   int? _driverUserId;
   DateTimeRange? _range;
@@ -52,7 +54,23 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
   void dispose() {
     _tabController.removeListener(_tabListener);
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  /// Local, case-insensitive filter over the loaded tab so the user can quickly
+  /// find which trailers are in deliveries. Matches SO#, customer, model,
+  /// driver, and destination.
+  List<Delivery> _applySearch(List<Delivery> deliveries) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return deliveries;
+    return deliveries.where((d) {
+      return d.soNumber.toLowerCase().contains(q) ||
+          d.customerName.toLowerCase().contains(q) ||
+          d.modelName.toLowerCase().contains(q) ||
+          d.driverName.toLowerCase().contains(q) ||
+          d.destinationLabel.toLowerCase().contains(q);
+    }).toList();
   }
 
   void _reload() {
@@ -160,6 +178,31 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                   ],
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (q) => setState(() => _query = q),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: l.deliveryListSearchHint,
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _query = '');
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
               _FilterBar(
                 selectedType: _deliveryType,
                 selectedDriverId: _driverUserId,
@@ -230,9 +273,13 @@ class _DeliveryListScreenState extends State<DeliveryListScreen>
                       if (state.deliveries.isEmpty) {
                         return Center(child: Text(l.deliveryListEmpty));
                       }
+                      final filtered = _applySearch(state.deliveries);
+                      if (filtered.isEmpty) {
+                        return Center(child: Text(l.deliveryListSearchEmpty));
+                      }
                       // Deliveries that share a batch are shown as one card so
                       // it's clear which trailers travel together.
-                      final rows = _groupByBatch(state.deliveries);
+                      final rows = _groupByBatch(filtered);
                       return RefreshIndicator(
                         onRefresh: () async => _reload(),
                         child: ListView.separated(

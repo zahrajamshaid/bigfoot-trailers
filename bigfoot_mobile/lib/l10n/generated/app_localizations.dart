@@ -302,6 +302,12 @@ abstract class AppLocalizations {
   /// **'My Deliveries'**
   String get navMyDeliveries;
 
+  /// No description provided for @navHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Use'**
+  String get navHelp;
+
   /// No description provided for @connectionConnected.
   ///
   /// In en, this message translates to:
@@ -3475,6 +3481,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No deliveries found'**
   String get deliveryListEmpty;
+
+  /// No description provided for @deliveryListSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by SO# or customer...'**
+  String get deliveryListSearchHint;
+
+  /// No description provided for @deliveryListSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No deliveries match your search'**
+  String get deliveryListSearchEmpty;
 
   /// No description provided for @deliveryListFilterType.
   ///

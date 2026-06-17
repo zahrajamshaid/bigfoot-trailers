@@ -40,6 +40,7 @@
   "navMyQueue": "Mi Cola",
   "navMyPoints": "Mis Puntos",
   "navMyDeliveries": "Mis Entregas",
+  "navHelp": "Cómo usar",
 
   "connectionConnected": "Conectado",
   "connectionConnecting": "Conectando",
@@ -792,6 +793,8 @@
   "deliveryListFabBatches": "Lotes",
   "deliveryListFabCreate": "Crear entrega",
   "deliveryListEmpty": "No se encontraron entregas",
+  "deliveryListSearchHint": "Buscar por SO# o cliente...",
+  "deliveryListSearchEmpty": "Ninguna entrega coincide con la búsqueda",
   "deliveryListFilterType": "Tipo de entrega",
   "deliveryListFilterAllTypes": "Todos los tipos",
   "deliveryListFilterFactoryPickup": "Recogida en fábrica",

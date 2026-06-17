@@ -40,6 +40,7 @@
   "navMyQueue": "My Queue",
   "navMyPoints": "My Points",
   "navMyDeliveries": "My Deliveries",
+  "navHelp": "How to Use",
 
   "connectionConnected": "Connected",
   "connectionConnecting": "Connecting",
@@ -792,6 +793,8 @@
   "deliveryListFabBatches": "Batches",
   "deliveryListFabCreate": "Create Delivery",
   "deliveryListEmpty": "No deliveries found",
+  "deliveryListSearchHint": "Search by SO# or customer...",
+  "deliveryListSearchEmpty": "No deliveries match your search",
   "deliveryListFilterType": "Delivery Type",
   "deliveryListFilterAllTypes": "All Types",
   "deliveryListFilterFactoryPickup": "Factory Pickup",
