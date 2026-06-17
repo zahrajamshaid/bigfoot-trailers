@@ -69,7 +69,13 @@ jobs:
             sudo grep '^JWT_REFRESH_REUSE_GRACE=' "$ENV_FILE"
 
             cd /opt/bigfoot/bigfoot-api
-            echo "→ Recreating api container with the new env..."
+            # Pin IMAGE_TAG to the currently-deployed SHA (written by the
+            # deploy workflow). Without this compose falls back to
+            # ${IMAGE_TAG:-latest} and tries to pull :latest, which isn't
+            # pushed — the registry denies and the restart fails.
+            DEPLOYED_SHA=$(sudo cat /opt/bigfoot/.deployed-sha)
+            export IMAGE_TAG="sha-${DEPLOYED_SHA}"
+            echo "→ Recreating api container at IMAGE_TAG=${IMAGE_TAG} with new env..."
             docker compose --env-file /opt/bigfoot/.env.production \
               -f docker-compose.prod.yml up -d --force-recreate --no-deps api
 
