@@ -1,0 +1,136 @@
+name: Windows — Publish Release
+
+# Builds a signed MSIX + portable ZIP and publishes them — together with the
+# auto-update .appinstaller and the public signing cert — as a GitHub Release in
+# the PUBLIC releases repo (source stays private). Clients installed via the
+# .appinstaller then auto-update on next launch.
+#
+# Trigger by pushing a version tag:   git tag v1.0.2 && git push origin v1.0.2
+# or run manually and type the version.
+#
+# Required repo secrets:
+#   WINDOWS_MSIX_PFX_BASE64  - base64 of windows/packaging/bigfoot_trailers.pfx
+#   WINDOWS_MSIX_PASSWORD    - that pfx's password
+#   RELEASES_REPO_TOKEN      - PAT with contents:write on the releases repo
+# Optional repo variables:
+#   DESKTOP_API_HOST  (default bigfoot-trailers.duckdns.org)
+#   RELEASES_REPO     (default zahrajamshaid/bigfoot-trailers-releases)
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 1.0.2 (defaults to the pushed tag / pubspec)'
+        required: false
+
+env:
+  FLUTTER_VERSION: 3.32.8
+  API_HOST: ${{ vars.DESKTOP_API_HOST || 'bigfoot-trailers.duckdns.org' }}
+  RELEASES_REPO: ${{ vars.RELEASES_REPO || 'zahrajamshaid/bigfoot-trailers-releases' }}
+
+jobs:
+  release_windows:
+    name: Build, sign & publish Windows release
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: bigfoot_mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            V="${{ github.event.inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF#refs/tags/}"
+          else
+            V=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          fi
+          V="${V#v}"
+          IFS='.' read -r a b c d <<< "$V"
+          a=${a:-1}; b=${b:-0}; c=${c:-0}; d=${d:-0}
+          echo "semver=$a.$b.$c"   >> "$GITHUB_OUTPUT"
+          echo "msixver=$a.$b.$c.$d" >> "$GITHUB_OUTPUT"
+          echo "Releasing $a.$b.$c (msix $a.$b.$c.$d)"
+
+      - name: Pin version + msix_version in pubspec
+        shell: bash
+        run: |
+          sed -i.bak "s/^version:.*/version: ${{ steps.ver.outputs.semver }}+${{ github.run_number }}/" pubspec.yaml
+          sed -i.bak "s/^\([[:space:]]*\)msix_version:.*/\1msix_version: ${{ steps.ver.outputs.msixver }}/" pubspec.yaml
+          rm pubspec.yaml.bak
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: >
+          flutter build windows --release
+          --dart-define=FLAVOR=production
+          --dart-define=API_BASE_URL=https://${{ env.API_HOST }}/v1
+          --dart-define=WS_URL=wss://${{ env.API_HOST }}/ws
+
+      - name: Restore MSIX signing certificate
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.WINDOWS_MSIX_PFX_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PFX_B64)) {
+            throw "WINDOWS_MSIX_PFX_BASE64 secret is required to sign a public release."
+          }
+          New-Item -ItemType Directory -Force -Path windows/packaging | Out-Null
+          [IO.File]::WriteAllBytes("windows/packaging/bigfoot_trailers.pfx", [Convert]::FromBase64String($env:PFX_B64))
+
+      - name: Build signed MSIX
+        env:
+          MSIX_PASSWORD: ${{ secrets.WINDOWS_MSIX_PASSWORD }}
+        run: dart run msix:create --certificate-password "%MSIX_PASSWORD%"
+
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          $rel = "build/windows/x64/runner/Release"
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item "$rel/bigfoot_mobile.msix" "out/BigfootTrailers-Setup.msix" -Force
+          Compress-Archive -Path "$rel/*" -DestinationPath "out/BigfootTrailers-Portable.zip" -Force
+          Copy-Item "windows/packaging/bigfoot_trailers.cer" "out/BigfootTrailers.cer" -Force
+          $base = "https://github.com/${{ env.RELEASES_REPO }}/releases/latest/download"
+          ./tool/make_appinstaller.ps1 -Version "${{ steps.ver.outputs.msixver }}" -BaseUrl $base -OutFile "out/BigfootTrailers.appinstaller"
+
+      - name: Remove signing key from disk
+        if: always()
+        shell: pwsh
+        run: Remove-Item windows/packaging/bigfoot_trailers.pfx -Force -ErrorAction SilentlyContinue
+
+      - name: Publish GitHub Release to public repo
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::RELEASES_REPO_TOKEN secret is missing (PAT with contents:write on ${RELEASES_REPO})."
+            exit 1
+          fi
+          TAG="v${{ steps.ver.outputs.semver }}"
+          NOTES="Automated Windows release ${TAG}. Installed-via-.appinstaller clients auto-update on next launch."
+          ASSETS="out/BigfootTrailers.appinstaller out/BigfootTrailers-Setup.msix out/BigfootTrailers-Portable.zip out/BigfootTrailers.cer"
+          if gh release view "$TAG" --repo "$RELEASES_REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$RELEASES_REPO" --clobber $ASSETS
+          else
+            gh release create "$TAG" --repo "$RELEASES_REPO" \
+              --title "Bigfoot Trailers ${TAG}" --notes "$NOTES" $ASSETS
+          fi

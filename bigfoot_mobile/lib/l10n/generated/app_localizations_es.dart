@@ -113,6 +113,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navMyDeliveries => 'Mis Entregas';
 
   @override
+  String get navHelp => 'Cómo usar';
+
+  @override
   String get connectionConnected => 'Conectado';
 
   @override
@@ -1992,6 +1995,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deliveryListEmpty => 'No se encontraron entregas';
+
+  @override
+  String get deliveryListSearchHint => 'Buscar por SO# o cliente...';
+
+  @override
+  String get deliveryListSearchEmpty =>
+      'Ninguna entrega coincide con la búsqueda';
 
   @override
   String get deliveryListFilterType => 'Tipo de entrega';

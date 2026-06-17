@@ -569,6 +569,12 @@ class _AppShellState extends State<AppShell> {
             Icons.delivery_dining_outlined,
             Icons.delivery_dining,
           ),
+          _NavTab(
+            '/sales-guide',
+            l.navHelp,
+            Icons.menu_book_outlined,
+            Icons.menu_book,
+          ),
         ];
       case UserRole.parts:
         // Parts staff prep parts for upcoming trailers. They need to see

@@ -61,4 +61,7 @@ abstract final class RouteNames {
 
   // ── Settings ─────────────────────────────────────────────────────────────
   static const String settings = 'settings';
+
+  // ── Help / Guides ────────────────────────────────────────────────────────
+  static const String salesGuide = 'salesGuide';
 }

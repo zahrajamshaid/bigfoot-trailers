@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App Installer manifest for Windows auto-update.
+
+  Clients install the app by opening the published .appinstaller URL once.
+  Windows then records that URL and, on every launch, re-fetches this file from
+  the `Uri` below, compares `Version`, and silently pulls a newer MSIX from
+  `MainPackage/@Uri`. Both URLs use the public releases repo's stable
+  `releases/latest/download/...` path so they always resolve to the newest
+  build without editing this file per release.
+
+  {{VERSION}} and {{BASE_URL}} are filled in by tool/make_appinstaller.ps1
+  (locally and in CI). Do not hand-edit the generated copy.
+-->
+<AppInstaller
+    xmlns="http://schemas.microsoft.com/appx/appinstaller/2018"
+    Uri="{{BASE_URL}}/BigfootTrailers.appinstaller"
+    Version="{{VERSION}}">
+  <MainPackage
+      Name="com.bigfoottrailers.productionmanagement"
+      Publisher="CN=Bigfoot Trailers"
+      Version="{{VERSION}}"
+      ProcessorArchitecture="x64"
+      Uri="{{BASE_URL}}/BigfootTrailers-Setup.msix" />
+  <UpdateSettings>
+    <!-- On-launch check only. AutomaticBackgroundTask is intentionally omitted:
+         its update-task registration is a common source of 0x80070005
+         (Access denied) when a .appinstaller is opened by double-click. -->
+    <OnLaunch HoursBetweenUpdateChecks="0" ShowPrompt="true" UpdateBlocksActivation="false" />
+  </UpdateSettings>
+</AppInstaller>
