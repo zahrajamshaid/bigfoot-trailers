@@ -28,6 +28,11 @@ env:
   FLUTTER_VERSION: 3.32.8
   API_HOST: ${{ vars.DESKTOP_API_HOST || 'bigfoot-trailers.duckdns.org' }}
   RELEASES_REPO: ${{ vars.RELEASES_REPO || 'zahrajamshaid/bigfoot-trailers-releases' }}
+  # firebase_cpp_sdk_windows' CMakeLists still has cmake_minimum_required
+  # pinned below 3.5, which the runner's CMake (3.31+) rejects. The env var
+  # tells CMake to assume 3.5-era policies for projects that don't declare
+  # a minimum that high. See the CMake error message itself for the hint.
+  CMAKE_POLICY_VERSION_MINIMUM: '3.5'
 
 jobs:
   release_windows:

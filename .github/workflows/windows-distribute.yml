@@ -20,6 +20,11 @@ env:
   # The hosted backend the desktop client talks to. Override by setting the
   # repo variable DESKTOP_API_HOST.
   API_HOST: ${{ vars.DESKTOP_API_HOST || 'bigfoot-trailers.duckdns.org' }}
+  # firebase_cpp_sdk_windows' CMakeLists still has cmake_minimum_required
+  # pinned below 3.5, which the runner's CMake (3.31+) rejects. The env var
+  # tells CMake to assume 3.5-era policies for projects that don't declare
+  # a minimum that high. See the CMake error message itself for the hint.
+  CMAKE_POLICY_VERSION_MINIMUM: '3.5'
 
 jobs:
   build_windows:
