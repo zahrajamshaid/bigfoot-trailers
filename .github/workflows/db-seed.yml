@@ -58,6 +58,8 @@ on:
           - fix-so-test-pickup-delivery # one-shot: back-fill the missing factory_pickup row for SO TEST so both legs show in Completed Deliveries
           - fix-open-stock-status-revert # one-shot: flip mis-encoded open-stock trailers (status=delivered + saleStatus=available + isStockBuild) back to ready_for_delivery so they reappear in Stock Inventory (incl. TAL)
           - fix-ghost-delivered-trailers-backfill # one-shot: insert missing stack_to_location + factory_pickup rows for every status=delivered + saleStatus=sold + zero-deliveries trailer (SO 6715, 6373, 6738, …)
+          - seed-payroll-rates # idempotent: DeptDollarRate ($/point) for every production dept so the Weekly Payroll Report can convert points → gross pay
+          - seed-report-test-data # idempotent: a few RPT-TEST- trailers with completed steps dated to the current week so the Admin Reports screen has rows to show
           - retag-audit-log-entity-types # one-shot: rewrite historical audit_logs entity_type so QC/batch rows surface in the mobile dropdown
           - qc-today-report # read-only: list every QC inspection submitted today (SO, dept, inspector)
           - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
