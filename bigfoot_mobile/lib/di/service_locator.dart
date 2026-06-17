@@ -1,6 +1,7 @@
 import '../core/camera/camera_service.dart';
 import '../core/network/auth_interceptor.dart';
 import '../core/network/dio_client.dart';
+import '../core/network/token_refresher.dart';
 import '../core/storage/secure_storage.dart';
 import '../core/websocket/ws_client.dart';
 import '../data/repositories/admin_repository_impl.dart';
@@ -94,12 +95,18 @@ class ServiceLocator {
     required void Function() onAuthExpired,
   }) {
     final secureStorage = SecureStorage();
+    // Shared by the interceptor and the auth repository so every refresh — both
+    // the proactive timer and the reactive 401 path — funnels through one
+    // single-flight lock and can never replay a rotated refresh token.
+    final tokenRefresher =
+        TokenRefresher(storage: secureStorage, baseUrl: apiBaseUrl);
     final wsClient = WsClient(url: wsUrl, storage: secureStorage);
     final dioClient = DioClient(
       baseUrl: apiBaseUrl,
       interceptors: [
         AuthInterceptor(
           storage: secureStorage,
+          refresher: tokenRefresher,
           baseUrl: apiBaseUrl,
           onAuthExpired: onAuthExpired,
         ),
@@ -115,7 +122,11 @@ class ServiceLocator {
       cameraService: CameraService(),
       pushNotificationService: PushNotificationService(),
       desktopNotificationService: DesktopNotificationService(),
-      authRepository: AuthRepositoryImpl(api: dioClient, storage: secureStorage),
+      authRepository: AuthRepositoryImpl(
+        api: dioClient,
+        storage: secureStorage,
+        refresher: tokenRefresher,
+      ),
       dashboardRepository: DashboardRepositoryImpl(api: dioClient),
       trailerRepository: TrailerRepositoryImpl(api: dioClient),
       productionRepository: ProductionRepositoryImpl(api: dioClient),

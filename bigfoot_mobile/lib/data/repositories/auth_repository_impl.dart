@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../core/constants/api_endpoints.dart';
 import '../../core/network/dio_client.dart';
+import '../../core/network/token_refresher.dart';
 import '../../core/storage/secure_storage.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user.dart';
@@ -9,10 +10,15 @@ import '../models/user.dart';
 class AuthRepositoryImpl implements AuthRepository {
   final DioClient _api;
   final SecureStorage _storage;
+  final TokenRefresher _refresher;
 
-  AuthRepositoryImpl({required DioClient api, required SecureStorage storage})
-      : _api = api,
-        _storage = storage;
+  AuthRepositoryImpl({
+    required DioClient api,
+    required SecureStorage storage,
+    required TokenRefresher refresher,
+  })  : _api = api,
+        _storage = storage,
+        _refresher = refresher;
 
   @override
   Future<AuthResult> login(String email, String password) async {
@@ -37,23 +43,18 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthResult> refreshTokens(String refreshToken) async {
-    final response = await _api.post<Map<String, dynamic>>(
-      ApiEndpoints.refresh,
-      data: {'refreshToken': refreshToken},
-      fromJson: (d) => d as Map<String, dynamic>,
+    // Delegate to the shared single-flight refresher (it reads the current
+    // refresh token from storage itself and persists the rotated pair) so the
+    // proactive timer and the 401 interceptor never refresh concurrently. The
+    // [refreshToken] argument is intentionally unused for that reason.
+    final tokens = await _refresher.refresh();
+
+    final user = _decodeUserFromToken(tokens.accessToken);
+    return AuthResult(
+      user: user,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     );
-
-    final data = response.data!;
-    final accessToken = data['accessToken'] as String;
-    final newRefresh = data['refreshToken'] as String;
-
-    await _storage.saveTokens(
-      accessToken: accessToken,
-      refreshToken: newRefresh,
-    );
-
-    final user = _decodeUserFromToken(accessToken);
-    return AuthResult(user: user, accessToken: accessToken, refreshToken: newRefresh);
   }
 
   @override
