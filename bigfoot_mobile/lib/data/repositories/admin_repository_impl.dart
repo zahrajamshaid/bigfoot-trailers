@@ -235,6 +235,7 @@ class AdminRepositoryImpl implements AdminRepository {
     String? to,
     int page = 1,
     int limit = 25,
+    String? q,
   }) async {
     final response = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.adminAuditLog,
@@ -243,6 +244,7 @@ class AdminRepositoryImpl implements AdminRepository {
         if (userId != null) 'userId': userId,
         if (from != null) 'from': from,
         if (to != null) 'to': to,
+        if (q != null && q.isNotEmpty) 'q': q,
         'page': page,
         'limit': limit,
       },

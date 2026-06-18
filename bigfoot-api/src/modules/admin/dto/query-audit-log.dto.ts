@@ -37,4 +37,17 @@ export class QueryAuditLogDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number;
+
+  /// Free-text filter. Numeric input is treated as an SO number — the
+  /// service resolves it to the trailer + its dependent rows (QC
+  /// inspections, production steps, deliveries) so a search for "6715"
+  /// catches every entity the trailer ever touched. Non-numeric input
+  /// matches against user.fullName and action (case-insensitive
+  /// substring) so admin can grep for "Dev QC Inspector" or "jumped".
+  @ApiPropertyOptional({
+    description: 'SO number, user name, or action verb (case-insensitive)',
+  })
+  @IsOptional()
+  @IsString()
+  q?: string;
 }

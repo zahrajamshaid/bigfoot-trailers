@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,12 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   String? _error;
   String? _entityType;
   final TextEditingController _userId = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  /// Debounce timer so typing in the search box doesn't fire a request
+  /// per keystroke. Resets every input event; only fires once the user
+  /// pauses for ~350ms.
+  Timer? _searchDebounce;
+  String _search = '';
   int _page = 1;
   int _totalPages = 1;
   List<AdminAuditLogEntry> _items = const [];
@@ -32,7 +39,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   @override
   void dispose() {
     _userId.dispose();
+    _searchController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() {
+        _search = v.trim();
+        _page = 1;
+      });
+      _load();
+    });
   }
 
   Future<void> _load() async {
@@ -46,6 +67,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             userId: int.tryParse(_userId.text.trim()),
             page: _page,
             limit: 20,
+            q: _search.isEmpty ? null : _search,
           );
       if (!mounted) return;
       setState(() {
@@ -71,8 +93,37 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       appBar: AppBar(title: Text(l.auditLogTitle)),
       body: Column(
         children: [
+          // Search field above the existing dropdown/userId row. Numeric
+          // input is treated as an SO number on the backend (matches every
+          // step/QC/delivery row for that trailer); non-numeric matches
+          // user.fullName + action verb ILIKE. Debounced so typing doesn't
+          // hammer the API.
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search SO number, user, or action',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
             child: Row(
               children: [
                 Expanded(

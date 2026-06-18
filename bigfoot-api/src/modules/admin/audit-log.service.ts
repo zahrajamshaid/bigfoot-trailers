@@ -20,6 +20,9 @@ export interface QueryAuditLogParams {
   to?: string;
   page?: number;
   limit?: number;
+  /// Free-text filter. Numeric → SO number lookup; otherwise matches on
+  /// user.fullName + action (ILIKE). See QueryAuditLogDto for details.
+  q?: string;
 }
 
 const auditLogSelect = {
@@ -96,6 +99,73 @@ export class AuditLogService {
       where.createdAt = {};
       if (params.from) where.createdAt.gte = new Date(params.from);
       if (params.to) where.createdAt.lte = new Date(params.to);
+    }
+
+    // Free-text search. Numeric input is treated as an SO number — we
+    // resolve it to the trailer and its dependent rows (steps, QC
+    // inspections, deliveries) so the search catches every entity the
+    // trailer ever touched. Non-numeric falls back to ILIKE against
+    // user.fullName and action.
+    const q = params.q?.trim();
+    if (q) {
+      if (/^\d+$/.test(q)) {
+        const trailer = await this.prisma.trailer.findUnique({
+          where: { soNumber: q },
+          select: { id: true },
+        });
+        if (trailer) {
+          const [steps, qcs, deliveries] = await Promise.all([
+            this.prisma.productionStep.findMany({
+              where: { trailerId: trailer.id },
+              select: { id: true },
+            }),
+            this.prisma.qcInspection.findMany({
+              where: { trailerId: trailer.id },
+              select: { id: true },
+            }),
+            this.prisma.delivery.findMany({
+              where: { trailerId: trailer.id },
+              select: { id: true },
+            }),
+          ]);
+          where.OR = [
+            { entityType: { in: ['trailer', 'production_trailer'] }, entityId: trailer.id },
+            ...(steps.length
+              ? [
+                  {
+                    entityType: { in: ['step', 'production_step'] },
+                    entityId: { in: steps.map((s) => s.id) },
+                  },
+                ]
+              : []),
+            ...(qcs.length
+              ? [
+                  {
+                    entityType: 'qc_inspection',
+                    entityId: { in: qcs.map((q) => q.id) },
+                  },
+                ]
+              : []),
+            ...(deliveries.length
+              ? [
+                  {
+                    entityType: 'delivery',
+                    entityId: { in: deliveries.map((d) => d.id) },
+                  },
+                ]
+              : []),
+          ];
+        } else {
+          // No trailer with that SO — short-circuit to an impossible
+          // condition so the count + list both return empty cleanly.
+          where.id = BigInt(-1);
+        }
+      } else {
+        where.OR = [
+          { action: { contains: q, mode: 'insensitive' } },
+          { user: { fullName: { contains: q, mode: 'insensitive' } } },
+        ];
+      }
     }
 
     const [items, total] = await Promise.all([

@@ -95,8 +95,15 @@ class AdminViewModel extends Cubit<int> {
     String? to,
     int page = 1,
     int limit = 25,
+    String? q,
   }) => _repository.getAuditLogs(
-    entityType: entityType, userId: userId, from: from, to: to, page: page, limit: limit,
+    entityType: entityType,
+    userId: userId,
+    from: from,
+    to: to,
+    page: page,
+    limit: limit,
+    q: q,
   );
 
   Future<List<AdminAuditLogEntry>> getAuditEntityHistory(String entityType, int id) =>

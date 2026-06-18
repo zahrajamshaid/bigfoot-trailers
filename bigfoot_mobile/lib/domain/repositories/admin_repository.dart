@@ -242,6 +242,10 @@ abstract class AdminRepository {
     String? to,
     int page,
     int limit,
+    /// Free-text search. Numeric → resolves to a trailer SO and pulls in
+    /// every step / QC / delivery row for that trailer. Non-numeric →
+    /// matches against user.fullName + action (case-insensitive).
+    String? q,
   });
 
   Future<List<AdminAuditLogEntry>> getAuditEntityHistory(String entityType, int id);
