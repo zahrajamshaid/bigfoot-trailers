@@ -22,6 +22,10 @@ class DashboardStats {
   /// Trailers in `pending_production` — the pre-build queue. The 8th card
   /// in the manager grid; pairs naturally with active / ready / delivered.
   final int pendingProduction;
+  /// All-time total of `delivered` trailers — the "Archived" tile on the
+  /// manager dashboard. Deep-links to the trailers list with the Delivered
+  /// chip on.
+  final int archivedTotal;
 
   // Worker
   final int myQueueCount;
@@ -55,6 +59,7 @@ class DashboardStats {
     this.qcFailRate = 0,
     this.totalTrailers = 0,
     this.pendingProduction = 0,
+    this.archivedTotal = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,

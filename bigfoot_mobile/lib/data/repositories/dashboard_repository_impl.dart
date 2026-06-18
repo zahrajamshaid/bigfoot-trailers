@@ -84,6 +84,51 @@ class DashboardRepositoryImpl implements DashboardRepository {
       weeklyCompleted = 0;
     }
 
+    // Stalled steps — was previously hard-zero on the dashboard because
+    // we never asked the backend. /production/stalled-count returns the
+    // count of unresolved StallAlert rows (one indexed COUNT, cheap).
+    int stalledSteps = 0;
+    try {
+      final stall = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.productionStalledCount,
+        fromJson: (d) => d as Map<String, dynamic>,
+      );
+      stalledSteps = (stall.data?['count'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      stalledSteps = 0;
+    }
+
+    // Archived (all-time delivered) — total of trailers whose status is
+    // `delivered`. Powers the new Archived tile + acts as the "how many
+    // builds have we ever shipped" denominator.
+    int archivedTotal = 0;
+    try {
+      final archived = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.trailers,
+        queryParameters: {'status': 'delivered', 'limit': 1},
+        fromJson: (d) => d as Map<String, dynamic>,
+      );
+      archivedTotal = (archived.data?['total'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      archivedTotal = 0;
+    }
+
+    // In-transit deliveries — pairs with Archived on the manager grid as
+    // the "being shipped right now" companion. Counts Delivery rows with
+    // status=in_transit. We reuse the existing /deliveries list (no
+    // dedicated count endpoint yet) and count the array length.
+    int activeDeliveries = 0;
+    try {
+      final deliveries = await _api.get<List<dynamic>>(
+        ApiEndpoints.deliveries,
+        queryParameters: {'status': 'in_transit'},
+        fromJson: (d) => d as List<dynamic>,
+      );
+      activeDeliveries = deliveries.data?.length ?? 0;
+    } catch (_) {
+      activeDeliveries = 0;
+    }
+
     return DashboardStats(
       activeTrailers: active,
       readyForDelivery: ready,
@@ -92,6 +137,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
       totalTrailers: totalTrailers,
       pendingProduction: pendingProduction,
       weeklyCompleted: weeklyCompleted,
+      stalledSteps: stalledSteps,
+      archivedTotal: archivedTotal,
+      activeDeliveries: activeDeliveries,
     );
   }
 

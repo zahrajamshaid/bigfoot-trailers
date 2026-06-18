@@ -39,6 +39,22 @@ export class ProductionController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /production/stalled-count
+  // ---------------------------------------------------------------------------
+  // Lightweight "how many trailers are stuck right now" counter for the
+  // owner / production-manager dashboard tile. Counts unresolved StallAlert
+  // rows — the stall-detector processor creates one per (trailer, step)
+  // whenever an active step exceeds its department's stallThresholdHours,
+  // and the production service clears them when the step is completed.
+  // ---------------------------------------------------------------------------
+  @Get('stalled-count')
+  @ApiOperation({ summary: 'Current count of unresolved stall alerts' })
+  @ApiResponse({ status: 200, description: 'Stalled-step count' })
+  async getStalledCount() {
+    return this.productionService.getStalledCount();
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /production/queue/all — production_manager, owner
   // ---------------------------------------------------------------------------
   @Get('queue/all')

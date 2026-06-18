@@ -28,6 +28,19 @@ export class ProductionService {
   }
 
   // =========================================================================
+  // GET /production/stalled-count
+  // =========================================================================
+  // Counts unresolved StallAlerts. Returns a single { count } object so the
+  // dashboard tile can render `0` without juggling shapes when nothing is
+  // stalled. Cheap (one indexed COUNT) — safe to fan-out from the dashboard.
+  async getStalledCount(): Promise<{ count: number }> {
+    const count = await this.prisma.stallAlert.count({
+      where: { resolvedAt: null },
+    });
+    return { count };
+  }
+
+  // =========================================================================
   // GET /production/queue/:dept_id
   // =========================================================================
   async getQueueByDepartment(deptId: number, includeWaiting = false) {

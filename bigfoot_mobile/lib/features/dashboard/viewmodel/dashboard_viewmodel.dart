@@ -16,6 +16,10 @@ class DashboardData extends Equatable {
   final int hotTrailers;
   final int stalledSteps;
   final int weeklyCompleted;
+  /// All-time count of trailers whose status is `delivered`. Drives the
+  /// "Archived" tile on the manager dashboard — it deep-links to the
+  /// Trailers list filtered for delivered units.
+  final int archivedTotal;
   final double qcFailRate;
   final int totalTrailers;
   final int pendingProduction;
@@ -42,6 +46,7 @@ class DashboardData extends Equatable {
     this.hotTrailers = 0,
     this.stalledSteps = 0,
     this.weeklyCompleted = 0,
+    this.archivedTotal = 0,
     this.qcFailRate = 0,
     this.totalTrailers = 0,
     this.pendingProduction = 0,
@@ -69,6 +74,7 @@ class DashboardData extends Equatable {
     int? hotTrailers,
     int? stalledSteps,
     int? weeklyCompleted,
+    int? archivedTotal,
     double? qcFailRate,
     int? totalTrailers,
     int? pendingProduction,
@@ -95,6 +101,7 @@ class DashboardData extends Equatable {
       hotTrailers: hotTrailers ?? this.hotTrailers,
       stalledSteps: stalledSteps ?? this.stalledSteps,
       weeklyCompleted: weeklyCompleted ?? this.weeklyCompleted,
+      archivedTotal: archivedTotal ?? this.archivedTotal,
       qcFailRate: qcFailRate ?? this.qcFailRate,
       totalTrailers: totalTrailers ?? this.totalTrailers,
       pendingProduction: pendingProduction ?? this.pendingProduction,
@@ -120,7 +127,7 @@ class DashboardData extends Equatable {
   @override
   List<Object?> get props => [
         activeTrailers, readyForDelivery, hotTrailers, stalledSteps,
-        weeklyCompleted, qcFailRate, totalTrailers, pendingProduction,
+        weeklyCompleted, archivedTotal, qcFailRate, totalTrailers, pendingProduction,
         myQueueCount, myPointsToday,
         myPointsWeek, nextTrailerSo, nextTrailerColor,
         readyForInspection, inspectionsToday, failRateToday, reworkQueue,
@@ -260,6 +267,7 @@ class DashboardViewModel extends Cubit<DashboardState> {
       hotTrailers: stats.hotTrailers,
       stalledSteps: stats.stalledSteps,
       weeklyCompleted: stats.weeklyCompleted,
+      archivedTotal: stats.archivedTotal,
       qcFailRate: stats.qcFailRate,
       totalTrailers: stats.totalTrailers,
       pendingProduction: stats.pendingProduction,

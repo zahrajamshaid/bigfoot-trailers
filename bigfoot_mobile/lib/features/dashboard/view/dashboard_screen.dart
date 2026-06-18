@@ -255,6 +255,33 @@ class _ManagerDashboard extends StatelessWidget {
                   color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
                   onTap: () => context.goNamed(RouteNames.qcFailed),
                 ),
+              // Archived: deep-link to the trailers list with the Delivered
+              // chip on. The list view already auto-hides delivered units
+              // from other filters, so this is the one screen they show up
+              // on — perfect "see every trailer we've ever shipped" entry.
+              StatCard(
+                title: 'Archived',
+                value: '${data.archivedTotal}',
+                icon: Icons.inventory_2_outlined,
+                color: AppColors.disabled,
+                onTap: () => context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {'status': 'delivered'},
+                ),
+              ),
+              // In transit pairs naturally with Archived — shipped vs being
+              // shipped — and evens the grid out to a tidy multiple of 4
+              // for managers (was odd before).
+              StatCard(
+                title: 'In transit',
+                value: '${data.activeDeliveries}',
+                icon: Icons.local_shipping_outlined,
+                color: AppColors.statusInTransit,
+                onTap: () => context.goNamed(
+                  RouteNames.deliveryList,
+                  queryParameters: {'status': 'in_transit'},
+                ),
+              ),
             ],
           ),
         ),
