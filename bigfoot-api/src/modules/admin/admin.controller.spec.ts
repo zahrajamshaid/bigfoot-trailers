@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AuditLogService } from './audit-log.service';
+import { ProductionReportService } from './production-report.service';
 
 describe('AdminController', () => {
   let controller: AdminController;
@@ -17,6 +18,12 @@ describe('AdminController', () => {
   const mockAuditLogService = {
     findAll: jest.fn(),
     findByEntity: jest.fn(),
+  };
+
+  const mockProductionReportService = {
+    getCostMatrix: jest.fn(),
+    upsertStageCost: jest.fn(),
+    getWeeklyReport: jest.fn(),
   };
 
   const mockUser = {
@@ -36,6 +43,10 @@ describe('AdminController', () => {
       providers: [
         { provide: AdminService, useValue: mockAdminService },
         { provide: AuditLogService, useValue: mockAuditLogService },
+        {
+          provide: ProductionReportService,
+          useValue: mockProductionReportService,
+        },
       ],
     }).compile();
 

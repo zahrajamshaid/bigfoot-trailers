@@ -20,9 +20,15 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { AdminService } from './admin.service';
 import { AuditLogService } from './audit-log.service';
+import { ProductionReportService } from './production-report.service';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
-import { QueryAuditLogDto, UpdateDepartmentDto, WeeklyReportQueryDto } from './dto';
+import {
+  QueryAuditLogDto,
+  UpdateDepartmentDto,
+  UpsertStageCostDto,
+  WeeklyReportQueryDto,
+} from './dto';
 import { Request } from 'express';
 import { Req } from '@nestjs/common';
 
@@ -35,6 +41,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly auditLogService: AuditLogService,
+    private readonly productionReportService: ProductionReportService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -151,5 +158,55 @@ export class AdminController {
     @Req() req: Request,
   ) {
     return this.adminService.lockAndSendWeeklyReport(body.weekStart, user.sub, req.ip);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /admin/production-costs — current cost matrix grid
+  // ---------------------------------------------------------------------------
+  // Returns active trailer models, non-QC departments, and the latest
+  // effective-dated cost per (model, dept) cell. Empty cells are omitted —
+  // the mobile UI renders them as "—" so admin can see what still needs a
+  // value. Owner + production_manager only.
+  // ---------------------------------------------------------------------------
+  @Get('production-costs')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({ summary: 'Production cost matrix (model × department → $)' })
+  @ApiResponse({ status: 200, description: 'Cost matrix grid' })
+  async getProductionCostMatrix() {
+    return this.productionReportService.getCostMatrix();
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /admin/production-costs — upsert a single cell
+  // ---------------------------------------------------------------------------
+  // Idempotent for same-day edits: an upsert on the (modelId, deptId,
+  // effectiveFrom-date-only) unique key. Backdating creates a new
+  // effective-dated row so prior values stay intact for historical reports.
+  // ---------------------------------------------------------------------------
+  @Post('production-costs')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Upsert a stage cost cell (model × department)' })
+  @ApiResponse({ status: 200, description: 'Cell upserted' })
+  async upsertProductionCost(@Body() dto: UpsertStageCostDto) {
+    return this.productionReportService.upsertStageCost(dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /admin/production-report?weekStart=YYYY-MM-DD
+  // ---------------------------------------------------------------------------
+  // Trailer-throughput report for the week containing weekStart. Different
+  // from /admin/reports/weekly-production (which is the worker payroll
+  // report). Returns entered/exited/delivered counts + live snapshot +
+  // WIP cost (cumulative + projected).
+  // ---------------------------------------------------------------------------
+  @Get('production-report')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({
+    summary: 'Weekly trailer throughput + WIP cost summary',
+  })
+  @ApiResponse({ status: 200, description: 'Weekly production report' })
+  async getProductionReport(@Query() query: WeeklyReportQueryDto) {
+    return this.productionReportService.getWeeklyReport(query.weekStart);
   }
 }

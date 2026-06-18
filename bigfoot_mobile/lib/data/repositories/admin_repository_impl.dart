@@ -286,6 +286,46 @@ class AdminRepositoryImpl implements AdminRepository {
     return AdminWeeklyProductionReport.fromJson(response.data!);
   }
 
+  // ── Production cost matrix ─────────────────────────────────────────────
+  @override
+  Future<ProductionCostMatrix> getProductionCostMatrix() async {
+    final response = await _api.get<Map<String, dynamic>>(
+      ApiEndpoints.adminProductionCosts,
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return ProductionCostMatrix.fromJson(response.data!);
+  }
+
+  @override
+  Future<void> upsertProductionCost({
+    required int trailerModelId,
+    required int departmentId,
+    required double costDollars,
+    String? effectiveFrom,
+  }) async {
+    await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.adminProductionCosts,
+      data: {
+        'trailerModelId': trailerModelId,
+        'departmentId': departmentId,
+        'costDollars': costDollars,
+        if (effectiveFrom != null) 'effectiveFrom': effectiveFrom,
+      },
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+  }
+
+  // ── Production report ──────────────────────────────────────────────────
+  @override
+  Future<ProductionReport> getProductionReport(String weekStartIso) async {
+    final response = await _api.get<Map<String, dynamic>>(
+      ApiEndpoints.adminProductionReport,
+      queryParameters: {'weekStart': weekStartIso},
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return ProductionReport.fromJson(response.data!);
+  }
+
   User _userFromApi(Map<String, dynamic> json) {
     return User(
       id: (json['id'] as num).toInt(),

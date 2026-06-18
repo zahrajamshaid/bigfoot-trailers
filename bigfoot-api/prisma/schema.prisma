@@ -233,6 +233,7 @@ model TrailerModel {
   // Relations
   trailers    Trailer[]
   pointValues PointValue[]
+  stageCosts  TrailerModelStageCost[]
 
   @@map("trailer_models")
 }
@@ -371,6 +372,7 @@ model Department {
   deptDollarRates   DeptDollarRate[]
   payrollRecords    PayrollRecord[]
   stallAlerts       StallAlert[]
+  stageCosts        TrailerModelStageCost[]
 
   @@map("departments")
 }
@@ -639,6 +641,28 @@ model DeptDollarRate {
 
   @@unique([departmentId, effectiveFrom])
   @@map("dept_dollar_rates")
+}
+
+/// Admin-set approximate dollar cost for a (trailer model, department)
+/// pair. Drives the WIP cost summary on the Production Report — cumulative
+/// cost = sum of stage costs for completed steps; projected cost = sum
+/// across the model's full workflow. Effective-dated so tuning the matrix
+/// doesn't rewrite history (mirrors PointValue / DeptDollarRate).
+model TrailerModelStageCost {
+  id             Int       @id @default(autoincrement())
+  trailerModelId Int       @map("trailer_model_id")
+  departmentId   Int       @map("department_id")
+  costDollars    Decimal   @map("cost_dollars") @db.Decimal(10, 2)
+  effectiveFrom  DateTime  @map("effective_from") @db.Date
+  effectiveTo    DateTime? @map("effective_to") @db.Date
+
+  // Relations
+  trailerModel TrailerModel @relation(fields: [trailerModelId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+
+  @@unique([trailerModelId, departmentId, effectiveFrom])
+  @@index([trailerModelId, departmentId], map: "idx_stage_costs_model_dept")
+  @@map("trailer_model_stage_costs")
 }
 
 model PayrollRecord {

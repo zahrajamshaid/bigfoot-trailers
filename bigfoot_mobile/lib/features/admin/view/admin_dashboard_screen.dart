@@ -128,6 +128,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       onTap: () => context.pushNamed(RouteNames.adminReports),
                     ),
                     _NavTile(
+                      icon: Icons.factory_outlined,
+                      title: 'Production report',
+                      subtitle: 'Throughput, inventory, WIP cost',
+                      onTap: () =>
+                          context.pushNamed(RouteNames.productionReport),
+                    ),
+                    _NavTile(
                       icon: Icons.campaign,
                       title: l.announcementsTitle,
                       subtitle: l.adminNavAnnouncementsSubtitle,

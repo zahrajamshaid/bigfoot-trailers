@@ -247,4 +247,269 @@ abstract class AdminRepository {
   Future<List<AdminAuditLogEntry>> getAuditEntityHistory(String entityType, int id);
 
   Future<AdminWeeklyProductionReport> getWeeklyProductionReport(String weekStartIso);
+
+  // ── Production cost matrix ───────────────────────────────────────────────
+  Future<ProductionCostMatrix> getProductionCostMatrix();
+
+  /// Upsert a single (trailer model, department) cost cell. Same-day calls
+  /// for the same pair update in-place; backdating creates a new history row.
+  Future<void> upsertProductionCost({
+    required int trailerModelId,
+    required int departmentId,
+    required double costDollars,
+    String? effectiveFrom,
+  });
+
+  // ── Production report (weekly trailer throughput + WIP cost) ─────────────
+  Future<ProductionReport> getProductionReport(String weekStartIso);
+}
+
+// ===========================================================================
+// Production cost matrix
+// ===========================================================================
+
+class ProductionCostMatrix {
+  final List<ProductionCostModel> models;
+  final List<ProductionCostDepartment> departments;
+  /// Sparse list — only cells that have a value. Mobile renders missing cells
+  /// as a hint so admin can spot what still needs a number.
+  final List<ProductionCostCell> cells;
+
+  const ProductionCostMatrix({
+    required this.models,
+    required this.departments,
+    required this.cells,
+  });
+
+  factory ProductionCostMatrix.fromJson(Map<String, dynamic> json) {
+    return ProductionCostMatrix(
+      models: (json['models'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(ProductionCostModel.fromJson)
+          .toList(),
+      departments: (json['departments'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(ProductionCostDepartment.fromJson)
+          .toList(),
+      cells: (json['cells'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(ProductionCostCell.fromJson)
+          .toList(),
+    );
+  }
+
+  /// Quick lookup for the cost at a given (model, dept) cell. Returns null
+  /// when the admin hasn't filled it in yet.
+  double? costFor(int modelId, int deptId) {
+    for (final c in cells) {
+      if (c.trailerModelId == modelId && c.departmentId == deptId) {
+        return c.costDollars;
+      }
+    }
+    return null;
+  }
+}
+
+class ProductionCostModel {
+  final int id;
+  final String code;
+  final String displayName;
+  final String series;
+  const ProductionCostModel({
+    required this.id,
+    required this.code,
+    required this.displayName,
+    required this.series,
+  });
+  factory ProductionCostModel.fromJson(Map<String, dynamic> j) =>
+      ProductionCostModel(
+        id: (j['id'] as num).toInt(),
+        code: j['code'] as String,
+        displayName: j['displayName'] as String,
+        series: j['series'] as String,
+      );
+}
+
+class ProductionCostDepartment {
+  final int id;
+  final String code;
+  final String displayName;
+  const ProductionCostDepartment({
+    required this.id,
+    required this.code,
+    required this.displayName,
+  });
+  factory ProductionCostDepartment.fromJson(Map<String, dynamic> j) =>
+      ProductionCostDepartment(
+        id: (j['id'] as num).toInt(),
+        code: j['code'] as String,
+        displayName: j['displayName'] as String,
+      );
+}
+
+class ProductionCostCell {
+  final int trailerModelId;
+  final int departmentId;
+  final double costDollars;
+  final String effectiveFrom;
+  const ProductionCostCell({
+    required this.trailerModelId,
+    required this.departmentId,
+    required this.costDollars,
+    required this.effectiveFrom,
+  });
+  factory ProductionCostCell.fromJson(Map<String, dynamic> j) =>
+      ProductionCostCell(
+        trailerModelId: (j['trailerModelId'] as num).toInt(),
+        departmentId: (j['departmentId'] as num).toInt(),
+        costDollars: (j['costDollars'] as num).toDouble(),
+        effectiveFrom: j['effectiveFrom'] as String,
+      );
+}
+
+// ===========================================================================
+// Production report
+// ===========================================================================
+
+class ProductionReport {
+  final String weekStart;
+  final String weekEnd;
+  final ProductionThroughput throughput;
+  final ProductionSnapshot snapshot;
+  final ProductionWipCost wipCost;
+
+  const ProductionReport({
+    required this.weekStart,
+    required this.weekEnd,
+    required this.throughput,
+    required this.snapshot,
+    required this.wipCost,
+  });
+
+  factory ProductionReport.fromJson(Map<String, dynamic> j) => ProductionReport(
+        weekStart: j['weekStart'] as String,
+        weekEnd: j['weekEnd'] as String,
+        throughput: ProductionThroughput.fromJson(
+          j['throughput'] as Map<String, dynamic>,
+        ),
+        snapshot: ProductionSnapshot.fromJson(
+          j['snapshot'] as Map<String, dynamic>,
+        ),
+        wipCost: ProductionWipCost.fromJson(
+          j['wipCost'] as Map<String, dynamic>,
+        ),
+      );
+}
+
+class ProductionThroughput {
+  final int enteredProduction;
+  final int exitedProduction;
+  final Map<String, int> exitedBySeries;
+  final int delivered;
+  const ProductionThroughput({
+    required this.enteredProduction,
+    required this.exitedProduction,
+    required this.exitedBySeries,
+    required this.delivered,
+  });
+  factory ProductionThroughput.fromJson(Map<String, dynamic> j) {
+    final raw = j['exitedBySeries'] as Map<String, dynamic>? ?? const {};
+    return ProductionThroughput(
+      enteredProduction: (j['enteredProduction'] as num).toInt(),
+      exitedProduction: (j['exitedProduction'] as num).toInt(),
+      exitedBySeries: raw.map((k, v) => MapEntry(k, (v as num).toInt())),
+      delivered: (j['delivered'] as num).toInt(),
+    );
+  }
+}
+
+class ProductionSnapshot {
+  final int inProduction;
+  final int readyForDelivery;
+  final List<ProductionInventoryYard> inventoryByYard;
+  const ProductionSnapshot({
+    required this.inProduction,
+    required this.readyForDelivery,
+    required this.inventoryByYard,
+  });
+  factory ProductionSnapshot.fromJson(Map<String, dynamic> j) =>
+      ProductionSnapshot(
+        inProduction: (j['inProduction'] as num).toInt(),
+        readyForDelivery: (j['readyForDelivery'] as num).toInt(),
+        inventoryByYard: (j['inventoryByYard'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .map(ProductionInventoryYard.fromJson)
+            .toList(),
+      );
+}
+
+class ProductionInventoryYard {
+  final int locationId;
+  final String code;
+  final String name;
+  final bool isFactory;
+  final int count;
+  const ProductionInventoryYard({
+    required this.locationId,
+    required this.code,
+    required this.name,
+    required this.isFactory,
+    required this.count,
+  });
+  factory ProductionInventoryYard.fromJson(Map<String, dynamic> j) =>
+      ProductionInventoryYard(
+        locationId: (j['locationId'] as num).toInt(),
+        code: j['code'] as String,
+        name: j['name'] as String,
+        isFactory: j['isFactory'] as bool? ?? false,
+        count: (j['count'] as num).toInt(),
+      );
+}
+
+class ProductionWipCost {
+  final double totalCumulativeDollars;
+  final double totalProjectedDollars;
+  final List<ProductionWipTrailer> perTrailer;
+  const ProductionWipCost({
+    required this.totalCumulativeDollars,
+    required this.totalProjectedDollars,
+    required this.perTrailer,
+  });
+  factory ProductionWipCost.fromJson(Map<String, dynamic> j) =>
+      ProductionWipCost(
+        totalCumulativeDollars:
+            (j['totalCumulativeDollars'] as num).toDouble(),
+        totalProjectedDollars:
+            (j['totalProjectedDollars'] as num).toDouble(),
+        perTrailer: (j['perTrailer'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .map(ProductionWipTrailer.fromJson)
+            .toList(),
+      );
+}
+
+class ProductionWipTrailer {
+  final String trailerId;
+  final String soNumber;
+  final String modelCode;
+  final String modelName;
+  final double cumulativeDollars;
+  final double projectedDollars;
+  const ProductionWipTrailer({
+    required this.trailerId,
+    required this.soNumber,
+    required this.modelCode,
+    required this.modelName,
+    required this.cumulativeDollars,
+    required this.projectedDollars,
+  });
+  factory ProductionWipTrailer.fromJson(Map<String, dynamic> j) =>
+      ProductionWipTrailer(
+        trailerId: j['trailerId'] as String,
+        soNumber: j['soNumber'] as String,
+        modelCode: j['modelCode'] as String,
+        modelName: j['modelName'] as String? ?? '',
+        cumulativeDollars: (j['cumulativeDollars'] as num).toDouble(),
+        projectedDollars: (j['projectedDollars'] as num).toDouble(),
+      );
 }

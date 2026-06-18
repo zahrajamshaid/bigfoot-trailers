@@ -5,6 +5,7 @@ import { AdminService } from './admin.service';
 import { AuditLogService } from './audit-log.service';
 import { AuditLogInterceptor } from './audit-log.interceptor';
 import { LogPruningService } from './log-pruning.service';
+import { ProductionReportService } from './production-report.service';
 
 @Module({
   controllers: [AdminController],
@@ -12,6 +13,7 @@ import { LogPruningService } from './log-pruning.service';
     AdminService,
     AuditLogService,
     LogPruningService,
+    ProductionReportService,
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditLogInterceptor,

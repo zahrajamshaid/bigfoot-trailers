@@ -7,7 +7,11 @@ import '../../../domain/repositories/admin_repository.dart';
 // Re-export domain types for screens
 export '../../../domain/repositories/admin_repository.dart'
     show AdminDashboardStats, AdminWorkflowTemplate, AdminAuditLogEntry,
-         AdminWeeklyProductionReport, AdminUsersResult, AdminAuditResult;
+         AdminWeeklyProductionReport, AdminUsersResult, AdminAuditResult,
+         ProductionCostMatrix, ProductionCostModel, ProductionCostDepartment,
+         ProductionCostCell, ProductionReport, ProductionThroughput,
+         ProductionSnapshot, ProductionInventoryYard, ProductionWipCost,
+         ProductionWipTrailer;
 
 class AdminViewModel extends Cubit<int> {
   final AdminRepository _repository;
@@ -100,4 +104,24 @@ class AdminViewModel extends Cubit<int> {
 
   Future<AdminWeeklyProductionReport> getWeeklyProductionReport(String weekStartIso) =>
       _repository.getWeeklyProductionReport(weekStartIso);
+
+  // ── Production cost matrix ─────────────────────────────────────────────
+  Future<ProductionCostMatrix> getProductionCostMatrix() =>
+      _repository.getProductionCostMatrix();
+
+  Future<void> upsertProductionCost({
+    required int trailerModelId,
+    required int departmentId,
+    required double costDollars,
+    String? effectiveFrom,
+  }) =>
+      _repository.upsertProductionCost(
+        trailerModelId: trailerModelId,
+        departmentId: departmentId,
+        costDollars: costDollars,
+        effectiveFrom: effectiveFrom,
+      );
+
+  Future<ProductionReport> getProductionReport(String weekStartIso) =>
+      _repository.getProductionReport(weekStartIso);
 }

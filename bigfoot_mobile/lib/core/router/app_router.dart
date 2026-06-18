@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/admin/view/admin_dashboard_screen.dart';
 import '../../features/admin/view/audit_log_screen.dart';
+import '../../features/admin/view/production_cost_matrix_screen.dart';
+import '../../features/admin/view/production_report_screen.dart';
 import '../../features/announcements/view/announcements_admin_screen.dart';
 import '../../features/admin/view/department_config_screen.dart';
 import '../../features/admin/view/reports_screen.dart';
@@ -322,6 +324,20 @@ class AppRouter {
                   name: RouteNames.adminReports,
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) => const ReportsScreen(),
+                ),
+                GoRoute(
+                  path: 'production-report',
+                  name: RouteNames.productionReport,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) =>
+                      const ProductionReportScreen(),
+                ),
+                GoRoute(
+                  path: 'production-costs',
+                  name: RouteNames.productionCostMatrix,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) =>
+                      const ProductionCostMatrixScreen(),
                 ),
               ],
             ),
