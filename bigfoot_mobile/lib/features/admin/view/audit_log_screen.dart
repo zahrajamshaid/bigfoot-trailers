@@ -184,15 +184,37 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                     return Card(
                       child: ExpansionTile(
                         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-                        title: Text('${x.action.toUpperCase()} ${x.entityType}#${x.entityId}'),
-                        subtitle: Text(
-                          '${x.userName ?? l.commonUnknown} • ${x.createdAt?.toLocal().toString() ?? '-'}',
+                        title: Text(
+                          x.entityLabel,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text(
+                              '${x.actionLabel} · ${x.summary}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.navy,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${x.userName ?? l.commonUnknown} · ${_fmtTimestamp(x.createdAt)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.disabled,
+                              ),
+                            ),
+                          ],
                         ),
                         childrenPadding: const EdgeInsets.all(12),
                         children: [
-                          _jsonBlock(l.adminAuditOldValues, x.oldValues),
+                          _kvBlock(l.adminAuditOldValues, x.oldValues),
                           const SizedBox(height: 8),
-                          _jsonBlock(l.adminAuditNewValues, x.newValues),
+                          _kvBlock(l.adminAuditNewValues, x.newValues),
                         ],
                       ),
                     );
@@ -235,7 +257,35 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     );
   }
 
-  Widget _jsonBlock(String title, Map<String, dynamic>? map) {
+  /// "12:47 PM" for today, "Tue 6:21 PM" for the last 7 days, "2026-06-15
+  /// 14:33" for anything older. The relative-time crutch is what makes the
+  /// log scannable — admins almost always care about "what happened in the
+  /// last few hours" first.
+  String _fmtTimestamp(DateTime? ts) {
+    if (ts == null) return '-';
+    final local = ts.toLocal();
+    final now = DateTime.now();
+    final today =
+        local.year == now.year && local.month == now.month && local.day == now.day;
+    final diff = now.difference(local);
+
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final time = '${pad(local.hour)}:${pad(local.minute)}';
+
+    if (today) return time;
+    if (diff.inDays < 7) {
+      const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return '${dow[local.weekday - 1]} $time';
+    }
+    return '${local.year}-${pad(local.month)}-${pad(local.day)} $time';
+  }
+
+  /// Renders a JSON-ish map as a key/value table — far easier to read than the
+  /// raw JSON dump we used to show, especially when only one field changed.
+  /// Falls back to a monospace JSON block for genuinely tabular nested
+  /// payloads so the expansion is never empty when the data is non-trivial.
+  Widget _kvBlock(String title, Map<String, dynamic>? map) {
+    final l = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -248,14 +298,58 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         children: [
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          SelectableText(
-            map == null
-                ? AppLocalizations.of(context).commonNone
-                : const JsonEncoder.withIndent('  ').convert(map),
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-          ),
+          if (map == null || map.isEmpty)
+            Text(l.commonNone,
+                style: const TextStyle(color: AppColors.disabled))
+          else
+            ...map.entries.map((e) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 140,
+                        child: Text(
+                          _prettyKey(e.key),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: SelectableText(
+                          _prettyValue(e.value),
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
         ],
       ),
     );
+  }
+
+  static String _prettyKey(String key) {
+    // Convert camelCase / snake_case keys to "Sentence case" so the column
+    // reads like English, not code.
+    final spaced = key
+        .replaceAllMapped(
+            RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]!.toLowerCase()}')
+        .replaceAll('_', ' ');
+    return spaced.isEmpty
+        ? key
+        : '${spaced[0].toUpperCase()}${spaced.substring(1)}';
+  }
+
+  static String _prettyValue(dynamic v) {
+    if (v == null) return '—';
+    if (v is String) return v.isEmpty ? '(empty)' : v;
+    if (v is num || v is bool) return v.toString();
+    return const JsonEncoder.withIndent('  ').convert(v);
   }
 }

@@ -74,7 +74,12 @@ export class QcController {
   })
   @ApiResponse({ status: 200, description: 'List of failed inspections' })
   async getFailedInspections(@Query('days') daysParam?: string) {
-    const days = Math.max(1, Math.min(180, Number(daysParam) || 30));
+    // Default 14 days — keeps the dashboard drilldown readable without
+    // destroying history. Older failures are still queryable via the
+    // per-trailer history endpoint + the audit log, so nothing's lost;
+    // they just don't clutter the QC fail-rate tile. Callers can pass
+    // ?days=N up to 180 if they need a longer lookback.
+    const days = Math.max(1, Math.min(180, Number(daysParam) || 14));
     return this.qcService.getFailedInspections(days);
   }
 

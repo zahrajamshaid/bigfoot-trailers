@@ -35,6 +35,25 @@ const auditLogSelect = {
   user: { select: { id: true, fullName: true, email: true } },
 } satisfies Prisma.AuditLogSelect;
 
+// Raw row coming out of Prisma with the select above.
+type RawAuditLogItem = Prisma.AuditLogGetPayload<{ select: typeof auditLogSelect }>;
+
+// Enriched row sent to the client: same shape + three human-readable fields.
+type EnrichedAuditLogItem = RawAuditLogItem & {
+  /// Stable, human label for the thing that changed (e.g. "SO 6715",
+  /// "SO 6715 — QC_3", "Batch OPEN-BATCH-TROPIC"). Falls back to the raw
+  /// `entityType #entityId` when the entity has been deleted / can't be resolved.
+  entityLabel: string;
+  /// One-line description of *what* the action did, derived from
+  /// action + old/new values when possible (e.g. "Status: in_production →
+  /// ready_for_delivery"). Falls back to a generic "Created / Updated /
+  /// Deleted" verb.
+  summary: string;
+  /// The action rendered as a verb the admin recognises (CREATE → "Created",
+  /// trailer.jumped_to_step → "Jumped to step", etc).
+  actionLabel: string;
+};
+
 @Injectable()
 export class AuditLogService {
   constructor(private readonly prisma: PrismaService) {}
@@ -91,7 +110,7 @@ export class AuditLogService {
     ]);
 
     return {
-      items,
+      items: await this.enrich(items),
       total,
       page,
       limit,
@@ -126,11 +145,342 @@ export class AuditLogService {
     ]);
 
     return {
-      items,
+      items: await this.enrich(items),
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  // ---------------------------------------------------------------------------
+  // Enrichment
+  //
+  // Resolves entity ids → human-readable labels in one batch per entity type
+  // (no N+1) and tacks `entityLabel`, `summary`, and `actionLabel` onto every
+  // row before it leaves the API. The admin Audit Log screen consumes those
+  // three fields directly — old/new JSON stays in place for forensics.
+  // ---------------------------------------------------------------------------
+  private async enrich(items: RawAuditLogItem[]): Promise<EnrichedAuditLogItem[]> {
+    if (items.length === 0) return [];
+
+    // Bucket entity ids by type so we can fan out one query per bucket.
+    const buckets: Record<string, Set<bigint>> = {
+      trailer: new Set(),
+      step: new Set(),
+      qc_inspection: new Set(),
+      delivery: new Set(),
+      delivery_batch: new Set(),
+      department: new Set(),
+      user: new Set(),
+      announcement: new Set(),
+    };
+
+    for (const it of items) {
+      const id = BigInt(it.entityId);
+      switch (it.entityType) {
+        case 'trailer':
+        case 'production_trailer':
+          buckets.trailer.add(id);
+          break;
+        case 'step':
+        case 'production_step':
+          buckets.step.add(id);
+          break;
+        case 'qc_inspection':
+          buckets.qc_inspection.add(id);
+          break;
+        case 'delivery':
+          buckets.delivery.add(id);
+          break;
+        case 'delivery_batch':
+          buckets.delivery_batch.add(id);
+          break;
+        case 'department':
+          buckets.department.add(BigInt(it.entityId));
+          break;
+        case 'user':
+          buckets.user.add(id);
+          break;
+        case 'announcement':
+        case 'admin_announcement':
+          buckets.announcement.add(id);
+          break;
+      }
+    }
+
+    // Batch-load every referenced entity.
+    const [trailers, steps, qcs, deliveries, batches, depts, users, announcements] =
+      await Promise.all([
+        buckets.trailer.size
+          ? this.prisma.trailer.findMany({
+              where: { id: { in: [...buckets.trailer] } },
+              select: { id: true, soNumber: true },
+            })
+          : Promise.resolve([]),
+        buckets.step.size
+          ? this.prisma.productionStep.findMany({
+              where: { id: { in: [...buckets.step] } },
+              select: {
+                id: true,
+                trailer: { select: { soNumber: true } },
+                department: { select: { code: true } },
+              },
+            })
+          : Promise.resolve([]),
+        buckets.qc_inspection.size
+          ? this.prisma.qcInspection.findMany({
+              where: { id: { in: [...buckets.qc_inspection] } },
+              select: {
+                id: true,
+                trailer: { select: { soNumber: true } },
+                productionStep: {
+                  select: { department: { select: { code: true } } },
+                },
+              },
+            })
+          : Promise.resolve([]),
+        buckets.delivery.size
+          ? this.prisma.delivery.findMany({
+              where: { id: { in: [...buckets.delivery] } },
+              select: {
+                id: true,
+                deliveryType: true,
+                trailer: { select: { soNumber: true } },
+                destinationLocation: { select: { code: true } },
+              },
+            })
+          : Promise.resolve([]),
+        buckets.delivery_batch.size
+          ? this.prisma.deliveryBatch.findMany({
+              where: { id: { in: [...buckets.delivery_batch] } },
+              select: { id: true, batchNumber: true },
+            })
+          : Promise.resolve([]),
+        // Departments use INT ids; cast on the way in.
+        buckets.department.size
+          ? this.prisma.department.findMany({
+              where: {
+                id: { in: [...buckets.department].map((b) => Number(b)) },
+              },
+              select: { id: true, code: true, displayName: true },
+            })
+          : Promise.resolve([]),
+        buckets.user.size
+          ? this.prisma.user.findMany({
+              where: { id: { in: [...buckets.user] } },
+              select: { id: true, fullName: true, email: true },
+            })
+          : Promise.resolve([]),
+        buckets.announcement.size
+          ? this.prisma.systemAnnouncement.findMany({
+              where: { id: { in: [...buckets.announcement] } },
+              select: { id: true, title: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+    const trailerSo = new Map(trailers.map((t) => [t.id.toString(), t.soNumber]));
+    const stepDesc = new Map(
+      steps.map((s) => [
+        s.id.toString(),
+        { so: s.trailer.soNumber, dept: s.department.code },
+      ]),
+    );
+    const qcDesc = new Map(
+      qcs.map((q) => [
+        q.id.toString(),
+        {
+          so: q.trailer.soNumber,
+          dept: q.productionStep.department.code,
+        },
+      ]),
+    );
+    const deliveryDesc = new Map(
+      deliveries.map((d) => [
+        d.id.toString(),
+        {
+          so: d.trailer.soNumber,
+          type: d.deliveryType as string,
+          dest: d.destinationLocation?.code ?? null,
+        },
+      ]),
+    );
+    const batchNumber = new Map(
+      batches.map((b) => [b.id.toString(), b.batchNumber]),
+    );
+    const deptDesc = new Map(
+      depts.map((d) => [
+        d.id.toString(),
+        { code: d.code, name: d.displayName },
+      ]),
+    );
+    const userDesc = new Map(
+      users.map((u) => [
+        u.id.toString(),
+        { name: u.fullName, email: u.email ?? '' },
+      ]),
+    );
+    const announcementTitle = new Map<string, string>(
+      announcements.map((a) => [a.id.toString(), a.title ?? '(untitled)']),
+    );
+
+    return items.map((it) => {
+      const idKey = it.entityId.toString();
+      const entityLabel = buildEntityLabel(it, {
+        trailerSo,
+        stepDesc,
+        qcDesc,
+        deliveryDesc,
+        batchNumber,
+        deptDesc,
+        userDesc,
+        announcementTitle,
+      }, idKey);
+      const actionLabel = humanAction(it.action);
+      const summary = buildSummary(it, actionLabel);
+      return { ...it, entityLabel, summary, actionLabel };
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pure helpers — kept outside the class so they're trivially testable and
+// don't get tangled with Prisma's dependency injection lifecycle.
+// ---------------------------------------------------------------------------
+
+type LookupBundle = {
+  trailerSo: Map<string, string>;
+  stepDesc: Map<string, { so: string; dept: string }>;
+  qcDesc: Map<string, { so: string; dept: string }>;
+  deliveryDesc: Map<string, { so: string; type: string; dest: string | null }>;
+  batchNumber: Map<string, string>;
+  deptDesc: Map<string, { code: string; name: string }>;
+  userDesc: Map<string, { name: string; email: string }>;
+  announcementTitle: Map<string, string>;
+};
+
+function buildEntityLabel(
+  it: { entityType: string; entityId: bigint },
+  L: LookupBundle,
+  idKey: string,
+): string {
+  switch (it.entityType) {
+    case 'trailer':
+    case 'production_trailer': {
+      const so = L.trailerSo.get(idKey);
+      return so ? `SO ${so}` : `Trailer #${idKey}`;
+    }
+    case 'step':
+    case 'production_step': {
+      const d = L.stepDesc.get(idKey);
+      return d ? `SO ${d.so} — ${d.dept}` : `Step #${idKey}`;
+    }
+    case 'qc_inspection': {
+      const d = L.qcDesc.get(idKey);
+      return d ? `SO ${d.so} — ${d.dept} QC` : `QC inspection #${idKey}`;
+    }
+    case 'delivery': {
+      const d = L.deliveryDesc.get(idKey);
+      if (!d) return `Delivery #${idKey}`;
+      const dest = d.dest ?? 'customer';
+      return `SO ${d.so} — ${d.type} → ${dest}`;
+    }
+    case 'delivery_batch': {
+      const n = L.batchNumber.get(idKey);
+      return n ? `Batch ${n}` : `Batch #${idKey}`;
+    }
+    case 'department': {
+      const d = L.deptDesc.get(idKey);
+      return d ? `Dept ${d.code}` : `Department #${idKey}`;
+    }
+    case 'user': {
+      const u = L.userDesc.get(idKey);
+      return u ? `User ${u.name}` : `User #${idKey}`;
+    }
+    case 'announcement':
+    case 'admin_announcement': {
+      const title = L.announcementTitle.get(idKey);
+      return title ? `Announcement "${title}"` : `Announcement #${idKey}`;
+    }
+    case 'notification':
+      return `Notification #${idKey}`;
+    case 'dollar_rate':
+      return `Pay rate #${idKey}`;
+    default:
+      return `${it.entityType} #${idKey}`;
+  }
+}
+
+function humanAction(action: string): string {
+  // Custom verbs the API emits directly.
+  if (action === 'trailer.jumped_to_step') return 'Jumped to step';
+  if (action === 'trailer.priority_set') return 'Priority set';
+  if (action === 'trailer.hot_toggled') return 'Hot toggled';
+  if (action === 'qc.passed') return 'QC passed';
+  if (action === 'qc.failed') return 'QC failed';
+
+  // HTTP verbs from the audit-log interceptor.
+  const upper = action.toUpperCase();
+  if (upper === 'CREATE') return 'Created';
+  if (upper === 'UPDATE') return 'Updated';
+  if (upper === 'DELETE') return 'Deleted';
+
+  // Anything else: split on dots/underscores and Title-Case it so a custom
+  // `delivery.dispatched` reads as "Delivery dispatched" instead of raw.
+  return action
+    .replace(/[._]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function buildSummary(
+  it: { entityType: string; action: string; oldValues: unknown; newValues: unknown },
+  actionLabel: string,
+): string {
+  const oldV = (it.oldValues ?? null) as Record<string, unknown> | null;
+  const newV = (it.newValues ?? null) as Record<string, unknown> | null;
+
+  // QC inspection rows are noisy — they always create, so the verb adds nothing.
+  // Use the result + attempt + rework target if present instead.
+  if (it.entityType === 'qc_inspection' && newV) {
+    const result = String(newV.result ?? '').toLowerCase();
+    const attempt = newV.attemptNumber ?? newV.attempt_number;
+    const reworkDept =
+      newV.reworkTargetDeptCode ??
+      newV.reworkTargetDept ??
+      newV.reworkSentToDeptCode;
+    if (result === 'pass') {
+      return attempt ? `Passed (attempt ${attempt})` : 'Passed';
+    }
+    if (result === 'fail') {
+      const base = attempt ? `Failed (attempt ${attempt})` : 'Failed';
+      return reworkDept ? `${base} → sent to ${reworkDept}` : base;
+    }
+  }
+
+  // Trailer status / sale-status / priority changes are the highest-signal
+  // updates — surface the diff directly.
+  if (oldV && newV) {
+    const diffs: string[] = [];
+    for (const key of ['status', 'saleStatus', 'globalPriority', 'isHot', 'isStockBuild']) {
+      const ov = oldV[key];
+      const nv = newV[key];
+      if (ov !== undefined && nv !== undefined && ov !== nv) {
+        diffs.push(`${prettyKey(key)}: ${ov} → ${nv}`);
+      }
+    }
+    if (diffs.length > 0) return diffs.join(', ');
+  }
+
+  // Generic fallback: just the action verb.
+  return actionLabel;
+}
+
+function prettyKey(key: string): string {
+  if (key === 'status') return 'Status';
+  if (key === 'saleStatus') return 'Sale';
+  if (key === 'globalPriority') return 'Priority';
+  if (key === 'isHot') return 'Hot';
+  if (key === 'isStockBuild') return 'Stock build';
+  return key;
 }

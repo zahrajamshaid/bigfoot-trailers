@@ -146,6 +146,7 @@ class AppRouter {
             GoRoute(
               path: '/qc',
               name: RouteNames.qcQueue,
+              redirect: _qcOnly,
               builder: (context, state) => QcQueueScreen(
                 initialReworkOnly:
                     state.uri.queryParameters['filter'] == 'rework',
@@ -391,5 +392,25 @@ class AppRouter {
       return null;
     }
     return '/payroll';
+  }
+
+  /// Guards the QC area (queue, failed list, rework list, inspect form,
+  /// inspection detail). Mirrors the backend's `@Roles` on `POST /qc/inspections`
+  /// and `GET /qc/*` — qc_inspector + production_manager + owner only.
+  ///
+  /// Sits on the parent `/qc` route so it fires on direct hits AND when a
+  /// child screen pops back onto the queue. Without this, tapping the
+  /// QC-fail-rate tile from a sales dashboard bounced through the failed
+  /// screen's "permission denied" and dropped the user on the unguarded
+  /// queue — letting them browse trailers waiting on inspection.
+  String? _qcOnly(BuildContext context, GoRouterState state) {
+    final authState = context.read<AuthViewModel>().state;
+    if (authState is Authenticated &&
+        (authState.user.role == 'owner' ||
+            authState.user.role == 'production_manager' ||
+            authState.user.role == 'qc_inspector')) {
+      return null;
+    }
+    return '/dashboard';
   }
 }

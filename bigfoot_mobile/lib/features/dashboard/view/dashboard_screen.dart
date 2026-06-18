@@ -120,6 +120,15 @@ class _ManagerDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = context.responsive;
     final l = AppLocalizations.of(context);
+    // The switch above falls through to _ManagerDashboard for roles without
+    // their own dashboard (sales / parts / office / driver). Some tiles
+    // deep-link into QC-only screens — hide those for non-managers so they
+    // don't tap a tile that immediately bounces them via the /qc redirect.
+    final authState = context.watch<AuthViewModel>().state;
+    final role = authState is Authenticated ? authState.user.role : null;
+    final canSeeQcTiles = role == UserRole.owner ||
+        role == UserRole.productionManager ||
+        role == UserRole.qcInspector;
     return Column(
       children: [
         Padding(
@@ -238,13 +247,14 @@ class _ManagerDashboard extends StatelessWidget {
                   );
                 },
               ),
-              StatCard(
-                title: l.dashStatQcFailRate,
-                value: '${data.qcFailRate.toStringAsFixed(1)}%',
-                icon: Icons.analytics_outlined,
-                color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
-                onTap: () => context.goNamed(RouteNames.qcFailed),
-              ),
+              if (canSeeQcTiles)
+                StatCard(
+                  title: l.dashStatQcFailRate,
+                  value: '${data.qcFailRate.toStringAsFixed(1)}%',
+                  icon: Icons.analytics_outlined,
+                  color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
+                  onTap: () => context.goNamed(RouteNames.qcFailed),
+                ),
             ],
           ),
         ),

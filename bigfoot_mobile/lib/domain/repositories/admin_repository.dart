@@ -60,6 +60,17 @@ class AdminAuditLogEntry {
   final String? ipAddress;
   final DateTime? createdAt;
   final String? userName;
+  /// Human label for the changed entity (e.g. "SO 6715", "SO 6715 — QC_3 QC").
+  /// Server-supplied. Falls back to "{entityType} #{entityId}" if the API is
+  /// older or the entity has been deleted.
+  final String entityLabel;
+  /// Action rendered as a verb the admin recognises (e.g. "Updated",
+  /// "Jumped to step"). Server-supplied; falls back to the raw action string.
+  final String actionLabel;
+  /// One-line description of what changed, derived from old/new values when
+  /// possible (e.g. "Status: in_production → ready_for_delivery"). Server-
+  /// supplied; falls back to the action label.
+  final String summary;
 
   const AdminAuditLogEntry({
     required this.id,
@@ -72,16 +83,22 @@ class AdminAuditLogEntry {
     this.ipAddress,
     this.createdAt,
     this.userName,
+    required this.entityLabel,
+    required this.actionLabel,
+    required this.summary,
   });
 
   factory AdminAuditLogEntry.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>?;
+    final entityType = json['entityType'] as String;
+    final entityId = (json['entityId'] as num).toInt();
+    final action = json['action'] as String;
     return AdminAuditLogEntry(
       id: (json['id'] as num).toInt(),
       userId: (json['userId'] as num?)?.toInt(),
-      entityType: json['entityType'] as String,
-      entityId: (json['entityId'] as num).toInt(),
-      action: json['action'] as String,
+      entityType: entityType,
+      entityId: entityId,
+      action: action,
       oldValues: json['oldValues'] as Map<String, dynamic>?,
       newValues: json['newValues'] as Map<String, dynamic>?,
       ipAddress: json['ipAddress'] as String?,
@@ -89,6 +106,10 @@ class AdminAuditLogEntry {
           ? null
           : DateTime.tryParse(json['createdAt'] as String),
       userName: user?['fullName'] as String?,
+      entityLabel:
+          (json['entityLabel'] as String?) ?? '$entityType #$entityId',
+      actionLabel: (json['actionLabel'] as String?) ?? action,
+      summary: (json['summary'] as String?) ?? action,
     );
   }
 }
