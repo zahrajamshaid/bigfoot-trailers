@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/layout/responsive.dart';
 import '../../../core/router/route_names.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
@@ -111,18 +112,20 @@ class _Content extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        // The actual refresh is owned by the parent; here we only need the
-        // pull gesture to feel right while the page is scrollable.
-      },
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+    final r = context.responsive;
+    // 4 tiles look best on wide screens (entered / exited / delivered +
+    // either ready or in_production duplicated above the fold). On compact
+    // we drop to 2.
+    final throughputCols = r.value(compact: 2, medium: 3, expanded: 3, large: 3);
+    final snapshotCols = r.value(compact: 2, medium: 2, expanded: 2, large: 2);
+
+    final throughputCard = _Card(
+      title: 'This week',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _WeekPicker(weekStart: weekStart, onPrev: onPrev, onNext: onNext),
-          const SizedBox(height: 12),
-          _SectionTitle('This week'),
           _StatGrid(
+            crossAxisCount: throughputCols,
             tiles: [
               _Tile(
                 label: 'Entered production',
@@ -145,19 +148,23 @@ class _Content extends StatelessWidget {
             ],
           ),
           if (report.throughput.exitedBySeries.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                'Exited by series: ${report.throughput.exitedBySeries.entries.map((e) => '${e.key} ${e.value}').join(' · ')}',
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.disabled),
-              ),
+            const SizedBox(height: 10),
+            Text(
+              'Exited by series: ${report.throughput.exitedBySeries.entries.map((e) => '${e.key} ${e.value}').join(' · ')}',
+              style: const TextStyle(fontSize: 12, color: AppColors.disabled),
             ),
           ],
-          const SizedBox(height: 20),
-          _SectionTitle('Live snapshot'),
+        ],
+      ),
+    );
+
+    final snapshotCard = _Card(
+      title: 'Live snapshot',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           _StatGrid(
+            crossAxisCount: snapshotCols,
             tiles: [
               _Tile(
                 label: 'In production',
@@ -174,36 +181,119 @@ class _Content extends StatelessWidget {
             ],
           ),
           if (report.snapshot.inventoryByYard.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+            const SizedBox(height: 14),
+            const Text(
+              'Inventory by yard',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: report.snapshot.inventoryByYard
+                  .map(
+                    (y) => Chip(
+                      label: Text('${y.code} · ${y.count}'),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    final wipCard = _WipSection(
+      wip: report.wipCost,
+      onCostMatrix: onCostMatrix,
+    );
+
+    // On expanded+ widths the throughput + snapshot cards sit side-by-side
+    // so the screen doesn't waste horizontal space scrolling vertically
+    // for two narrow tables. WIP keeps the full width because the per-
+    // trailer list benefits from breathing room.
+    final useTwoCol = r.isExpanded || r.isLarge;
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        // The actual refresh is owned by the parent; here we only need the
+        // pull gesture to feel right while the page is scrollable.
+      },
+      child: ListView(
+        padding: EdgeInsets.symmetric(
+          horizontal: r.pagePadding,
+          vertical: 16,
+        ),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: r.maxContentWidth),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Inventory by yard',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: report.snapshot.inventoryByYard
-                        .map(
-                          (y) => Chip(
-                            label: Text('${y.code} · ${y.count}'),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        )
-                        .toList(),
-                  ),
+                  _WeekPicker(
+                      weekStart: weekStart, onPrev: onPrev, onNext: onNext),
+                  const SizedBox(height: 14),
+                  if (useTwoCol)
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: throughputCard),
+                          const SizedBox(width: 14),
+                          Expanded(child: snapshotCard),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    throughputCard,
+                    const SizedBox(height: 14),
+                    snapshotCard,
+                  ],
+                  const SizedBox(height: 14),
+                  wipCard,
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
-          ],
-          const SizedBox(height: 20),
-          _WipSection(wip: report.wipCost, onCostMatrix: onCostMatrix),
-          const SizedBox(height: 32),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Card wrapper used to group the throughput + snapshot + WIP blocks so the
+/// page reads as three logical sections instead of one long scroll.
+class _Card extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _Card({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(12),
+        color: AppColors.white,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.disabled,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
         ],
       ),
     );
@@ -265,15 +355,19 @@ class _WeekPicker extends StatelessWidget {
 
 class _StatGrid extends StatelessWidget {
   final List<_Tile> tiles;
-  const _StatGrid({required this.tiles});
+  final int crossAxisCount;
+  const _StatGrid({required this.tiles, required this.crossAxisCount});
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
     return GridView.count(
-      crossAxisCount: tiles.length >= 3 ? 3 : 2,
+      crossAxisCount: crossAxisCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
+      // Slightly squatter tiles on desktop so two cards side-by-side don't
+      // create a wasteland of dead space below the digits.
+      childAspectRatio: r.isDesktop ? 1.7 : 1.45,
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       children: tiles,
@@ -332,122 +426,211 @@ class _WipSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final r = context.responsive;
     final progress = wip.totalProjectedDollars == 0
         ? 0.0
         : (wip.totalCumulativeDollars / wip.totalProjectedDollars)
             .clamp(0.0, 1.0)
             .toDouble();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(child: _SectionTitle('Work-in-progress cost')),
-            TextButton.icon(
-              onPressed: onCostMatrix,
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text('Edit matrix'),
-            ),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.divider),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+
+    return _Card(
+      title: 'Work-in-progress cost',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row: invested / projected + edit-matrix CTA. Wraps on
+          // narrow widths so the button doesn't push the numbers off-screen.
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Invested ${_money(wip.totalCumulativeDollars)}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  Text(
-                    'Projected ${_money(wip.totalProjectedDollars)}',
-                    style: const TextStyle(
-                        color: AppColors.disabled, fontSize: 13),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  backgroundColor: AppColors.divider,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.amber),
+              Text(
+                'Invested ${_money(wip.totalCumulativeDollars)}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navy,
                 ),
               ),
-              const SizedBox(height: 4),
               Text(
-                'Across ${wip.perTrailer.length} in-production trailer'
-                '${wip.perTrailer.length == 1 ? '' : 's'}',
+                'of projected ${_money(wip.totalProjectedDollars)}',
                 style: const TextStyle(
-                    fontSize: 12, color: AppColors.disabled),
+                    color: AppColors.disabled, fontSize: 13),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: onCostMatrix,
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Edit matrix'),
               ),
             ],
           ),
-        ),
-        if (wip.perTrailer.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          ...wip.perTrailer.take(20).map(
-                (t) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${t.soNumber} · ${t.modelCode}',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Text(
-                        '${_money(t.cumulativeDollars)} / ${_money(t.projectedDollars)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: AppColors.divider,
+              valueColor: const AlwaysStoppedAnimation(AppColors.amber),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Across ${wip.perTrailer.length} in-production trailer'
+            '${wip.perTrailer.length == 1 ? '' : 's'}',
+            style: const TextStyle(fontSize: 12, color: AppColors.disabled),
+          ),
+          if (wip.perTrailer.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            // Desktop gets a proper aligned grid; phones keep the compact
+            // SO • cost stack so each row stays readable in 360-400px width.
+            if (r.isTablet)
+              _WipTable(rows: wip.perTrailer.take(20).toList())
+            else
+              Column(
+                children: wip.perTrailer
+                    .take(20)
+                    .map(_compactRow)
+                    .toList(),
+              ),
+            if (wip.perTrailer.length > 20)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '... +${wip.perTrailer.length - 20} more',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.disabled),
                 ),
               ),
-          if (wip.perTrailer.length > 20)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _compactRow(ProductionWipTrailer t) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
               child: Text(
-                '... +${wip.perTrailer.length - 20} more',
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.disabled),
+                '${t.soNumber} · ${t.modelCode}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-        ],
+            Text(
+              '${_money(t.cumulativeDollars)} / ${_money(t.projectedDollars)}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      );
+}
+
+/// Aligned DataTable layout used on tablet/desktop widths. Right-aligns the
+/// dollar columns so eyes can scan totals top-to-bottom.
+class _WipTable extends StatelessWidget {
+  final List<ProductionWipTrailer> rows;
+  const _WipTable({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            children: const [
+              _Th('SO', flex: 2),
+              _Th('Model', flex: 3),
+              _Th('Invested', flex: 2, align: TextAlign.right),
+              _Th('Projected', flex: 2, align: TextAlign.right),
+              _Th('Progress', flex: 2, align: TextAlign.right),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        ...rows.map((t) {
+          final pct = t.projectedDollars == 0
+              ? 0
+              : ((t.cumulativeDollars / t.projectedDollars) * 100).round();
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    t.soNumber,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    t.modelCode,
+                    style: const TextStyle(color: AppColors.disabled),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    _money(t.cumulativeDollars),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    _money(t.projectedDollars),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(color: AppColors.disabled),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '$pct%',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: pct >= 80
+                          ? AppColors.success
+                          : (pct >= 40 ? AppColors.amber : AppColors.disabled),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
+class _Th extends StatelessWidget {
+  final String label;
+  final int flex;
+  final TextAlign align;
+  const _Th(this.label, {this.flex = 1, this.align = TextAlign.left});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    return Expanded(
+      flex: flex,
       child: Text(
-        text,
+        label,
+        textAlign: align,
         style: const TextStyle(
-          fontSize: 14,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: AppColors.disabled,
+          letterSpacing: 0.4,
         ),
       ),
     );

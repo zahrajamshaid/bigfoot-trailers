@@ -269,18 +269,16 @@ class _ManagerDashboard extends StatelessWidget {
                   queryParameters: {'status': 'delivered'},
                 ),
               ),
-              // In transit pairs naturally with Archived — shipped vs being
-              // shipped — and evens the grid out to a tidy multiple of 4
-              // for managers (was odd before).
+              // Production report deep-link — pairs with Archived (history
+              // vs forward-looking) and evens the grid out to a tidy
+              // multiple of 4. Value is the count of trailers currently
+              // in production, which is what the report header opens on.
               StatCard(
-                title: 'In transit',
-                value: '${data.activeDeliveries}',
-                icon: Icons.local_shipping_outlined,
-                color: AppColors.statusInTransit,
-                onTap: () => context.goNamed(
-                  RouteNames.deliveryList,
-                  queryParameters: {'status': 'in_transit'},
-                ),
+                title: 'Production report',
+                value: '${data.activeTrailers}',
+                icon: Icons.factory_outlined,
+                color: AppColors.statusInProduction,
+                onTap: () => context.goNamed(RouteNames.productionReport),
               ),
             ],
           ),

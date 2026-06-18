@@ -8,7 +8,6 @@ import '../../features/admin/view/production_cost_matrix_screen.dart';
 import '../../features/admin/view/production_report_screen.dart';
 import '../../features/announcements/view/announcements_admin_screen.dart';
 import '../../features/admin/view/department_config_screen.dart';
-import '../../features/admin/view/reports_screen.dart';
 import '../../features/admin/view/user_management_screen.dart';
 import '../../features/admin/view/workflow_viewer_screen.dart';
 import '../../features/auth/view/login_screen.dart';
@@ -318,12 +317,6 @@ class AppRouter {
                   name: RouteNames.announcementsAdmin,
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (context, state) => const AnnouncementsAdminScreen(),
-                ),
-                GoRoute(
-                  path: 'reports',
-                  name: RouteNames.adminReports,
-                  parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) => const ReportsScreen(),
                 ),
                 GoRoute(
                   path: 'production-report',

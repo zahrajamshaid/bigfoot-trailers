@@ -113,22 +113,6 @@ class DashboardRepositoryImpl implements DashboardRepository {
       archivedTotal = 0;
     }
 
-    // In-transit deliveries — pairs with Archived on the manager grid as
-    // the "being shipped right now" companion. Counts Delivery rows with
-    // status=in_transit. We reuse the existing /deliveries list (no
-    // dedicated count endpoint yet) and count the array length.
-    int activeDeliveries = 0;
-    try {
-      final deliveries = await _api.get<List<dynamic>>(
-        ApiEndpoints.deliveries,
-        queryParameters: {'status': 'in_transit'},
-        fromJson: (d) => d as List<dynamic>,
-      );
-      activeDeliveries = deliveries.data?.length ?? 0;
-    } catch (_) {
-      activeDeliveries = 0;
-    }
-
     return DashboardStats(
       activeTrailers: active,
       readyForDelivery: ready,
@@ -139,7 +123,6 @@ class DashboardRepositoryImpl implements DashboardRepository {
       weeklyCompleted: weeklyCompleted,
       stalledSteps: stalledSteps,
       archivedTotal: archivedTotal,
-      activeDeliveries: activeDeliveries,
     );
   }
 
