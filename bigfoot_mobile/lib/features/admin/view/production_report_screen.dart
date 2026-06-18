@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/router/route_names.dart';
 import '../viewmodel/admin_viewmodel.dart';
+import 'production_report_pdf.dart';
 
 /// Weekly trailer-throughput dashboard. Different from the Payroll Weekly
 /// Report (which is about worker output) — this one is about trailers
@@ -66,12 +68,32 @@ class _ProductionReportScreenState extends State<ProductionReportScreen> {
   bool get _isCurrentWeek =>
       _weekStart.toUtc().difference(_currentWeekSunday().toUtc()).inDays == 0;
 
+  Future<void> _downloadPdf() async {
+    final report = _report;
+    if (report == null) return;
+    final doc = buildProductionReportPdf(report);
+    // Printing.layoutPdf opens the OS print/save dialog on every platform
+    // we care about: mobile shows the system print sheet (with Save as
+    // PDF), desktop opens the same dialog, and the web build streams it
+    // into a new tab. Filename is what the dialog defaults to.
+    await Printing.layoutPdf(
+      onLayout: (format) async => doc.save(),
+      name: 'production-report-${report.weekStart}.pdf',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canDownload = !_loading && _error == null && _report != null;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Production report'),
         actions: [
+          IconButton(
+            tooltip: 'Download as PDF',
+            icon: const Icon(Icons.download_outlined),
+            onPressed: canDownload ? _downloadPdf : null,
+          ),
           IconButton(
             tooltip: 'Edit cost matrix',
             icon: const Icon(Icons.attach_money_outlined),

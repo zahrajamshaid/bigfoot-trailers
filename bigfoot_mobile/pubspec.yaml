@@ -51,6 +51,10 @@ dependencies:
   photo_view: ^0.15.0
   flutter_pdfview: ^1.4.0
   share_plus: ^11.1.0
+  # PDF authoring + system print/share dialog. Used by the Production
+  # Report screen's "Download PDF" button to render a printable summary.
+  pdf: ^3.11.0
+  printing: ^5.13.0
   uuid: ^4.5.1
   file_picker: ^8.1.2
   crypto: ^3.0.6
