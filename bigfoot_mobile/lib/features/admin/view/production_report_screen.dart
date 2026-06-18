@@ -449,38 +449,91 @@ class _WipSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = context.responsive;
-    final progress = wip.totalProjectedDollars == 0
+    // The cost matrix is the only thing that turns this section into useful
+    // data. When projected is 0 the math is meaningless and the table fills
+    // with $0/$0 rows — surface a friendly empty state with a direct link
+    // to the matrix editor instead.
+    final matrixIsEmpty = wip.totalProjectedDollars == 0;
+    final progress = matrixIsEmpty
         ? 0.0
         : (wip.totalCumulativeDollars / wip.totalProjectedDollars)
             .clamp(0.0, 1.0)
             .toDouble();
+
+    if (matrixIsEmpty) {
+      return _Card(
+        title: 'Work-in-progress cost',
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'No cost matrix configured yet',
+                style:
+                    TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Set an approximate dollar value for each '
+                '(trailer model × department) cell and this section will '
+                'show invested vs projected cost across the '
+                '${wip.perTrailer.length} trailer'
+                '${wip.perTrailer.length == 1 ? '' : 's'} '
+                'currently in production.',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.disabled, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  onPressed: onCostMatrix,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Open cost matrix'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return _Card(
       title: 'Work-in-progress cost',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row: invested / projected + edit-matrix CTA. Wraps on
-          // narrow widths so the button doesn't push the numbers off-screen.
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          // Header row: invested / projected on the left, Edit Matrix CTA
+          // on the right. A Row + Expanded lets the totals wrap inside their
+          // own column on narrow widths without the button drifting off
+          // screen. (Earlier draft used Wrap + Spacer — Spacer doesn't work
+          // inside Wrap and was rendering as a tall grey gap.)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Invested ${_money(wip.totalCumulativeDollars)}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navy,
+              Expanded(
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  children: [
+                    Text(
+                      'Invested ${_money(wip.totalCumulativeDollars)}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                    Text(
+                      'of projected ${_money(wip.totalProjectedDollars)}',
+                      style: const TextStyle(
+                          color: AppColors.disabled, fontSize: 13),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                'of projected ${_money(wip.totalProjectedDollars)}',
-                style: const TextStyle(
-                    color: AppColors.disabled, fontSize: 13),
-              ),
-              const Spacer(),
               TextButton.icon(
                 onPressed: onCostMatrix,
                 icon: const Icon(Icons.edit_outlined, size: 16),
@@ -488,7 +541,7 @@ class _WipSection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(

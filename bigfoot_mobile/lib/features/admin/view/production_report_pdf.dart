@@ -56,7 +56,8 @@ pw.Document buildProductionReportPdf(ProductionReport report) {
         ],
         pw.SizedBox(height: 22),
         _wipSummary(report.wipCost),
-        if (report.wipCost.perTrailer.isNotEmpty) ...[
+        if (report.wipCost.perTrailer.isNotEmpty &&
+            report.wipCost.totalProjectedDollars > 0) ...[
           pw.SizedBox(height: 10),
           _wipTable(report.wipCost.perTrailer),
         ],
@@ -161,9 +162,49 @@ pw.Widget _chip(String text) => pw.Container(
 // ── WIP cost ────────────────────────────────────────────────────────────────
 
 pw.Widget _wipSummary(ProductionWipCost wip) {
-  final pct = wip.totalProjectedDollars == 0
-      ? 0
-      : ((wip.totalCumulativeDollars / wip.totalProjectedDollars) * 100).round();
+  // When the cost matrix is empty, the dollar totals are all zero and the
+  // table below would be a wall of $0 rows. Replace it with a single-line
+  // hint so the PDF still reads cleanly.
+  if (wip.totalProjectedDollars == 0) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text('WORK-IN-PROGRESS COST',
+            style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                letterSpacing: 0.6,
+                color: PdfColors.grey600)),
+        pw.SizedBox(height: 8),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(10),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300, width: 0.6),
+            borderRadius: pw.BorderRadius.circular(6),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('No cost matrix configured yet.',
+                  style: pw.TextStyle(
+                      fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Set per-stage dollar values in the admin cost matrix to '
+                'populate this section.',
+                style: const pw.TextStyle(
+                    fontSize: 10, color: PdfColors.grey600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  final pct =
+      ((wip.totalCumulativeDollars / wip.totalProjectedDollars) * 100)
+          .round();
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
