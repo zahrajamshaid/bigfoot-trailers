@@ -135,10 +135,10 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /deliveries/batches/:id/complete — driver, transport_manager, owner
+  // POST /deliveries/batches/:id/complete — driver, sales, transport_manager, owner
   // ---------------------------------------------------------------------------
   @Post('batches/:id/complete')
-  @Roles(UserRole.DRIVER, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @Roles(UserRole.DRIVER, UserRole.SALES, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Complete a batch — marks every trailer in it delivered' })
   @ApiParam({ name: 'id', type: 'number' })
