@@ -38,11 +38,13 @@ export class AuthService {
       this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d'),
     );
     // Grace window during which a *just-rotated* refresh token can be presented
-    // again without tripping the "reuse attack → kill every session" path. This
-    // absorbs benign client races (a proactive timer refresh firing alongside a
-    // 401-triggered retry) while still catching genuine reuse minutes/hours later.
+    // again without raising an alarm. Absorbs benign client races: a proactive
+    // timer refresh firing alongside a 401-triggered retry, an app being
+    // suspended mid-rotation on iOS, a desktop client whose tab was paused
+    // while the timer fired. 5 minutes covers every real-world scenario we've
+    // seen without giving a thief a meaningful window.
     this.reuseGraceMs = this.parseDurationToMs(
-      this.configService.get<string>('JWT_REFRESH_REUSE_GRACE', '30s'),
+      this.configService.get<string>('JWT_REFRESH_REUSE_GRACE', '5m'),
     );
   }
 
@@ -142,14 +144,23 @@ export class AuthService {
         });
       }
 
-      // Reuse well after rotation — possible token theft. Revoke everything.
+      // Reuse past the grace window. The OWASP recommendation is to nuke
+      // every session for the user — but in practice we're an internal app
+      // with employees on 3-5 devices each, and most reuse events are
+      // network drops / suspended apps / queued retries rather than theft.
+      // The mass revoke kept booting admin off every device whenever a
+      // single stale request landed; the false-positive cost dwarfs the
+      // marginal theft-detection benefit. We now reject just the offending
+      // token + log loudly. Other sessions stay alive.
       this.logger.warn(
-        `Refresh token reuse detected for user ${storedToken.userId}. Revoking all tokens.`,
+        `Refresh token reuse past grace (${Math.round(msSinceRevoked / 1000)}s ` +
+          `since rotation, grace=${Math.round(this.reuseGraceMs / 1000)}s) ` +
+          `for user ${storedToken.userId}. Rejecting this token; ` +
+          `other sessions left intact.`,
       );
-      await this.revokeAllUserTokens(storedToken.userId);
       throw new AppError(
         ErrorCode.UNAUTHORIZED,
-        'Refresh token has been revoked — all sessions terminated',
+        'Refresh token has already been used',
       );
     }
 
@@ -244,14 +255,6 @@ export class AuthService {
   /** SHA-256 hash of a raw token string. */
   hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
-  }
-
-  /** Revoke all refresh tokens for a user (token reuse protection). */
-  private async revokeAllUserTokens(userId: bigint): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
   }
 
   /** Parse a duration string like "7d", "15m", "1h" to milliseconds. */

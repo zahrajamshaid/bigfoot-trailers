@@ -216,28 +216,27 @@ describe('AuthService', () => {
       });
     });
 
-    it('should revoke all tokens on reuse of a token revoked beyond the grace window', async () => {
+    it('rejects but does NOT mass-revoke when a token is reused past the grace window', async () => {
       const rawToken = 'reused-revoked-token';
       const hashedToken = service.hashToken(rawToken);
 
       mockPrisma.refreshToken.findUnique.mockResolvedValue({
         ...mockRefreshToken,
         tokenHash: hashedToken,
-        // Revoked a full minute ago — well past the default 30s grace
-        // window, so this looks like genuine reuse, not a client race.
-        revokedAt: new Date(Date.now() - 60_000),
+        // 10 minutes ago — well past the default 5min grace, so this
+        // looks like a genuinely stale token, not a client race.
+        revokedAt: new Date(Date.now() - 10 * 60_000),
       });
-      mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 3 });
 
       await expect(service.refresh(rawToken)).rejects.toMatchObject({
         errorCode: ErrorCode.UNAUTHORIZED,
       });
 
-      // All tokens for user should be revoked
-      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
-        where: { userId: mockRefreshToken.userId, revokedAt: null },
-        data: { revokedAt: expect.any(Date) },
-      });
+      // OWASP says nuke everything; in practice the false-positive cost
+      // was admin getting kicked off every device whenever a single
+      // stale request landed. We now reject just this token and leave
+      // every other session alone.
+      expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
     });
 
     it('should re-issue (not revoke all) when a just-rotated token is reused within the grace window', async () => {
