@@ -37,6 +37,35 @@ int? _trailerIntendedYardId(Map<String, dynamic> t) {
   return nested is num ? nested.toInt() : null;
 }
 
+/// Customer label used in the trailer-picker search index — falls back to the
+/// linked Customer record's name/company, then the free-text soldToName. Empty
+/// for un-sold stock builds.
+String _trailerCustomerLabel(Map<String, dynamic> t) {
+  final c = t['customer'] as Map<String, dynamic>?;
+  final name = (c?['name'] as String?)?.trim();
+  if (name != null && name.isNotEmpty) return name;
+  final company = (c?['company'] as String?)?.trim();
+  if (company != null && company.isNotEmpty) return company;
+  return ((t['soldToName'] as String?) ?? '').trim();
+}
+
+/// True when [t] matches [q] across SO number, customer (linked + free-text)
+/// and current yard. Case-insensitive substring on all fields. Empty query
+/// matches everything so the picker shows the full list by default.
+bool _trailerMatchesQuery(Map<String, dynamic> t, String q) {
+  final query = q.trim().toLowerCase();
+  if (query.isEmpty) return true;
+  final so = ((t['soNumber'] as String?) ?? '').toLowerCase();
+  if (so.contains(query)) return true;
+  final customer = _trailerCustomerLabel(t).toLowerCase();
+  if (customer.isNotEmpty && customer.contains(query)) return true;
+  final loc = (_trailerLocationLabel(t) ?? '').toLowerCase();
+  if (loc.isNotEmpty && loc.contains(query)) return true;
+  final intended = (_trailerIntendedYardLabel(t) ?? '').toLowerCase();
+  if (intended.isNotEmpty && intended.contains(query)) return true;
+  return false;
+}
+
 /// Create-delivery entry point. A toggle at the top switches between:
 ///  • Single Delivery — one ready trailer, optionally added to a batch.
 ///  • Batch Delivery  — a named batch with several ready trailers selected.
@@ -82,6 +111,13 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
   bool _submitting = false;
   DeliveryFormData? _formData;
   String? _loadError;
+
+  // Search queries for the trailer pickers. Kept independent so toggling
+  // between single + batch doesn't accidentally wipe what the user typed.
+  final _singleSearchCtrl = TextEditingController();
+  final _batchSearchCtrl = TextEditingController();
+  String _singleSearchQuery = '';
+  String _batchSearchQuery = '';
 
   bool get _isFactoryPickup => _deliveryType == 'factory_pickup';
 
@@ -143,6 +179,8 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
     _amountCtrl.dispose();
     _batchNumberCtrl.dispose();
     _batchDestNameCtrl.dispose();
+    _singleSearchCtrl.dispose();
+    _batchSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -251,7 +289,22 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
   // ===========================================================================
   List<Widget> _singleFields(DeliveryFormData data) {
     final l = AppLocalizations.of(context);
+    // Filter ready trailers by the search query. Keep the currently selected
+    // trailer pinned in the list even when it falls out of the filter so the
+    // dropdown's value never becomes orphan ("no item matches" assertion).
+    final filteredTrailers = [
+      for (final t in data.trailers)
+        if (_trailerMatchesQuery(t, _singleSearchQuery) ||
+            t['id'] == _trailerId)
+          t,
+    ];
     return [
+      _TrailerSearchField(
+        controller: _singleSearchCtrl,
+        enabled: !_submitting,
+        onChanged: (v) => setState(() => _singleSearchQuery = v),
+      ),
+      const SizedBox(height: 12),
       DropdownButtonFormField<int>(
         value: _trailerId,
         isExpanded: true,
@@ -260,7 +313,7 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
           border: const OutlineInputBorder(),
         ),
         validator: (v) => v == null ? l.createDeliveryTrailerRequired : null,
-        items: data.trailers.map((t) {
+        items: filteredTrailers.map((t) {
           final model =
               (t['trailerModel'] as Map<String, dynamic>?)?['displayName'] ??
                   'Model';
@@ -568,8 +621,15 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       const SizedBox(height: 6),
+      _TrailerSearchField(
+        controller: _batchSearchCtrl,
+        enabled: !_submitting,
+        onChanged: (v) => setState(() => _batchSearchQuery = v),
+      ),
+      const SizedBox(height: 8),
       _BatchTrailerPicker(
         trailers: data.trailers,
+        searchQuery: _batchSearchQuery,
         selected: _selectedTrailerIds,
         enabled: !_submitting,
         onToggle: (id, on) => setState(() {
@@ -663,12 +723,14 @@ class _CreateDeliveryScreenState extends State<CreateDeliveryScreen>
 /// Scrollable checklist of ready-for-delivery trailers for batch creation.
 class _BatchTrailerPicker extends StatelessWidget {
   final List<Map<String, dynamic>> trailers;
+  final String searchQuery;
   final Set<int> selected;
   final bool enabled;
   final void Function(int id, bool on) onToggle;
 
   const _BatchTrailerPicker({
     required this.trailers,
+    required this.searchQuery,
     required this.selected,
     required this.enabled,
     required this.onToggle,
@@ -691,6 +753,23 @@ class _BatchTrailerPicker extends StatelessWidget {
       );
     }
 
+    final filtered = [
+      for (final t in trailers)
+        if (_trailerMatchesQuery(t, searchQuery)) t,
+    ];
+
+    if (filtered.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            border: border, borderRadius: BorderRadius.circular(8)),
+        child: const Text(
+          'No matching trailers',
+          style: TextStyle(fontSize: 13),
+        ),
+      );
+    }
+
     return Container(
       constraints: const BoxConstraints(maxHeight: 280),
       decoration:
@@ -698,9 +777,9 @@ class _BatchTrailerPicker extends StatelessWidget {
       child: Scrollbar(
         child: ListView.builder(
           shrinkWrap: true,
-          itemCount: trailers.length,
+          itemCount: filtered.length,
           itemBuilder: (_, i) {
-            final t = trailers[i];
+            final t = filtered[i];
             final id = (t['id'] as num?)?.toInt();
             if (id == null) return const SizedBox.shrink();
             final so = (t['soNumber'] as String?) ?? 'SO-$id';
@@ -726,6 +805,50 @@ class _BatchTrailerPicker extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Compact search field used above both the single + batch trailer pickers.
+/// Searches SO number, customer, and yard. Includes a clear button so the
+/// user can quickly drop back to the full list.
+class _TrailerSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  const _TrailerSearchField({
+    required this.controller,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      decoration: InputDecoration(
+        hintText: 'Search SO #, customer, or yard',
+        prefixIcon: const Icon(Icons.search, size: 20),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Clear',
+                icon: const Icon(Icons.clear, size: 18),
+                onPressed: enabled
+                    ? () {
+                        controller.clear();
+                        onChanged('');
+                      }
+                    : null,
+              ),
+        isDense: true,
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      onChanged: onChanged,
     );
   }
 }
