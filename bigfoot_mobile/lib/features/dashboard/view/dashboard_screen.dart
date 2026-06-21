@@ -129,6 +129,10 @@ class _ManagerDashboard extends StatelessWidget {
     final canSeeQcTiles = role == UserRole.owner ||
         role == UserRole.productionManager ||
         role == UserRole.qcInspector;
+    // Production report is owner + production_manager only — every other role
+    // would just get a Forbidden screen + a Back hop into /admin.
+    final canSeeProductionReport =
+        role == UserRole.owner || role == UserRole.productionManager;
     return Column(
       children: [
         Padding(
@@ -269,17 +273,19 @@ class _ManagerDashboard extends StatelessWidget {
                   queryParameters: {'status': 'delivered'},
                 ),
               ),
-              // Production report deep-link — pairs with Archived (history
-              // vs forward-looking) and evens the grid out to a tidy
-              // multiple of 4. Value is the count of trailers currently
-              // in production, which is what the report header opens on.
-              StatCard(
-                title: 'Production report',
-                value: '${data.activeTrailers}',
-                icon: Icons.factory_outlined,
-                color: AppColors.statusInProduction,
-                onTap: () => context.goNamed(RouteNames.productionReport),
-              ),
+              // Production report deep-link — owner + production_manager
+              // only. pushNamed so Back pops cleanly back to the dashboard
+              // instead of falling through to /admin (which is now guarded
+              // and would just bounce back to /dashboard anyway).
+              if (canSeeProductionReport)
+                StatCard(
+                  title: 'Production report',
+                  value: '${data.activeTrailers}',
+                  icon: Icons.factory_outlined,
+                  color: AppColors.statusInProduction,
+                  onTap: () =>
+                      context.pushNamed(RouteNames.productionReport),
+                ),
             ],
           ),
         ),

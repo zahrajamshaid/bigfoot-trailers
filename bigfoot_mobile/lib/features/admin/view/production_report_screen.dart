@@ -6,6 +6,8 @@ import 'package:printing/printing.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/router/route_names.dart';
+import '../../../data/models/user.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/admin_viewmodel.dart';
 import 'production_report_pdf.dart';
 
@@ -85,6 +87,12 @@ class _ProductionReportScreenState extends State<ProductionReportScreen> {
   @override
   Widget build(BuildContext context) {
     final canDownload = !_loading && _error == null && _report != null;
+    // Cost matrix lives in /admin/production-costs — only the owner can
+    // reach it. Hide the edit button for production_manager so they don't
+    // tap into a redirect-back-to-dashboard loop.
+    final authState = context.watch<AuthViewModel>().state;
+    final canEditCostMatrix =
+        authState is Authenticated && authState.user.role == UserRole.owner;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Production report'),
@@ -94,11 +102,13 @@ class _ProductionReportScreenState extends State<ProductionReportScreen> {
             icon: const Icon(Icons.download_outlined),
             onPressed: canDownload ? _downloadPdf : null,
           ),
-          IconButton(
-            tooltip: 'Edit cost matrix',
-            icon: const Icon(Icons.attach_money_outlined),
-            onPressed: () => context.goNamed(RouteNames.productionCostMatrix),
-          ),
+          if (canEditCostMatrix)
+            IconButton(
+              tooltip: 'Edit cost matrix',
+              icon: const Icon(Icons.attach_money_outlined),
+              onPressed: () =>
+                  context.pushNamed(RouteNames.productionCostMatrix),
+            ),
         ],
       ),
       body: _loading
@@ -110,8 +120,10 @@ class _ProductionReportScreenState extends State<ProductionReportScreen> {
                   weekStart: _weekStart,
                   onPrev: () => _shiftWeek(-7),
                   onNext: _isCurrentWeek ? null : () => _shiftWeek(7),
-                  onCostMatrix: () =>
-                      context.goNamed(RouteNames.productionCostMatrix),
+                  onCostMatrix: canEditCostMatrix
+                      ? () => context
+                          .pushNamed(RouteNames.productionCostMatrix)
+                      : null,
                 ),
     );
   }
@@ -122,7 +134,9 @@ class _Content extends StatelessWidget {
   final DateTime weekStart;
   final VoidCallback onPrev;
   final VoidCallback? onNext;
-  final VoidCallback onCostMatrix;
+  // Null for non-owners — the WIP section hides the cost-matrix CTAs
+  // entirely instead of rendering a disabled button.
+  final VoidCallback? onCostMatrix;
 
   const _Content({
     required this.report,
@@ -443,7 +457,8 @@ class _Tile extends StatelessWidget {
 
 class _WipSection extends StatelessWidget {
   final ProductionWipCost wip;
-  final VoidCallback onCostMatrix;
+  // Null hides the matrix CTAs (production_manager has no /admin access).
+  final VoidCallback? onCostMatrix;
   const _WipSection({required this.wip, required this.onCostMatrix});
 
   @override
@@ -461,6 +476,9 @@ class _WipSection extends StatelessWidget {
             .toDouble();
 
     if (matrixIsEmpty) {
+      // Production manager sees the empty state but not the CTA — only the
+      // owner can edit the cost matrix.
+      final cta = onCostMatrix;
       return _Card(
         title: 'Work-in-progress cost',
         child: Padding(
@@ -468,31 +486,39 @@ class _WipSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'No cost matrix configured yet',
-                style:
-                    TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              Text(
+                cta == null
+                    ? 'Cost matrix not configured'
+                    : 'No cost matrix configured yet',
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
               Text(
-                'Set an approximate dollar value for each '
-                '(trailer model × department) cell and this section will '
-                'show invested vs projected cost across the '
-                '${wip.perTrailer.length} trailer'
-                '${wip.perTrailer.length == 1 ? '' : 's'} '
-                'currently in production.',
+                cta == null
+                    ? 'Ask the owner to set up the (trailer model × '
+                        'department) cost matrix and this section will '
+                        'start showing invested vs projected cost.'
+                    : 'Set an approximate dollar value for each '
+                        '(trailer model × department) cell and this section '
+                        'will show invested vs projected cost across the '
+                        '${wip.perTrailer.length} trailer'
+                        '${wip.perTrailer.length == 1 ? '' : 's'} '
+                        'currently in production.',
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.disabled, height: 1.4),
               ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FilledButton.icon(
-                  onPressed: onCostMatrix,
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Open cost matrix'),
+              if (cta != null) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    onPressed: cta,
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Open cost matrix'),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -534,11 +560,12 @@ class _WipSection extends StatelessWidget {
                   ],
                 ),
               ),
-              TextButton.icon(
-                onPressed: onCostMatrix,
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Edit matrix'),
-              ),
+              if (onCostMatrix != null)
+                TextButton.icon(
+                  onPressed: onCostMatrix,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit matrix'),
+                ),
             ],
           ),
           const SizedBox(height: 8),

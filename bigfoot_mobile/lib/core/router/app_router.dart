@@ -286,6 +286,7 @@ class AppRouter {
             GoRoute(
               path: '/admin',
               name: RouteNames.adminDashboard,
+              redirect: _adminOnly,
               builder: (context, state) => const AdminDashboardScreen(),
               routes: [
                 GoRoute(
@@ -319,13 +320,6 @@ class AppRouter {
                   builder: (context, state) => const AnnouncementsAdminScreen(),
                 ),
                 GoRoute(
-                  path: 'production-report',
-                  name: RouteNames.productionReport,
-                  parentNavigatorKey: _rootNavigatorKey,
-                  builder: (context, state) =>
-                      const ProductionReportScreen(),
-                ),
-                GoRoute(
                   path: 'production-costs',
                   name: RouteNames.productionCostMatrix,
                   parentNavigatorKey: _rootNavigatorKey,
@@ -333,6 +327,17 @@ class AppRouter {
                       const ProductionCostMatrixScreen(),
                 ),
               ],
+            ),
+            // Production report lives outside /admin so production_manager can
+            // open it without crossing the admin guard, and so popping back
+            // never lands them on the admin dashboard. Owner reaches it from
+            // either the main dashboard or the admin nav tile — both work
+            // because pushNamed records the actual prior route.
+            GoRoute(
+              path: '/production-report',
+              name: RouteNames.productionReport,
+              redirect: _productionReportAccess,
+              builder: (context, state) => const ProductionReportScreen(),
             ),
             GoRoute(
               path: '/settings',
@@ -401,6 +406,32 @@ class AppRouter {
       return null;
     }
     return '/payroll';
+  }
+
+  /// Guards the /admin area — owner-only. Without this guard a Forbidden
+  /// response inside an /admin/* child screen left the user one Back press
+  /// away from the unguarded admin dashboard. Anyone else lands back on the
+  /// general dashboard.
+  String? _adminOnly(BuildContext context, GoRouterState state) {
+    final authState = context.read<AuthViewModel>().state;
+    if (authState is Authenticated && authState.user.role == 'owner') {
+      return null;
+    }
+    return '/dashboard';
+  }
+
+  /// Production report is visible to owner + production_manager. Anyone
+  /// else gets bounced to their normal home dashboard (the report tile is
+  /// already hidden for those roles; this guard catches deep links + Back
+  /// pops).
+  String? _productionReportAccess(BuildContext context, GoRouterState state) {
+    final authState = context.read<AuthViewModel>().state;
+    if (authState is Authenticated &&
+        (authState.user.role == 'owner' ||
+            authState.user.role == 'production_manager')) {
+      return null;
+    }
+    return '/dashboard';
   }
 
   /// Guards the QC area (queue, failed list, rework list, inspect form,
