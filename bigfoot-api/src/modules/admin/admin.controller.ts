@@ -56,10 +56,19 @@ export class AdminController {
   }
 
   // ---------------------------------------------------------------------------
-  // GET /admin/trailer-models
+  // GET /admin/trailer-models — reference data the Edit Trailer form needs
+  // for its model dropdown. Read-only list (id, code, display name, series),
+  // safe to expose to every role that can also reach the form: owner,
+  // production_manager, sales, office, and qc_inspector.
   // ---------------------------------------------------------------------------
   @Get('trailer-models')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.SALES, UserRole.OFFICE)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.SALES,
+    UserRole.OFFICE,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'List all trailer models (id, code, display name, series)' })
   @ApiResponse({ status: 200, description: 'Trailer models' })
   async getTrailerModels() {
