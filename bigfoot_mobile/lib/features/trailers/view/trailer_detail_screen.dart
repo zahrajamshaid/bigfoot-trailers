@@ -284,15 +284,16 @@ class _TrailerDetailBody extends StatelessWidget {
   }
 
   /// Edit visibility mirrors PATCH /trailers/:id RBAC — owner,
-  /// production_manager, and sales. Sales accounts need to edit
-  /// customer / sold-to / stock-build state on the trailers they're
-  /// managing, so they're allowed alongside the production roles.
+  /// production_manager, sales, and qc_inspector. Sales accounts edit
+  /// customer / sold-to / stock-build state on their orders; QC catches
+  /// missed add-ons and wrong colors mid-inspection.
   static bool _canEditTrailer(BuildContext context) {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
         auth.user.role == UserRole.productionManager ||
-        auth.user.role == UserRole.sales;
+        auth.user.role == UserRole.sales ||
+        auth.user.role == UserRole.qcInspector;
   }
 
   static bool _canViewStagePhotos(BuildContext context) {
@@ -443,15 +444,18 @@ class _TrailerDetailBody extends StatelessWidget {
 
 // ── Tab 1: Info ──────────────────────────────────────────────────────────────
 
-/// True when the signed-in user can edit the trailer (owner /
-/// production_manager). Mirrors `_TrailerDetailScreenState._canEditTrailer`,
-/// duplicated at top level so subordinate widgets (_InfoTab, etc.) can use
-/// the same gate without reaching into private state methods.
+/// True when the signed-in user can edit the trailer. Mirrors
+/// `_TrailerDetailScreenState._canEditTrailer` (owner / production_manager /
+/// sales / qc_inspector), duplicated at top level so subordinate widgets
+/// (_InfoTab, etc.) can use the same gate without reaching into private
+/// state methods.
 bool _canEditTrailer(BuildContext context) {
   final auth = context.read<AuthViewModel>().state;
   if (auth is! Authenticated) return false;
   return auth.user.role == UserRole.owner ||
-      auth.user.role == UserRole.productionManager;
+      auth.user.role == UserRole.productionManager ||
+      auth.user.role == UserRole.sales ||
+      auth.user.role == UserRole.qcInspector;
 }
 
 /// Returns the trailer's paint step department code (`PAINT_A` or

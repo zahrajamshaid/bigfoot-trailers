@@ -85,10 +85,18 @@ export class TrailersController {
   // PATCH /trailers/:id — update color, notes, status
   // Sales accounts can edit customer-facing fields on their assigned
   // trailers (sold/stock state, soldToName, etc.), so they're allowed
-  // here alongside owner + production_manager.
+  // here alongside owner + production_manager. QC inspectors also need
+  // edit access — they catch missed add-ons, wrong colors, and stale
+  // notes while the trailer is in front of them and shouldn't have to
+  // chase down a production manager to fix the record.
   // ---------------------------------------------------------------------------
   @Patch(':id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.SALES)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.SALES,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'Update trailer fields (color, notes, status)' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer updated' })
@@ -203,9 +211,12 @@ export class TrailersController {
 
   // ---------------------------------------------------------------------------
   // POST /trailers/:id/addons
+  // QC inspectors are the most common discoverers of missed add-ons (they
+  // physically inspect the trailer with the SO in hand), so they're allowed
+  // to add and remove alongside the production roles.
   // ---------------------------------------------------------------------------
   @Post(':id/addons')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Add an addon to a trailer' })
   @ApiParam({ name: 'id', type: 'number' })
@@ -219,7 +230,7 @@ export class TrailersController {
   // DELETE /trailers/:id/addons/:addon_id
   // ---------------------------------------------------------------------------
   @Delete(':id/addons/:addon_id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
   @ApiOperation({ summary: 'Remove an addon from a trailer' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiParam({ name: 'addon_id', type: 'number' })
