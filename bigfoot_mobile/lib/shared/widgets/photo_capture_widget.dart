@@ -168,8 +168,17 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
     try {
       await _addCaptured(await _cameraService.takePhoto());
     } on CameraPermissionDeniedException catch (e) {
-      _showError(
-        'Camera permission denied. Enable it in Settings → Apps → Bigfoot.',
+      _showPermissionError(
+        // If iOS never asked the user, the toggle may not yet be present in
+        // Settings → Bigfoot Trailers. Reinstalling the app clears that
+        // cached deny and triggers a fresh prompt on next try.
+        e.permanentlyDenied
+            ? 'Camera blocked for Bigfoot. Tap Open Settings to enable it. '
+                'If no Camera toggle is shown, reinstall the app — that '
+                'resets the permission. Meanwhile, you can attach a photo '
+                'from your Photos app via "From Gallery".'
+            : 'Camera permission was not granted. Tap "Take photo" again, '
+                'or use "From Gallery" to attach one you already took.',
       );
       debugPrint('takePhoto permission error: $e');
     } catch (e) {
@@ -181,13 +190,39 @@ class _PhotoCaptureWidgetState extends State<PhotoCaptureWidget> {
     try {
       await _addCaptured(await _cameraService.pickFromGallery());
     } on CameraPermissionDeniedException catch (e) {
-      _showError(
-        'Gallery permission denied. Enable Photos access in Settings.',
+      _showPermissionError(
+        e.permanentlyDenied
+            ? 'Photos blocked for Bigfoot. Tap Open Settings to enable it. '
+                'If no Photos toggle is shown, reinstall the app to reset '
+                'the permission.'
+            : 'Photos permission was not granted. Tap "From Gallery" again '
+                'to retry.',
       );
       debugPrint('pickFromGallery permission error: $e');
     } catch (e) {
       _showError('Could not select or upload photo: $e');
     }
+  }
+
+  /// Snackbar with an inline "Open Settings" action — drops the user straight
+  /// onto Bigfoot's iOS Settings page so they don't have to hunt for it.
+  void _showPermissionError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Open Settings',
+            textColor: Colors.white,
+            onPressed: () => _cameraService.openSettings(),
+          ),
+        ),
+      );
   }
 
   void _showError(String message) {

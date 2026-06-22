@@ -10,7 +10,15 @@ import '../platform/platform_support.dart';
 
 class CameraPermissionDeniedException implements Exception {
   final String message;
-  const CameraPermissionDeniedException(this.message);
+  /// True when iOS has locked the permission to denied — `request()` will not
+  /// show the prompt again. The user has to flip the toggle in Settings (or
+  /// reinstall the app) to recover. The UI surfaces an "Open Settings" action
+  /// only in that case so the snackbar stays terse otherwise.
+  final bool permanentlyDenied;
+  const CameraPermissionDeniedException(
+    this.message, {
+    this.permanentlyDenied = false,
+  });
 
   @override
   String toString() => message;
@@ -68,17 +76,41 @@ class CameraService {
     // itself — there's no permission_handler implementation to call.
     if (!PlatformSupport.supportsPermissionHandler) return true;
     final status = await Permission.camera.request();
-    if (status.isGranted) return true;
-    throw const CameraPermissionDeniedException('Camera permission denied');
+    if (status.isGranted || status.isLimited) return true;
+    // On iOS, once the user has dismissed (or auto-dismissed) the system
+    // prompt, future request() calls just return the cached state. Bubble
+    // that up as `permanentlyDenied` so the UI can deep-link straight to
+    // Settings instead of telling the user to find the toggle themselves.
+    throw CameraPermissionDeniedException(
+      'Camera permission denied',
+      permanentlyDenied: status.isPermanentlyDenied || status.isRestricted,
+    );
   }
 
   Future<bool> _ensureGalleryPermission() async {
     if (!PlatformSupport.supportsPermissionHandler) return true;
     final status = await Permission.photos.request();
-    if (status.isGranted) return true;
+    if (status.isGranted || status.isLimited) return true;
     final storageStatus = await Permission.storage.request();
-    if (storageStatus.isGranted) return true;
-    throw const CameraPermissionDeniedException('Gallery permission denied');
+    if (storageStatus.isGranted || storageStatus.isLimited) return true;
+    throw CameraPermissionDeniedException(
+      'Gallery permission denied',
+      permanentlyDenied: status.isPermanentlyDenied ||
+          status.isRestricted ||
+          storageStatus.isPermanentlyDenied ||
+          storageStatus.isRestricted,
+    );
+  }
+
+  /// Deep-link the user into this app's iOS Settings page. Best-effort —
+  /// returns false on platforms where permission_handler can't open settings.
+  Future<bool> openSettings() async {
+    if (!PlatformSupport.supportsPermissionHandler) return false;
+    try {
+      return await openAppSettings();
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<Position?> _currentPosition() async {
