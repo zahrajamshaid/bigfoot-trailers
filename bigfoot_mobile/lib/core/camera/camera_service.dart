@@ -1,5 +1,6 @@
-import 'dart:typed_data';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,18 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../data/models/storage_upload.dart';
 import '../platform/platform_support.dart';
+
+/// On iOS we let image_picker / UIImagePickerController drive the camera and
+/// Photos prompts itself instead of pre-gating with permission_handler.
+///
+/// permission_handler's iOS implementation has been observed (most recently
+/// on iPadOS 17.x) to return `denied` without ever presenting the system
+/// dialog, which leaves iOS unaware that the app needs camera/photos access
+/// — so it never adds a per-app toggle to Settings → Bigfoot Trailers and
+/// the user is stuck. UIImagePickerController, called via image_picker,
+/// always triggers the prompt as long as the Info.plist usage descriptions
+/// are present (they are).
+bool get _useNativeIosPicker => !kIsWeb && Platform.isIOS;
 
 class CameraPermissionDeniedException implements Exception {
   final String message;
@@ -28,19 +41,29 @@ class CameraService {
   final ImagePicker _picker = ImagePicker();
 
   Future<CapturedPhoto?> takePhoto() async {
-    final granted = await _ensureCameraPermission();
-    if (!granted) return null;
+    if (!_useNativeIosPicker) {
+      final granted = await _ensureCameraPermission();
+      if (!granted) return null;
+    }
 
-    final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 100);
+    final file = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 100,
+    );
     if (file == null) return null;
     return _captureFromBytes(await file.readAsBytes(), file.name);
   }
 
   Future<CapturedPhoto?> pickFromGallery() async {
-    final granted = await _ensureGalleryPermission();
-    if (!granted) return null;
+    if (!_useNativeIosPicker) {
+      final granted = await _ensureGalleryPermission();
+      if (!granted) return null;
+    }
 
-    final file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 100,
+    );
     if (file == null) return null;
     return _captureFromBytes(await file.readAsBytes(), file.name);
   }
