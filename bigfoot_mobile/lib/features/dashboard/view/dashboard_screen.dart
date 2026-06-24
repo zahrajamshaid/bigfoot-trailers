@@ -273,15 +273,15 @@ class _ManagerDashboard extends StatelessWidget {
                   queryParameters: {'status': 'delivered'},
                 ),
               ),
-              // Production report deep-link — owner + production_manager
-              // only. pushNamed so Back pops cleanly back to the dashboard
-              // instead of falling through to /admin (which is now guarded
-              // and would just bounce back to /dashboard anyway).
+              // Health Check deep-link — owner + production_manager only.
+              // pushNamed so Back pops cleanly back to the dashboard instead
+              // of falling through to /admin (which is now guarded and would
+              // just bounce back to /dashboard anyway).
               if (canSeeProductionReport)
                 StatCard(
-                  title: 'Production report',
+                  title: 'Health Check',
                   value: '${data.activeTrailers}',
-                  icon: Icons.factory_outlined,
+                  icon: Icons.monitor_heart_outlined,
                   color: AppColors.statusInProduction,
                   onTap: () =>
                       context.pushNamed(RouteNames.productionReport),

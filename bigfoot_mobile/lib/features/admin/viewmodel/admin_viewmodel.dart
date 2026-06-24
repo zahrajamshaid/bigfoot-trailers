@@ -9,8 +9,11 @@ export '../../../domain/repositories/admin_repository.dart'
     show AdminDashboardStats, AdminWorkflowTemplate, AdminAuditLogEntry,
          AdminWeeklyProductionReport, AdminUsersResult, AdminAuditResult,
          ProductionCostMatrix, ProductionCostModel, ProductionCostDepartment,
-         ProductionCostCell, ProductionReport, ProductionThroughput,
-         ProductionSnapshot, ProductionInventoryYard, ProductionWipCost,
+         ProductionCostCell, HealthCheckReport, HealthCheckQuery,
+         HealthCheckPeriod, HealthCheckPeriodWire, HealthCheckWindow,
+         HealthCheckPeriodSnapshot, HealthCheckThroughput, HealthCheckSales,
+         HealthCheckSoldVsBuilt, HealthCheckModelLine, HealthCheckLive,
+         HealthCheckDeptTile, ProductionInventoryYard, ProductionWipCost,
          ProductionWipTrailer;
 
 class AdminViewModel extends Cubit<int> {
@@ -129,6 +132,6 @@ class AdminViewModel extends Cubit<int> {
         effectiveFrom: effectiveFrom,
       );
 
-  Future<ProductionReport> getProductionReport(String weekStartIso) =>
-      _repository.getProductionReport(weekStartIso);
+  Future<HealthCheckReport> getHealthCheckReport(HealthCheckQuery query) =>
+      _repository.getHealthCheckReport(query);
 }

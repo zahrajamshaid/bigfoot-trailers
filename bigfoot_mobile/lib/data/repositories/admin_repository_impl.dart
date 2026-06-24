@@ -317,15 +317,19 @@ class AdminRepositoryImpl implements AdminRepository {
     );
   }
 
-  // ── Production report ──────────────────────────────────────────────────
+  // ── Health Check report ────────────────────────────────────────────────
   @override
-  Future<ProductionReport> getProductionReport(String weekStartIso) async {
+  Future<HealthCheckReport> getHealthCheckReport(HealthCheckQuery query) async {
     final response = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.adminProductionReport,
-      queryParameters: {'weekStart': weekStartIso},
+      queryParameters: {
+        'period': query.period.wire,
+        if (query.start != null) 'start': query.start,
+        if (query.end != null) 'end': query.end,
+      },
       fromJson: (d) => d as Map<String, dynamic>,
     );
-    return ProductionReport.fromJson(response.data!);
+    return HealthCheckReport.fromJson(response.data!);
   }
 
   User _userFromApi(Map<String, dynamic> json) {

@@ -264,8 +264,10 @@ abstract class AdminRepository {
     String? effectiveFrom,
   });
 
-  // ── Production report (weekly trailer throughput + WIP cost) ─────────────
-  Future<ProductionReport> getProductionReport(String weekStartIso);
+  // ── Health Check report (period throughput + sales + live dept board) ───
+  // Internally still called the "production report" — only the user-facing
+  // label was renamed. Server path: GET /admin/production-report.
+  Future<HealthCheckReport> getHealthCheckReport(HealthCheckQuery query);
 }
 
 // ===========================================================================
@@ -372,78 +374,290 @@ class ProductionCostCell {
 }
 
 // ===========================================================================
-// Production report
+// Health Check report (formerly "Production Report")
 // ===========================================================================
 
-class ProductionReport {
-  final String weekStart;
-  final String weekEnd;
-  final ProductionThroughput throughput;
-  final ProductionSnapshot snapshot;
+enum HealthCheckPeriod { weekly, biweekly, monthly, custom }
+
+extension HealthCheckPeriodWire on HealthCheckPeriod {
+  String get wire {
+    switch (this) {
+      case HealthCheckPeriod.weekly:
+        return 'weekly';
+      case HealthCheckPeriod.biweekly:
+        return 'biweekly';
+      case HealthCheckPeriod.monthly:
+        return 'monthly';
+      case HealthCheckPeriod.custom:
+        return 'custom';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case HealthCheckPeriod.weekly:
+        return 'Weekly';
+      case HealthCheckPeriod.biweekly:
+        return '2-week';
+      case HealthCheckPeriod.monthly:
+        return 'Monthly';
+      case HealthCheckPeriod.custom:
+        return 'Custom';
+    }
+  }
+}
+
+class HealthCheckQuery {
+  final HealthCheckPeriod period;
+  /// YYYY-MM-DD. For weekly/biweekly/monthly any date inside the desired
+  /// window; for custom this is the inclusive window start.
+  final String? start;
+  /// YYYY-MM-DD. Only used (and required) when period == custom.
+  final String? end;
+
+  const HealthCheckQuery({
+    required this.period,
+    this.start,
+    this.end,
+  });
+}
+
+class HealthCheckReport {
+  final HealthCheckWindow window;
+  final HealthCheckWindow previousWindow;
+  final HealthCheckPeriodSnapshot current;
+  final HealthCheckPeriodSnapshot previous;
+  final HealthCheckLive live;
   final ProductionWipCost wipCost;
 
-  const ProductionReport({
-    required this.weekStart,
-    required this.weekEnd,
-    required this.throughput,
-    required this.snapshot,
+  const HealthCheckReport({
+    required this.window,
+    required this.previousWindow,
+    required this.current,
+    required this.previous,
+    required this.live,
     required this.wipCost,
   });
 
-  factory ProductionReport.fromJson(Map<String, dynamic> j) => ProductionReport(
-        weekStart: j['weekStart'] as String,
-        weekEnd: j['weekEnd'] as String,
-        throughput: ProductionThroughput.fromJson(
-          j['throughput'] as Map<String, dynamic>,
+  factory HealthCheckReport.fromJson(Map<String, dynamic> j) =>
+      HealthCheckReport(
+        window: HealthCheckWindow.fromJson(
+          j['window'] as Map<String, dynamic>,
         ),
-        snapshot: ProductionSnapshot.fromJson(
-          j['snapshot'] as Map<String, dynamic>,
+        previousWindow: HealthCheckWindow.fromJson(
+          j['previousWindow'] as Map<String, dynamic>,
         ),
+        current: HealthCheckPeriodSnapshot.fromJson(
+          j['current'] as Map<String, dynamic>,
+        ),
+        previous: HealthCheckPeriodSnapshot.fromJson(
+          j['previous'] as Map<String, dynamic>,
+        ),
+        live: HealthCheckLive.fromJson(j['live'] as Map<String, dynamic>),
         wipCost: ProductionWipCost.fromJson(
           j['wipCost'] as Map<String, dynamic>,
         ),
       );
 }
 
-class ProductionThroughput {
-  final int enteredProduction;
-  final int exitedProduction;
-  final Map<String, int> exitedBySeries;
-  final int delivered;
-  const ProductionThroughput({
-    required this.enteredProduction,
-    required this.exitedProduction,
-    required this.exitedBySeries,
-    required this.delivered,
-  });
-  factory ProductionThroughput.fromJson(Map<String, dynamic> j) {
-    final raw = j['exitedBySeries'] as Map<String, dynamic>? ?? const {};
-    return ProductionThroughput(
-      enteredProduction: (j['enteredProduction'] as num).toInt(),
-      exitedProduction: (j['exitedProduction'] as num).toInt(),
-      exitedBySeries: raw.map((k, v) => MapEntry(k, (v as num).toInt())),
-      delivered: (j['delivered'] as num).toInt(),
+class HealthCheckWindow {
+  /// Only present on the current window — the previous-window block sends
+  /// just start/end so the period field is null for it.
+  final HealthCheckPeriod? period;
+  final String start; // inclusive YYYY-MM-DD
+  final String end; // inclusive YYYY-MM-DD
+  const HealthCheckWindow({this.period, required this.start, required this.end});
+
+  factory HealthCheckWindow.fromJson(Map<String, dynamic> j) {
+    HealthCheckPeriod? p;
+    final wire = j['period'] as String?;
+    switch (wire) {
+      case 'weekly':
+        p = HealthCheckPeriod.weekly;
+        break;
+      case 'biweekly':
+        p = HealthCheckPeriod.biweekly;
+        break;
+      case 'monthly':
+        p = HealthCheckPeriod.monthly;
+        break;
+      case 'custom':
+        p = HealthCheckPeriod.custom;
+        break;
+      default:
+        p = null;
+    }
+    return HealthCheckWindow(
+      period: p,
+      start: j['start'] as String,
+      end: j['end'] as String,
     );
   }
 }
 
-class ProductionSnapshot {
+class HealthCheckPeriodSnapshot {
+  final HealthCheckThroughput throughput;
+  final HealthCheckSales sales;
+  final HealthCheckSoldVsBuilt soldVsBuilt;
+  const HealthCheckPeriodSnapshot({
+    required this.throughput,
+    required this.sales,
+    required this.soldVsBuilt,
+  });
+
+  factory HealthCheckPeriodSnapshot.fromJson(Map<String, dynamic> j) =>
+      HealthCheckPeriodSnapshot(
+        throughput: HealthCheckThroughput.fromJson(
+          j['throughput'] as Map<String, dynamic>,
+        ),
+        sales:
+            HealthCheckSales.fromJson(j['sales'] as Map<String, dynamic>),
+        soldVsBuilt: HealthCheckSoldVsBuilt.fromJson(
+          j['soldVsBuilt'] as Map<String, dynamic>,
+        ),
+      );
+}
+
+class HealthCheckThroughput {
+  final int enteredProduction;
+  final int exitedProduction;
+  final int delivered;
+  final Map<String, int> exitedBySeries;
+  const HealthCheckThroughput({
+    required this.enteredProduction,
+    required this.exitedProduction,
+    required this.delivered,
+    required this.exitedBySeries,
+  });
+  factory HealthCheckThroughput.fromJson(Map<String, dynamic> j) {
+    final raw = j['exitedBySeries'] as Map<String, dynamic>? ?? const {};
+    return HealthCheckThroughput(
+      enteredProduction: (j['enteredProduction'] as num).toInt(),
+      exitedProduction: (j['exitedProduction'] as num).toInt(),
+      delivered: (j['delivered'] as num).toInt(),
+      exitedBySeries: raw.map((k, v) => MapEntry(k, (v as num).toInt())),
+    );
+  }
+}
+
+class HealthCheckSales {
+  final int customerOrders;
+  final int openStockSold;
+  final int totalSales;
+  const HealthCheckSales({
+    required this.customerOrders,
+    required this.openStockSold,
+    required this.totalSales,
+  });
+  factory HealthCheckSales.fromJson(Map<String, dynamic> j) => HealthCheckSales(
+        customerOrders: (j['customerOrders'] as num).toInt(),
+        openStockSold: (j['openStockSold'] as num).toInt(),
+        totalSales: (j['totalSales'] as num).toInt(),
+      );
+}
+
+class HealthCheckSoldVsBuilt {
+  final List<HealthCheckModelLine> perModel;
+  final int totalSold;
+  final int totalBuilt;
+  const HealthCheckSoldVsBuilt({
+    required this.perModel,
+    required this.totalSold,
+    required this.totalBuilt,
+  });
+  factory HealthCheckSoldVsBuilt.fromJson(Map<String, dynamic> j) =>
+      HealthCheckSoldVsBuilt(
+        perModel: (j['perModel'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .map(HealthCheckModelLine.fromJson)
+            .toList(),
+        totalSold: (j['totalSold'] as num).toInt(),
+        totalBuilt: (j['totalBuilt'] as num).toInt(),
+      );
+}
+
+class HealthCheckModelLine {
+  final int modelId;
+  final String modelCode;
+  final String modelName;
+  final String series;
+  final int sold;
+  final int built;
+  const HealthCheckModelLine({
+    required this.modelId,
+    required this.modelCode,
+    required this.modelName,
+    required this.series,
+    required this.sold,
+    required this.built,
+  });
+  factory HealthCheckModelLine.fromJson(Map<String, dynamic> j) =>
+      HealthCheckModelLine(
+        modelId: (j['modelId'] as num).toInt(),
+        modelCode: j['modelCode'] as String,
+        modelName: j['modelName'] as String,
+        series: j['series'] as String,
+        sold: (j['sold'] as num).toInt(),
+        built: (j['built'] as num).toInt(),
+      );
+}
+
+class HealthCheckLive {
   final int inProduction;
   final int readyForDelivery;
   final List<ProductionInventoryYard> inventoryByYard;
-  const ProductionSnapshot({
+  final List<HealthCheckDeptTile> departments;
+  final int soldNotStartedTotal;
+
+  const HealthCheckLive({
     required this.inProduction,
     required this.readyForDelivery,
     required this.inventoryByYard,
+    required this.departments,
+    required this.soldNotStartedTotal,
   });
-  factory ProductionSnapshot.fromJson(Map<String, dynamic> j) =>
-      ProductionSnapshot(
+
+  factory HealthCheckLive.fromJson(Map<String, dynamic> j) => HealthCheckLive(
         inProduction: (j['inProduction'] as num).toInt(),
         readyForDelivery: (j['readyForDelivery'] as num).toInt(),
         inventoryByYard: (j['inventoryByYard'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .map(ProductionInventoryYard.fromJson)
             .toList(),
+        departments: (j['departments'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .map(HealthCheckDeptTile.fromJson)
+            .toList(),
+        soldNotStartedTotal: (j['soldNotStartedTotal'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class HealthCheckDeptTile {
+  final int departmentId;
+  final String code;
+  final String displayName;
+  /// Trailers currently active at this dept, including any QC steps rolled
+  /// back to the prod step they inspect.
+  final int waiting;
+  /// Sold trailers (customer order OR pre-sold stock) with zero completed
+  /// steps yet, bucketed onto their first workflow dept.
+  final int soldNotStarted;
+
+  const HealthCheckDeptTile({
+    required this.departmentId,
+    required this.code,
+    required this.displayName,
+    required this.waiting,
+    required this.soldNotStarted,
+  });
+
+  factory HealthCheckDeptTile.fromJson(Map<String, dynamic> j) =>
+      HealthCheckDeptTile(
+        departmentId: (j['departmentId'] as num).toInt(),
+        code: j['code'] as String,
+        displayName: j['displayName'] as String,
+        waiting: (j['waiting'] as num).toInt(),
+        soldNotStarted: (j['soldNotStarted'] as num).toInt(),
       );
 }
 
