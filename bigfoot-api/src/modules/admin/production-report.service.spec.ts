@@ -14,7 +14,7 @@ describe('ProductionReportService', () => {
       findMany: jest.fn(),
       upsert: jest.fn(),
     },
-    productionStep: { count: jest.fn() },
+    productionStep: { count: jest.fn(), findMany: jest.fn() },
     qcInspection: { findMany: jest.fn() },
     delivery: { count: jest.fn() },
     trailer: { count: jest.fn(), findMany: jest.fn(), groupBy: jest.fn() },
@@ -57,8 +57,6 @@ describe('ProductionReportService', () => {
 
       expect(result.models).toHaveLength(1);
       expect(result.departments[0].code).toBe('WIRE');
-      // Department query specifically excludes QC steps so the grid matches
-      // the payroll matrix's convention.
       expect(mockPrisma.department.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ isQcStep: false }),
@@ -107,143 +105,292 @@ describe('ProductionReportService', () => {
   });
 
   // ==========================================================================
-  // getWeeklyReport
+  // getReport
   // ==========================================================================
-  describe('getWeeklyReport', () => {
+  describe('getReport', () => {
+    // Every test stubs the same wide set of zero defaults so individual tests
+    // only set the queries they actually care about.
     beforeEach(() => {
-      // Default everything to empty so individual tests only set what they care about.
       mockPrisma.productionStep.count.mockResolvedValue(0);
+      mockPrisma.productionStep.findMany.mockResolvedValue([]);
       mockPrisma.qcInspection.findMany.mockResolvedValue([]);
       mockPrisma.delivery.count.mockResolvedValue(0);
       mockPrisma.trailer.count.mockResolvedValue(0);
       mockPrisma.trailer.findMany.mockResolvedValue([]);
       mockPrisma.trailer.groupBy.mockResolvedValue([]);
+      mockPrisma.department.findMany.mockResolvedValue([]);
       mockPrisma.location.findMany.mockResolvedValue([]);
+      mockPrisma.trailerModelStageCost.findMany.mockResolvedValue([]);
     });
 
-    it('rejects a non-YYYY-MM-DD weekStart', async () => {
-      await expect(service.getWeeklyReport('not-a-date')).rejects.toMatchObject({
-        errorCode: ErrorCode.BAD_REQUEST,
+    it('rejects an invalid period', async () => {
+      await expect(
+        service.getReport({ period: 'forever' as any }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+    });
+
+    it('snaps weekly windows to Sunday and exposes inclusive end', async () => {
+      // 2026-06-19 is a Friday → Sunday of that week is 2026-06-14, end +6
+      const result = await service.getReport({
+        period: 'weekly',
+        start: '2026-06-19',
       });
+      expect(result.window.start).toBe('2026-06-14');
+      expect(result.window.end).toBe('2026-06-20'); // inclusive last day of window
+      // Previous = same length ending the day before current.start = 2026-06-07..13
+      expect(result.previousWindow.start).toBe('2026-06-07');
+      expect(result.previousWindow.end).toBe('2026-06-13');
     });
 
-    it('returns the Sunday-aligned week window', async () => {
-      // 2026-06-19 is a Friday. Sunday of that week is 2026-06-14.
-      const result = await service.getWeeklyReport('2026-06-19');
-      expect(result.weekStart).toBe('2026-06-14');
-      expect(result.weekEnd).toBe('2026-06-21');
+    it('produces a 14-day biweekly window from the containing Sunday', async () => {
+      const result = await service.getReport({
+        period: 'biweekly',
+        start: '2026-06-19',
+      });
+      expect(result.window.start).toBe('2026-06-14');
+      expect(result.window.end).toBe('2026-06-27');
     });
 
-    it('aggregates throughput counts and groups exited by series', async () => {
-      mockPrisma.productionStep.count.mockResolvedValue(7); // entered
+    it('snaps monthly to first..last day of the calendar month', async () => {
+      const result = await service.getReport({
+        period: 'monthly',
+        start: '2026-06-19',
+      });
+      expect(result.window.start).toBe('2026-06-01');
+      expect(result.window.end).toBe('2026-06-30');
+    });
+
+    it('honors custom start/end inclusive', async () => {
+      const result = await service.getReport({
+        period: 'custom',
+        start: '2026-06-10',
+        end: '2026-06-20',
+      });
+      expect(result.window.start).toBe('2026-06-10');
+      expect(result.window.end).toBe('2026-06-20');
+      // previous = 11-day window ending the day before current start
+      expect(result.previousWindow.start).toBe('2026-05-30');
+      expect(result.previousWindow.end).toBe('2026-06-09');
+    });
+
+    it('rejects custom without both dates', async () => {
+      await expect(
+        service.getReport({ period: 'custom', start: '2026-06-10' }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+    });
+
+    it('aggregates throughput and per-model sold-vs-built', async () => {
+      // 7 trailers entered production, current period
+      mockPrisma.productionStep.count.mockResolvedValue(7);
+      // 3 trailers exited (passed FINAL_QC) — 2 XP, 1 Yeti
       mockPrisma.qcInspection.findMany.mockResolvedValue([
-        { trailer: { trailerModel: { series: 'xp' } } },
-        { trailer: { trailerModel: { series: 'xp' } } },
-        { trailer: { trailerModel: { series: 'yeti' } } },
+        {
+          trailer: {
+            trailerModelId: 1,
+            trailerModel: {
+              id: 1,
+              code: 'XP_14ET',
+              displayName: '14K XP',
+              series: 'xp',
+            },
+          },
+        },
+        {
+          trailer: {
+            trailerModelId: 1,
+            trailerModel: {
+              id: 1,
+              code: 'XP_14ET',
+              displayName: '14K XP',
+              series: 'xp',
+            },
+          },
+        },
+        {
+          trailer: {
+            trailerModelId: 2,
+            trailerModel: {
+              id: 2,
+              code: 'YETI_14K',
+              displayName: '14K Yeti',
+              series: 'yeti',
+            },
+          },
+        },
       ]);
       mockPrisma.delivery.count.mockResolvedValue(4);
-      mockPrisma.trailer.count
-        .mockResolvedValueOnce(42) // inProduction
-        .mockResolvedValueOnce(12); // readyForDelivery
+      // 5 customer orders this week, all XP
+      mockPrisma.trailer.findMany.mockResolvedValueOnce([
+        {
+          trailerModelId: 1,
+          trailerModel: {
+            id: 1,
+            code: 'XP_14ET',
+            displayName: '14K XP',
+            series: 'xp',
+          },
+        },
+        {
+          trailerModelId: 1,
+          trailerModel: {
+            id: 1,
+            code: 'XP_14ET',
+            displayName: '14K XP',
+            series: 'xp',
+          },
+        },
+        {
+          trailerModelId: 1,
+          trailerModel: {
+            id: 1,
+            code: 'XP_14ET',
+            displayName: '14K XP',
+            series: 'xp',
+          },
+        },
+        {
+          trailerModelId: 1,
+          trailerModel: {
+            id: 1,
+            code: 'XP_14ET',
+            displayName: '14K XP',
+            series: 'xp',
+          },
+        },
+        {
+          trailerModelId: 1,
+          trailerModel: {
+            id: 1,
+            code: 'XP_14ET',
+            displayName: '14K XP',
+            series: 'xp',
+          },
+        },
+      ]);
+      // 2 open-stock sold this week, 1 XP + 1 Yeti
+      mockPrisma.trailer.findMany.mockResolvedValueOnce([
+        {
+          trailerModelId: 1,
+          trailerModel: {
+            id: 1,
+            code: 'XP_14ET',
+            displayName: '14K XP',
+            series: 'xp',
+          },
+        },
+        {
+          trailerModelId: 2,
+          trailerModel: {
+            id: 2,
+            code: 'YETI_14K',
+            displayName: '14K Yeti',
+            series: 'yeti',
+          },
+        },
+      ]);
 
-      const result = await service.getWeeklyReport('2026-06-19');
+      const result = await service.getReport({
+        period: 'weekly',
+        start: '2026-06-19',
+      });
 
-      expect(result.throughput).toEqual({
+      expect(result.current.throughput).toEqual({
         enteredProduction: 7,
         exitedProduction: 3,
-        exitedBySeries: { xp: 2, yeti: 1 },
         delivered: 4,
+        exitedBySeries: { xp: 2, yeti: 1 },
       });
-      expect(result.snapshot.inProduction).toBe(42);
-      expect(result.snapshot.readyForDelivery).toBe(12);
+      expect(result.current.sales).toEqual({
+        customerOrders: 5,
+        openStockSold: 2,
+        totalSales: 7,
+      });
+      // Per-model: XP gets 5 cust + 1 stock + 2 built = (sold 6, built 2),
+      //            Yeti gets 1 stock + 1 built = (sold 1, built 1)
+      expect(result.current.soldVsBuilt.totalSold).toBe(7);
+      expect(result.current.soldVsBuilt.totalBuilt).toBe(3);
+      const xp = result.current.soldVsBuilt.perModel.find(
+        (m) => m.modelCode === 'XP_14ET',
+      );
+      const yeti = result.current.soldVsBuilt.perModel.find(
+        (m) => m.modelCode === 'YETI_14K',
+      );
+      expect(xp).toEqual(
+        expect.objectContaining({ sold: 6, built: 2, series: 'xp' }),
+      );
+      expect(yeti).toEqual(
+        expect.objectContaining({ sold: 1, built: 1, series: 'yeti' }),
+      );
     });
 
-    it('joins yard inventory groupby with location codes', async () => {
-      mockPrisma.trailer.groupBy.mockResolvedValue([
-        { currentLocationId: 4, _count: { _all: 12 } },
-        { currentLocationId: 6, _count: { _all: 38 } },
+    it('rolls active QC steps back into their predecessor prod dept on the live board', async () => {
+      mockPrisma.department.findMany.mockResolvedValue([
+        { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
+        { id: 2, code: 'XP_FIN', displayName: 'XP Finish Weld' },
       ]);
-      mockPrisma.location.findMany.mockResolvedValue([
-        { id: 4, code: 'JACKSONVILLE', name: 'Jax', isFactory: false },
-        { id: 6, code: 'TAPPAHANNOCK', name: 'Tap', isFactory: false },
-      ]);
+      // Trailer 100 has an active QC_1 step (stepOrder=2); QC_1 inspects
+      // step 1 = XP_JIG → should bucket the trailer under XP_JIG, not under
+      // any QC tile (there are none) and not double-count.
+      mockPrisma.productionStep.findMany
+        .mockResolvedValueOnce([
+          {
+            trailerId: 100n,
+            stepOrder: 2,
+            departmentId: 99, // a QC dept id (not on the tile board)
+            department: { id: 99, code: 'QC_1', isQcStep: true },
+          },
+          {
+            trailerId: 200n,
+            stepOrder: 3,
+            departmentId: 2, // XP_FIN, a real prod dept
+            department: { id: 2, code: 'XP_FIN', isQcStep: false },
+          },
+        ])
+        // Predecessor query: stepOrder=1 for trailer 100 is XP_JIG (id=1)
+        .mockResolvedValueOnce([
+          { trailerId: 100n, stepOrder: 1, departmentId: 1 },
+        ]);
 
-      const result = await service.getWeeklyReport('2026-06-19');
+      const result = await service.getReport({
+        period: 'weekly',
+        start: '2026-06-19',
+      });
 
-      expect(result.snapshot.inventoryByYard).toEqual([
-        {
-          locationId: 4,
-          code: 'JACKSONVILLE',
-          name: 'Jax',
-          isFactory: false,
-          count: 12,
-        },
-        {
-          locationId: 6,
-          code: 'TAPPAHANNOCK',
-          name: 'Tap',
-          isFactory: false,
-          count: 38,
-        },
-      ]);
+      const xpJig = result.live.departments.find((d) => d.code === 'XP_JIG');
+      const xpFin = result.live.departments.find((d) => d.code === 'XP_FIN');
+      expect(xpJig?.waiting).toBe(1); // QC_1 rolled back here
+      expect(xpFin?.waiting).toBe(1); // direct active prod step
     });
 
-    it('computes WIP cumulative vs projected from the stage cost matrix', async () => {
-      mockPrisma.trailer.findMany.mockResolvedValue([
-        {
-          id: 233n,
-          soNumber: '6715',
-          trailerModelId: 1,
-          trailerModel: { code: 'XP_14ET', displayName: '14K XP', series: 'xp' },
-          productionSteps: [
-            { departmentId: 10, status: 'complete' },
-            { departmentId: 20, status: 'complete' },
-            { departmentId: 30, status: 'active' },
-            { departmentId: 40, status: 'waiting' },
-          ],
-        },
+    it('buckets sold-but-not-started trailers onto their first-step dept', async () => {
+      mockPrisma.department.findMany.mockResolvedValue([
+        { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
+        { id: 3, code: 'DO_JIG', displayName: 'Deck Over Jig Weld' },
       ]);
-      mockPrisma.trailerModelStageCost.findMany.mockResolvedValue([
-        {
-          trailerModelId: 1,
-          departmentId: 10,
-          costDollars: new Prisma.Decimal('100'),
-        },
-        {
-          trailerModelId: 1,
-          departmentId: 20,
-          costDollars: new Prisma.Decimal('250'),
-        },
-        {
-          trailerModelId: 1,
-          departmentId: 30,
-          costDollars: new Prisma.Decimal('150'),
-        },
-        // No cell for dept 40 — should default to 0 so projected isn't NaN.
-      ]);
+      // No active steps — board is purely showing sold-not-started.
+      mockPrisma.productionStep.findMany.mockResolvedValueOnce([]);
+      mockPrisma.trailer.findMany.mockImplementation((args: any) => {
+        // The first .findMany on trailer with productionSteps relation in the
+        // where clause is the sold-not-started query.
+        if (args?.where?.productionSteps?.none) {
+          return Promise.resolve([
+            { id: 1n, productionSteps: [{ departmentId: 1 }] },
+            { id: 2n, productionSteps: [{ departmentId: 1 }] },
+            { id: 3n, productionSteps: [{ departmentId: 3 }] },
+          ]);
+        }
+        return Promise.resolve([]);
+      });
 
-      const result = await service.getWeeklyReport('2026-06-19');
+      const result = await service.getReport({
+        period: 'weekly',
+        start: '2026-06-19',
+      });
 
-      expect(result.wipCost.totalCumulativeDollars).toBe(350); // 100 + 250
-      expect(result.wipCost.totalProjectedDollars).toBe(500); // 100 + 250 + 150 + 0
-      expect(result.wipCost.perTrailer).toEqual([
-        {
-          trailerId: '233',
-          soNumber: '6715',
-          modelCode: 'XP_14ET',
-          modelName: '14K XP',
-          cumulativeDollars: 350,
-          projectedDollars: 500,
-        },
-      ]);
-    });
-
-    it('returns zero WIP when no trailers are in production', async () => {
-      // Default mocks: no trailers, no costs.
-      const result = await service.getWeeklyReport('2026-06-19');
-      expect(result.wipCost.totalCumulativeDollars).toBe(0);
-      expect(result.wipCost.totalProjectedDollars).toBe(0);
-      expect(result.wipCost.perTrailer).toEqual([]);
+      const xpJig = result.live.departments.find((d) => d.code === 'XP_JIG');
+      const doJig = result.live.departments.find((d) => d.code === 'DO_JIG');
+      expect(xpJig?.soldNotStarted).toBe(2);
+      expect(doJig?.soldNotStarted).toBe(1);
     });
   });
 });

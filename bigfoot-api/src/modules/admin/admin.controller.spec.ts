@@ -23,7 +23,7 @@ describe('AdminController', () => {
   const mockProductionReportService = {
     getCostMatrix: jest.fn(),
     upsertStageCost: jest.fn(),
-    getWeeklyReport: jest.fn(),
+    getReport: jest.fn(),
   };
 
   const mockUser = {
@@ -154,6 +154,27 @@ describe('AdminController', () => {
         '127.0.0.1',
       );
       expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe('getProductionReport (Health Check)', () => {
+    it('forwards period + start + end to productionReportService.getReport', async () => {
+      const mockReport = {
+        window: { period: 'weekly', start: '2026-06-14', end: '2026-06-20' },
+      };
+      mockProductionReportService.getReport.mockResolvedValue(mockReport);
+
+      const result = await controller.getProductionReport({
+        period: 'weekly',
+        start: '2026-06-17',
+      });
+
+      expect(mockProductionReportService.getReport).toHaveBeenCalledWith({
+        period: 'weekly',
+        start: '2026-06-17',
+        end: undefined,
+      });
+      expect(result).toEqual(mockReport);
     });
   });
 });

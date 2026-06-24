@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppError, ErrorCode } from '../../common/errors';
+import {
+  HealthCheckPeriod,
+  HEALTH_CHECK_PERIODS,
+} from './dto/health-check-query.dto';
 
 export interface UpsertStageCostInput {
   trailerModelId: number;
@@ -11,6 +15,18 @@ export interface UpsertStageCostInput {
   effectiveFrom?: string;
 }
 
+export interface HealthCheckParams {
+  period?: HealthCheckPeriod;
+  start?: string;
+  end?: string;
+}
+
+interface ResolvedWindow {
+  period: HealthCheckPeriod;
+  start: Date;
+  end: Date; // exclusive
+}
+
 @Injectable()
 export class ProductionReportService {
   constructor(private readonly prisma: PrismaService) {}
@@ -18,12 +34,6 @@ export class ProductionReportService {
   // ---------------------------------------------------------------------------
   // Cost matrix
   // ---------------------------------------------------------------------------
-  /**
-   * Build a grid of (trailer model x non-QC department) → dollar cost using
-   * the most recent `effective_from` row per cell. Empty cells are omitted —
-   * the mobile screen renders them as "—" so admin can spot what still
-   * needs a value.
-   */
   async getCostMatrix() {
     const [models, departments, latestPerCell] = await Promise.all([
       this.prisma.trailerModel.findMany({
@@ -31,17 +41,11 @@ export class ProductionReportService {
         select: { id: true, code: true, displayName: true, series: true },
         orderBy: { displayName: 'asc' },
       }),
-      // QC departments don't represent stages with a dollar cost — they're
-      // checkpoints. Match the payroll matrix's behavior so the two grids
-      // stay consistent visually.
       this.prisma.department.findMany({
         where: { isQcStep: false },
         select: { id: true, code: true, displayName: true, isQcStep: true },
         orderBy: { code: 'asc' },
       }),
-      // For each (model, dept) pair, the row with the latest effectiveFrom.
-      // distinct works because Prisma resolves it via SQL DISTINCT ON when
-      // combined with the right orderBy.
       this.prisma.trailerModelStageCost.findMany({
         distinct: ['trailerModelId', 'departmentId'],
         orderBy: [
@@ -68,12 +72,6 @@ export class ProductionReportService {
     return { models, departments, cells };
   }
 
-  /**
-   * Upsert a single (model, dept, effectiveFrom) cell. Idempotent — if the
-   * cell already exists for that date we update the cost in place; otherwise
-   * a new effective-dated row is created and the prior row stays untouched
-   * so history is preserved.
-   */
   async upsertStageCost(dto: UpsertStageCostInput) {
     const cost = new Prisma.Decimal(dto.costDollars);
     if (cost.lt(0)) {
@@ -85,8 +83,6 @@ export class ProductionReportService {
     const effectiveFrom = dto.effectiveFrom
       ? new Date(dto.effectiveFrom)
       : new Date();
-    // Date-only column — strip the time portion so two calls on the same
-    // day land on the same row instead of creating duplicates.
     const effectiveDateOnly = new Date(
       Date.UTC(
         effectiveFrom.getUTCFullYear(),
@@ -121,47 +117,124 @@ export class ProductionReportService {
   }
 
   // ---------------------------------------------------------------------------
-  // Weekly production report
+  // Health Check report (formerly "weekly production report")
   // ---------------------------------------------------------------------------
-  /**
-   * Production throughput + WIP cost for the calendar week that contains
-   * the supplied date. `weekStart` is treated as a date-only marker; the
-   * actual window is Sunday 00:00 → next Sunday 00:00 UTC (matches the
-   * payroll/weekly-completed conventions already used elsewhere).
-   */
-  async getWeeklyReport(weekStart: string) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+  // Returns:
+  //   window / previousWindow — resolved date ranges (previous = same length
+  //     ending the day before current start, so +/- deltas are apples-to-apples)
+  //   current / previous       — per-window throughput, sales, sold-vs-built
+  //   live                     — point-in-time snapshot: in-production, ready,
+  //                              inventory by yard, dept-waiting tile board,
+  //                              sold-not-yet-started bucketed by first dept
+  //   wipCost                  — cumulative vs projected $$ for in-prod trailers
+  // ---------------------------------------------------------------------------
+  async getReport(params: HealthCheckParams) {
+    const window = this.resolveWindow(params);
+    const previousWindow = this.resolvePreviousWindow(window);
+
+    const [current, previous, live, wipCost] = await Promise.all([
+      this.buildPeriodSnapshot(window.start, window.end),
+      this.buildPeriodSnapshot(previousWindow.start, previousWindow.end),
+      this.buildLiveSnapshot(),
+      this.computeWipCost(),
+    ]);
+
+    return {
+      window: {
+        period: window.period,
+        start: isoDate(window.start),
+        end: isoDate(addDays(window.end, -1)), // inclusive end for display
+      },
+      previousWindow: {
+        start: isoDate(previousWindow.start),
+        end: isoDate(addDays(previousWindow.end, -1)),
+      },
+      current,
+      previous,
+      live,
+      wipCost,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Period resolution
+  // ---------------------------------------------------------------------------
+  private resolveWindow(params: HealthCheckParams): ResolvedWindow {
+    const period: HealthCheckPeriod = params.period ?? 'weekly';
+    if (!HEALTH_CHECK_PERIODS.includes(period)) {
       throw new AppError(
         ErrorCode.BAD_REQUEST,
-        'weekStart must be a YYYY-MM-DD date',
+        `period must be one of: ${HEALTH_CHECK_PERIODS.join(', ')}`,
       );
     }
-    const start = this.startOfWeek(new Date(`${weekStart}T00:00:00Z`));
-    const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    // Throughput counts. Each query has a tight where so the response stays
-    // O(few queries) regardless of trailer volume.
+    const pivot = params.start ? parseDateOnly(params.start) : todayUtc();
+
+    switch (period) {
+      case 'weekly': {
+        const start = startOfWeek(pivot);
+        return { period, start, end: addDays(start, 7) };
+      }
+      case 'biweekly': {
+        const start = startOfWeek(pivot);
+        return { period, start, end: addDays(start, 14) };
+      }
+      case 'monthly': {
+        const start = startOfMonth(pivot);
+        const end = startOfMonth(addDays(addDays(start, 31), 0));
+        // addDays(start, 31) always lands inside the next month, then
+        // startOfMonth snaps to that next month's first day. Robust against
+        // 28/29/30/31 day months without manual math.
+        return { period, start, end };
+      }
+      case 'custom': {
+        if (!params.start || !params.end) {
+          throw new AppError(
+            ErrorCode.BAD_REQUEST,
+            'period=custom requires both `start` and `end` (YYYY-MM-DD)',
+          );
+        }
+        const start = parseDateOnly(params.start);
+        const inclusiveEnd = parseDateOnly(params.end);
+        if (inclusiveEnd.getTime() < start.getTime()) {
+          throw new AppError(
+            ErrorCode.BAD_REQUEST,
+            '`end` must be on or after `start`',
+          );
+        }
+        return { period, start, end: addDays(inclusiveEnd, 1) };
+      }
+    }
+  }
+
+  private resolvePreviousWindow(current: ResolvedWindow): ResolvedWindow {
+    // Same-length window ending exactly at current.start (so [start - len, start)).
+    const lengthMs = current.end.getTime() - current.start.getTime();
+    const prevEnd = current.start;
+    const prevStart = new Date(prevEnd.getTime() - lengthMs);
+    return { period: current.period, start: prevStart, end: prevEnd };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Per-period snapshot: throughput + sales + sold-vs-built
+  // ---------------------------------------------------------------------------
+  private async buildPeriodSnapshot(start: Date, end: Date) {
     const [
       enteredCount,
       exitedRows,
       deliveredCount,
-      inProductionCount,
-      readyForDeliveryCount,
-      inventoryByYard,
-      wip,
+      customerOrderRows,
+      openStockSoldRows,
     ] = await Promise.all([
-      // Entered production this week — the FIRST production_step of a
-      // trailer became active during the window. Step.stepOrder is the
-      // natural ordinal; we filter on it == 1 so a re-routed trailer
-      // doesn't double-count.
+      // Entered production: first production step became active in window.
       this.prisma.productionStep.count({
         where: {
           stepOrder: 1,
           becameActiveAt: { gte: start, lt: end },
         },
       }),
-      // Exited production — FINAL_QC pass that landed in this week. Group
-      // by series so the report can break the throughput down.
+      // Exited production: passing FINAL_QC in window. Pull each row's model
+      // so we can split by series + by model id for the sold-vs-built grid.
       this.prisma.qcInspection.findMany({
         where: {
           result: 'pass',
@@ -169,38 +242,213 @@ export class ProductionReportService {
           inspectedAt: { gte: start, lt: end },
         },
         select: {
-          trailer: { select: { trailerModel: { select: { series: true } } } },
+          trailer: {
+            select: {
+              trailerModelId: true,
+              trailerModel: {
+                select: {
+                  id: true,
+                  code: true,
+                  displayName: true,
+                  series: true,
+                },
+              },
+            },
+          },
         },
       }),
-      // Delivered customer / yard handoffs in the window.
+      // Customer-facing deliveries that finished in window.
       this.prisma.delivery.count({
         where: {
           status: 'delivered',
           deliveredAt: { gte: start, lt: end },
         },
       }),
-      this.prisma.trailer.count({ where: { status: 'in_production' } }),
-      this.prisma.trailer.count({ where: { status: 'ready_for_delivery' } }),
-      // Yard inventory snapshot: trailers whose status == ready_for_delivery
-      // and currentLocation is non-factory. ready+not-factory ≈ "open stock
-      // at a satellite yard"; the Mulberry-resident pool counts under that
-      // yard so admins see the full picture.
-      this.prisma.trailer.groupBy({
-        by: ['currentLocationId'],
-        where: { status: 'ready_for_delivery' },
-        _count: { _all: true },
+      // Customer orders: a trailer was created with a customerId attached
+      // inside the window. Mirrors the "new order with a customer name"
+      // sales definition.
+      this.prisma.trailer.findMany({
+        where: {
+          customerId: { not: null },
+          createdAt: { gte: start, lt: end },
+        },
+        select: {
+          trailerModelId: true,
+          trailerModel: {
+            select: { id: true, code: true, displayName: true, series: true },
+          },
+        },
       }),
-      this.computeWipCost(),
+      // Open-stock sold: trailer was a stock build (created without a
+      // customer) and is now marked sold inside the window. saleStatus has
+      // no dedicated sold-at column, so we approximate with updatedAt. Stock
+      // builds rarely receive other edits after the sale flip, so this is
+      // usually correct; if drift matters we'll move to audit_log later.
+      this.prisma.trailer.findMany({
+        where: {
+          isStockBuild: true,
+          saleStatus: 'sold',
+          updatedAt: { gte: start, lt: end },
+        },
+        select: {
+          trailerModelId: true,
+          trailerModel: {
+            select: { id: true, code: true, displayName: true, series: true },
+          },
+        },
+      }),
     ]);
 
+    // ── Throughput ─────────────────────────────────────────────────────────
     const exitedBySeries: Record<string, number> = {};
     for (const row of exitedRows) {
       const s = row.trailer.trailerModel.series as string;
       exitedBySeries[s] = (exitedBySeries[s] ?? 0) + 1;
     }
 
-    // Resolve location codes for the inventory groupby.
-    const locIds = inventoryByYard.map((r) => r.currentLocationId);
+    // ── Sales totals ───────────────────────────────────────────────────────
+    const customerOrders = customerOrderRows.length;
+    const openStockSold = openStockSoldRows.length;
+    const totalSales = customerOrders + openStockSold;
+
+    // ── Sold vs Built per model ────────────────────────────────────────────
+    type ModelAgg = {
+      modelId: number;
+      modelCode: string;
+      modelName: string;
+      series: string;
+      sold: number;
+      built: number;
+    };
+    const perModel = new Map<number, ModelAgg>();
+    const bumpSold = (m: {
+      id: number;
+      code: string;
+      displayName: string;
+      series: string;
+    }) => {
+      const entry = perModel.get(m.id) ?? {
+        modelId: m.id,
+        modelCode: m.code,
+        modelName: m.displayName,
+        series: m.series,
+        sold: 0,
+        built: 0,
+      };
+      entry.sold += 1;
+      perModel.set(m.id, entry);
+    };
+    const bumpBuilt = (m: {
+      id: number;
+      code: string;
+      displayName: string;
+      series: string;
+    }) => {
+      const entry = perModel.get(m.id) ?? {
+        modelId: m.id,
+        modelCode: m.code,
+        modelName: m.displayName,
+        series: m.series,
+        sold: 0,
+        built: 0,
+      };
+      entry.built += 1;
+      perModel.set(m.id, entry);
+    };
+    for (const r of customerOrderRows) {
+      bumpSold(r.trailerModel as any);
+    }
+    for (const r of openStockSoldRows) {
+      bumpSold(r.trailerModel as any);
+    }
+    for (const r of exitedRows) {
+      bumpBuilt(r.trailer.trailerModel as any);
+    }
+
+    const soldVsBuilt = {
+      perModel: Array.from(perModel.values()).sort((a, b) =>
+        a.modelCode.localeCompare(b.modelCode),
+      ),
+      totalSold: totalSales,
+      totalBuilt: exitedRows.length,
+    };
+
+    return {
+      throughput: {
+        enteredProduction: enteredCount,
+        exitedProduction: exitedRows.length,
+        delivered: deliveredCount,
+        exitedBySeries,
+      },
+      sales: {
+        customerOrders,
+        openStockSold,
+        totalSales,
+      },
+      soldVsBuilt,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Live (point-in-time) snapshot: dept tile board + inventory + sold-not-started
+  // ---------------------------------------------------------------------------
+  private async buildLiveSnapshot() {
+    const [
+      inProductionCount,
+      readyForDeliveryCount,
+      inventoryGroup,
+      departments,
+      activeSteps,
+      soldNotStartedTrailers,
+    ] = await Promise.all([
+      this.prisma.trailer.count({ where: { status: 'in_production' } }),
+      this.prisma.trailer.count({ where: { status: 'ready_for_delivery' } }),
+      this.prisma.trailer.groupBy({
+        by: ['currentLocationId'],
+        where: { status: 'ready_for_delivery' },
+        _count: { _all: true },
+      }),
+      this.prisma.department.findMany({
+        where: { isQcStep: false },
+        select: { id: true, code: true, displayName: true },
+        orderBy: { id: 'asc' },
+      }),
+      // Every trailer's currently-active step. Production is sequential so
+      // each in-prod trailer has exactly one row here.
+      this.prisma.productionStep.findMany({
+        where: { status: 'active' },
+        select: {
+          trailerId: true,
+          stepOrder: true,
+          departmentId: true,
+          department: {
+            select: { id: true, code: true, isQcStep: true },
+          },
+        },
+      }),
+      // Sold / pre-sold trailers that have not started yet (zero completed
+      // steps). Pull stepOrder=1's department so we can bucket on the first
+      // workflow stage.
+      this.prisma.trailer.findMany({
+        where: {
+          OR: [
+            { customerId: { not: null } },
+            { soldToName: { not: null } },
+          ],
+          productionSteps: { none: { status: 'complete' } },
+        },
+        select: {
+          id: true,
+          productionSteps: {
+            where: { stepOrder: 1 },
+            select: { departmentId: true },
+          },
+        },
+      }),
+    ]);
+
+    // ── Inventory by yard ──────────────────────────────────────────────────
+    const locIds = inventoryGroup.map((r) => r.currentLocationId);
     const locations = locIds.length
       ? await this.prisma.location.findMany({
           where: { id: { in: locIds } },
@@ -208,7 +456,7 @@ export class ProductionReportService {
         })
       : [];
     const byLocId = new Map(locations.map((l) => [l.id, l]));
-    const inventory = inventoryByYard
+    const inventoryByYard = inventoryGroup
       .map((r) => ({
         locationId: r.currentLocationId,
         code: byLocId.get(r.currentLocationId)?.code ?? '?',
@@ -218,50 +466,91 @@ export class ProductionReportService {
       }))
       .sort((a, b) => a.code.localeCompare(b.code));
 
+    // ── Department tile board ──────────────────────────────────────────────
+    // For each active step, attribute it to a non-QC department. If the
+    // active step IS a QC step, roll it back to its predecessor (the prod
+    // step it inspects). The predecessor is "step_order - 1" on the same
+    // trailer. We batch-fetch all those predecessor rows in a single query.
+    const qcActiveSteps = activeSteps.filter((s) => s.department.isQcStep);
+    let priorByTrailer = new Map<string, number>();
+    if (qcActiveSteps.length > 0) {
+      const priorSteps = await this.prisma.productionStep.findMany({
+        where: {
+          OR: qcActiveSteps.map((s) => ({
+            trailerId: s.trailerId,
+            stepOrder: s.stepOrder - 1,
+          })),
+        },
+        select: { trailerId: true, stepOrder: true, departmentId: true },
+      });
+      priorByTrailer = new Map(
+        priorSteps.map((s) => [`${s.trailerId}:${s.stepOrder}`, s.departmentId]),
+      );
+    }
+
+    const waitingByDeptId = new Map<number, number>();
+    for (const step of activeSteps) {
+      let bucketDeptId = step.departmentId;
+      if (step.department.isQcStep) {
+        const prior = priorByTrailer.get(
+          `${step.trailerId}:${step.stepOrder - 1}`,
+        );
+        if (prior == null) continue; // step_order=1 is never QC, so this is a data anomaly — skip rather than miscount
+        bucketDeptId = prior;
+      }
+      waitingByDeptId.set(
+        bucketDeptId,
+        (waitingByDeptId.get(bucketDeptId) ?? 0) + 1,
+      );
+    }
+
+    // ── Sold-but-not-yet-started bucketed by first-step dept ──────────────
+    const soldNotStartedByDeptId = new Map<number, number>();
+    for (const t of soldNotStartedTrailers) {
+      const firstStep = t.productionSteps[0];
+      if (!firstStep) continue; // no workflow generated yet (rare)
+      soldNotStartedByDeptId.set(
+        firstStep.departmentId,
+        (soldNotStartedByDeptId.get(firstStep.departmentId) ?? 0) + 1,
+      );
+    }
+
+    const deptBoard = departments.map((d) => ({
+      departmentId: d.id,
+      code: d.code,
+      displayName: d.displayName,
+      waiting: waitingByDeptId.get(d.id) ?? 0,
+      soldNotStarted: soldNotStartedByDeptId.get(d.id) ?? 0,
+    }));
+
+    const soldNotStartedTotal = soldNotStartedTrailers.filter(
+      (t) => t.productionSteps.length > 0,
+    ).length;
+
     return {
-      weekStart: start.toISOString().slice(0, 10),
-      weekEnd: end.toISOString().slice(0, 10),
-      throughput: {
-        enteredProduction: enteredCount,
-        exitedProduction: exitedRows.length,
-        exitedBySeries,
-        delivered: deliveredCount,
-      },
-      snapshot: {
-        inProduction: inProductionCount,
-        readyForDelivery: readyForDeliveryCount,
-        inventoryByYard: inventory,
-      },
-      wipCost: wip,
+      inProduction: inProductionCount,
+      readyForDelivery: readyForDeliveryCount,
+      inventoryByYard,
+      departments: deptBoard,
+      soldNotStartedTotal,
     };
   }
 
   // ---------------------------------------------------------------------------
-  // WIP cost helper
-  // ---------------------------------------------------------------------------
-  // Returns:
-  //   totalCumulative — sum of (matrix cost) for every COMPLETED step on
-  //                     every in_production trailer.
-  //   totalProjected  — sum of (matrix cost) for ALL steps in each trailer's
-  //                     model workflow (rough invested-capital ceiling).
-  //   perTrailer      — per-trailer breakdown so the report can render a
-  //                     drill-down table.
+  // WIP cost (unchanged from prior implementation)
   // ---------------------------------------------------------------------------
   private async computeWipCost() {
-    // 1) Pull all in-production trailers + their steps. Trailer model id is
-    //    cached so the cost lookup runs in one extra query, not N+1.
     const trailers = await this.prisma.trailer.findMany({
       where: { status: 'in_production' },
       select: {
         id: true,
         soNumber: true,
         trailerModelId: true,
-        trailerModel: { select: { code: true, displayName: true, series: true } },
+        trailerModel: {
+          select: { code: true, displayName: true, series: true },
+        },
         productionSteps: {
-          select: {
-            departmentId: true,
-            status: true,
-          },
+          select: { departmentId: true, status: true },
         },
       },
     });
@@ -274,22 +563,13 @@ export class ProductionReportService {
           trailerId: string;
           soNumber: string;
           modelCode: string;
+          modelName: string;
           cumulativeDollars: number;
           projectedDollars: number;
         }>,
       };
     }
 
-    // 2) One pass to find every (model, dept) pair we need a cost for.
-    const cellKeys = new Set<string>();
-    for (const t of trailers) {
-      for (const s of t.productionSteps) {
-        cellKeys.add(`${t.trailerModelId}:${s.departmentId}`);
-      }
-    }
-
-    // 3) Fetch the latest cost cell for each of those pairs in one batch.
-    //    distinct + orderBy desc(effectiveFrom) gives us "latest only".
     const modelIds = [...new Set(trailers.map((t) => t.trailerModelId))];
     const deptIds = [
       ...new Set(
@@ -322,7 +602,6 @@ export class ProductionReportService {
       );
     }
 
-    // 4) Sum per trailer + roll up totals.
     let totalCumulative = 0;
     let totalProjected = 0;
     const perTrailer = trailers.map((t) => {
@@ -353,19 +632,52 @@ export class ProductionReportService {
       perTrailer,
     };
   }
+}
 
-  /// Truncate a Date to the Sunday-00:00:00 UTC of its calendar week.
-  /// Matches the payroll convention used elsewhere in admin.service.
-  private startOfWeek(d: Date): Date {
-    const dayOfWeek = d.getUTCDay(); // Sun=0 … Sat=6
-    return new Date(
-      Date.UTC(
-        d.getUTCFullYear(),
-        d.getUTCMonth(),
-        d.getUTCDate() - dayOfWeek,
-      ),
+// =============================================================================
+// Date helpers (all UTC, date-only)
+// =============================================================================
+
+function parseDateOnly(s: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    throw new AppError(
+      ErrorCode.BAD_REQUEST,
+      `date must be YYYY-MM-DD (got "${s}")`,
     );
   }
+  return new Date(`${s}T00:00:00Z`);
+}
+
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function addDays(d: Date, days: number): Date {
+  return new Date(
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate() + days,
+    ),
+  );
+}
+
+function startOfWeek(d: Date): Date {
+  const dow = d.getUTCDay(); // Sun=0 … Sat=6
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow),
+  );
+}
+
+function startOfMonth(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+}
+
+function todayUtc(): Date {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
 }
 
 function round2(n: number): number {

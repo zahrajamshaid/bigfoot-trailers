@@ -24,6 +24,7 @@ import { ProductionReportService } from './production-report.service';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import {
+  HealthCheckQueryDto,
   QueryAuditLogDto,
   UpdateDepartmentDto,
   UpsertStageCostDto,
@@ -202,20 +203,32 @@ export class AdminController {
   }
 
   // ---------------------------------------------------------------------------
-  // GET /admin/production-report?weekStart=YYYY-MM-DD
+  // GET /admin/production-report?period=weekly|biweekly|monthly|custom
+  //                            &start=YYYY-MM-DD&end=YYYY-MM-DD
   // ---------------------------------------------------------------------------
-  // Trailer-throughput report for the week containing weekStart. Different
-  // from /admin/reports/weekly-production (which is the worker payroll
-  // report). Returns entered/exited/delivered counts + live snapshot +
-  // WIP cost (cumulative + projected).
+  // Health Check report. Different from /admin/reports/weekly-production
+  // (worker payroll). Returns:
+  //   - current vs previous period throughput, sales (customer orders +
+  //     open-stock sold), and sold-vs-built per model
+  //   - live point-in-time snapshot: in-production, ready-for-delivery,
+  //     inventory by yard, dept-tile board, sold-but-not-started
+  //   - WIP cost (cumulative + projected) for in-prod trailers
+  //
+  // Route name kept as /admin/production-report so existing deep links and
+  // older mobile clients keep working — only the user-facing UI label was
+  // renamed to "Health Check".
   // ---------------------------------------------------------------------------
   @Get('production-report')
   @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({
-    summary: 'Weekly trailer throughput + WIP cost summary',
+    summary: 'Health Check: throughput, sales, dept board + WIP cost',
   })
-  @ApiResponse({ status: 200, description: 'Weekly production report' })
-  async getProductionReport(@Query() query: WeeklyReportQueryDto) {
-    return this.productionReportService.getWeeklyReport(query.weekStart);
+  @ApiResponse({ status: 200, description: 'Health Check report' })
+  async getProductionReport(@Query() query: HealthCheckQueryDto) {
+    return this.productionReportService.getReport({
+      period: query.period,
+      start: query.start,
+      end: query.end,
+    });
   }
 }
