@@ -495,17 +495,20 @@ class _TrailerCard extends StatelessWidget {
                     Text(modelName,
                         style: const TextStyle(
                             fontSize: 13, color: AppColors.disabled)),
-                  OwnershipChip.fromSignals(
-                    customerName: customerNameRaw,
-                    isStockBuild: isStock,
-                    soldToName: soldToNameRaw,
-                    saleStatus: saleStatus,
+                  // Backend ships pre-computed isCustomerOrder + buyerName
+                  // so the chip is a dumb renderer. On older API responses
+                  // these default to (false, null) and the chip falls
+                  // through to STOCK — fine because the only screens that
+                  // matter (list, queues) are paired with up-to-date
+                  // endpoints.
+                  OwnershipChip(
+                    isCustomerOrder: (t.isCustomerOrder as bool?) ?? false,
+                    buyerName: (t.buyerName as String?)?.trim(),
                     dense: true,
                   ),
-                  // Sold/sale_pending badge is redundant once the
-                  // ownership chip already renders sold trailers as a
-                  // customer chip. Keep it only for sale_pending where the
-                  // trailer's still effectively unsold.
+                  // Sale-status badge only for the sale_pending state — a
+                  // sold trailer already renders as a green CUSTOMER chip
+                  // so an extra "SOLD" badge is just noise.
                   if (saleStatus == 'sale_pending')
                     SaleStatusBadge(saleStatus: saleStatus),
                   StatusBadge(status: t.status),

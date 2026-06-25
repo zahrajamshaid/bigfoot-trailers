@@ -478,11 +478,9 @@ class _QueueCard extends StatelessWidget {
                               ),
                               if (item.series != null)
                                 SeriesBadge(series: item.series!),
-                              OwnershipChip.fromSignals(
-                                customerName: item.customerName,
-                                isStockBuild: item.isStockBuild,
-                                soldToName: item.soldToName,
-                                saleStatus: item.saleStatus,
+                              OwnershipChip(
+                                isCustomerOrder: item.isCustomerOrder,
+                                buyerName: item.buyerName,
                               ),
                               if (item.isHot || stallLevel >= 1)
                                 StallReasonChip(

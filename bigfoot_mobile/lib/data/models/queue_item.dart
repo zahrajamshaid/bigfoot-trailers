@@ -25,10 +25,18 @@ class QueueItem {
   /// `available`. Always null for customer-order trailers.
   final String? soldToName;
   /// Mirrors trailer.saleStatus — `available` / `sale_pending` / `sold`.
-  /// Drives the ownership chip: every `sold` trailer renders as a customer
-  /// chip on the queue tile regardless of where the buyer name lives
-  /// (customer record vs free-text soldToName).
+  /// Retained for completeness, but the chip should prefer
+  /// [isCustomerOrder] + [buyerName] which are pre-computed server-side.
   final String? saleStatus;
+  /// Server-computed: `true` when the trailer belongs to a buyer
+  /// (saleStatus == 'sold'). Mobile chip uses this directly so we have
+  /// one source of truth for the customer-vs-stock rule. Defaults to
+  /// `false` for older API responses that don't include the field.
+  final bool isCustomerOrder;
+  /// Server-computed: best buyer name to display on the chip — pulls
+  /// from the linked Customer record first, falls back to the free-text
+  /// soldToName. Null for unsold inventory.
+  final String? buyerName;
   final String? optionsNotes;
   final String? qbSoPdfUrl;
   final String? qbSoPdfStorageKey;
@@ -58,6 +66,8 @@ class QueueItem {
     this.isStockBuild = false,
     this.soldToName,
     this.saleStatus,
+    this.isCustomerOrder = false,
+    this.buyerName,
     this.optionsNotes,
     this.qbSoPdfUrl,
     this.qbSoPdfStorageKey,

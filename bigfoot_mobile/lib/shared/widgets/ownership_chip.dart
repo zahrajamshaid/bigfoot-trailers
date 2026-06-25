@@ -3,64 +3,43 @@ import '../../core/constants/app_colors.dart';
 
 /// Visual category that drives an OwnershipChip's color + label.
 enum OwnershipKind {
-  /// Trailer is sold — render as customer (green). Per the operator's
-  /// rule, any saleStatus='sold' trailer is "owned by a customer", and
-  /// soldToName IS the customer name (the customers table is barely used
-  /// in prod). Covers both customer-order trailers and stock builds that
-  /// later got sold.
+  /// Trailer is sold to a buyer — green chip with the buyer name.
   customer,
-  /// Stock build that has not been sold (saleStatus != 'sold') — grey
-  /// inventory chip.
+  /// Inventory at Mulberry / a yard — grey "STOCK" chip.
   openStock,
 }
 
-/// Resolves the OwnershipKind from raw trailer signals.
+/// Compact pill identifying whether a trailer is a customer order (sold to
+/// a buyer) or open stock. The backend now owns the decision: every queue
+/// item + trailer-list row ships `isCustomerOrder` (bool) and `buyerName`
+/// (String?) so the mobile renders directly without re-deriving the rule.
 ///
-/// Rule (from the floor):
-///   * saleStatus == 'sold'  →  customer chip (name comes from
-///     customerName if a Customer record is attached, otherwise from
-///     soldToName — the free-text buyer field that's the de-facto
-///     "customer name" everywhere in prod).
-///   * else if customer-order trailer (!isStockBuild) → customer chip
-///     even without a sold flag (a customer-order with no sale is rare
-///     but still belongs in the customer bucket visually).
-///   * else → open stock chip (grey).
-OwnershipKind resolveOwnership({
-  required String? customerName,
-  required String? saleStatus,
-  required bool isStockBuild,
-  String? soldToName,
-}) {
-  if (saleStatus == 'sold') return OwnershipKind.customer;
-  if (!isStockBuild) return OwnershipKind.customer;
-  return OwnershipKind.openStock;
-}
-
-/// Compact pill identifying whether a trailer is a customer order, a sold
-/// stock build, or an open stock build — plus the buyer/customer name when
-/// one is present. Designed to read instantly on a queue tile so workers
-/// don't have to drill into the trailer detail to know who they're building
-/// for.
+/// Rule, for reference (lives in production.service.ts and
+/// trailers.service.ts → findAll):
+///   isCustomerOrder = saleStatus === 'sold'
+///   buyerName       = customer.name ?? soldToName
 ///
-/// Use the [.fromSignals] constructor when you have the raw fields straight
-/// from the queue item; the main constructor takes a pre-resolved [kind]
-/// for callers that already know.
+/// Use the [.fromSignals] adapter when you only have the raw fields handy
+/// (older endpoints) — it falls back to the same client-side check so
+/// no card has to plumb through both styles.
 class OwnershipChip extends StatelessWidget {
-  final OwnershipKind kind;
-  /// Buyer / customer name to render on the pill. Optional — when null we
-  /// fall back to the kind's static label ("STOCK" / "SOLD STOCK").
-  final String? name;
-  /// When true, drops the icon and tightens the padding for use inside
-  /// already-busy header rows (e.g. the QC queue Wrap).
+  final bool isCustomerOrder;
+  final String? buyerName;
+  /// When true, drops the icon and tightens padding for header rows that
+  /// already host other chips.
   final bool dense;
 
   const OwnershipChip({
     super.key,
-    required this.kind,
-    this.name,
+    required this.isCustomerOrder,
+    this.buyerName,
     this.dense = false,
   });
 
+  /// Adapter for call sites that don't yet have the server-computed
+  /// isCustomerOrder + buyerName fields. Mirrors the backend rule exactly
+  /// so the visual is identical: saleStatus='sold' → customer, anything
+  /// else → open stock.
   factory OwnershipChip.fromSignals({
     Key? key,
     required String? customerName,
@@ -69,33 +48,32 @@ class OwnershipChip extends StatelessWidget {
     String? saleStatus,
     bool dense = false,
   }) {
-    final kind = resolveOwnership(
-      customerName: customerName,
-      saleStatus: saleStatus,
-      isStockBuild: isStockBuild,
-      soldToName: soldToName,
+    final isCustomerOrder = saleStatus == 'sold';
+    final buyer = (customerName?.trim().isNotEmpty == true
+            ? customerName
+            : soldToName)
+        ?.trim();
+    return OwnershipChip(
+      key: key,
+      isCustomerOrder: isCustomerOrder,
+      buyerName: (buyer != null && buyer.isNotEmpty) ? buyer : null,
+      dense: dense,
     );
-    // Customer record name wins when present (rare in prod); soldToName
-    // is the standard buyer field. openStock has no buyer to name.
-    String? name;
-    if (kind == OwnershipKind.customer) {
-      final c = customerName?.trim();
-      final s = soldToName?.trim();
-      name = (c != null && c.isNotEmpty) ? c : (s?.isNotEmpty == true ? s : null);
-    }
-    return OwnershipChip(key: key, kind: kind, name: name, dense: dense);
   }
+
+  OwnershipKind get _kind =>
+      isCustomerOrder ? OwnershipKind.customer : OwnershipKind.openStock;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (color, icon, label) = _styleFor(kind, name);
+    final (color, icon, label) = _styleFor(_kind, buyerName);
     final hPad = dense ? 6.0 : 8.0;
     final vPad = dense ? 2.0 : 3.0;
     final iconSize = dense ? 10.0 : 12.0;
     final fontSize = dense ? 10.0 : 11.0;
     return ConstrainedBox(
-      // Soft cap so a long customer name doesn't push other badges off the
+      // Soft cap so a long buyer name doesn't push other badges off the
       // row; the ellipsis below kicks in when needed.
       constraints: const BoxConstraints(maxWidth: 220),
       child: Container(

@@ -44,6 +44,15 @@ class Trailer {
   final bool isStockBuild;
   final bool isHot;
   final bool customerLocked;
+  /// Server-computed ownership classification. Trailer list endpoint
+  /// derives this from saleStatus and ships it so the mobile chip can
+  /// render directly. Defaults to `false` for any legacy / detail
+  /// response that hasn't been updated to include the field — callers
+  /// fall back to `saleStatus == 'sold'` via OwnershipChip.fromSignals.
+  @JsonKey(defaultValue: false)
+  final bool isCustomerOrder;
+  /// Server-computed best buyer name (customer.name ?? soldToName).
+  final String? buyerName;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -77,6 +86,8 @@ class Trailer {
     this.isStockBuild = false,
     this.isHot = false,
     this.customerLocked = false,
+    this.isCustomerOrder = false,
+    this.buyerName,
     this.createdAt,
     this.updatedAt,
     this.trailerModel,

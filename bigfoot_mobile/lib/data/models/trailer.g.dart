@@ -30,6 +30,8 @@ Trailer _$TrailerFromJson(Map<String, dynamic> json) => Trailer(
   isStockBuild: json['isStockBuild'] as bool? ?? false,
   isHot: json['isHot'] as bool? ?? false,
   customerLocked: json['customerLocked'] as bool? ?? false,
+  isCustomerOrder: json['isCustomerOrder'] as bool? ?? false,
+  buyerName: json['buyerName'] as String?,
   createdAt: json['createdAt'] == null
       ? null
       : DateTime.parse(json['createdAt'] as String),
@@ -79,6 +81,8 @@ Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
   'isStockBuild': instance.isStockBuild,
   'isHot': instance.isHot,
   'customerLocked': instance.customerLocked,
+  'isCustomerOrder': instance.isCustomerOrder,
+  'buyerName': instance.buyerName,
   'createdAt': instance.createdAt?.toIso8601String(),
   'updatedAt': instance.updatedAt?.toIso8601String(),
   'trailerModel': instance.trailerModel,

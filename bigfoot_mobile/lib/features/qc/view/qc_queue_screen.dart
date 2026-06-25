@@ -437,11 +437,9 @@ class _QcQueueCard extends StatelessWidget {
                                       ),
                                     ),
                                     _StageChip(code: item.departmentCode),
-                                    OwnershipChip.fromSignals(
-                                      customerName: item.customerName,
-                                      isStockBuild: item.isStockBuild,
-                                      soldToName: item.soldToName,
-                                      saleStatus: item.saleStatus,
+                                    OwnershipChip(
+                                      isCustomerOrder: item.isCustomerOrder,
+                                      buyerName: item.buyerName,
                                       dense: true,
                                     ),
                                     if (isWaiting) const _WaitingChip(),
