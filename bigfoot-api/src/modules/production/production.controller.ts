@@ -142,7 +142,15 @@ export class ProductionController {
   // POST /production/steps/:step_id/reverse — worker (own), production_manager, owner
   // ---------------------------------------------------------------------------
   @Post('steps/:step_id/reverse')
-  @Roles(UserRole.WORKER, UserRole.PRODUCTION_MANAGER, UserRole.OWNER)
+  // Owner, office (full admin), production_manager, and qc_inspector can
+  // reverse any completed step. Workers can reverse only their own.
+  @Roles(
+    UserRole.WORKER,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.QC_INSPECTOR,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reverse a recently completed step' })
   @ApiParam({ name: 'step_id', type: 'number' })

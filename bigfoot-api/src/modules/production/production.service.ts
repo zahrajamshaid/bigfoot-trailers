@@ -452,8 +452,14 @@ export class ProductionService {
       );
     }
 
-    // Authorization: only the completing worker or a manager/owner can reverse
-    const isManagerOrOwner = userRole === 'production_manager' || userRole === 'owner';
+    // Authorization: full-admin (owner / office) + production-admin tier
+    // (production_manager / qc_inspector) can reverse any completed step.
+    // Workers can only reverse the steps they themselves completed.
+    const isManagerOrOwner =
+      userRole === 'production_manager' ||
+      userRole === 'owner' ||
+      userRole === 'office' ||
+      userRole === 'qc_inspector';
     if (!isManagerOrOwner && step.completedByUserId !== reversedByUserId) {
       throw new AppError(ErrorCode.STEP_REVERSAL_NOT_AUTHORIZED);
     }
