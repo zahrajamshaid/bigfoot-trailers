@@ -98,32 +98,29 @@ jobs:
             --dart-define=WS_URL=wss://${{ env.API_HOST }}/ws \
             -t lib/main.dart
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-
-      - name: Set up Firebase CLI
-        run: npm install -g firebase-tools
+      - name: Locate APK
+        id: apk
+        run: |
+          APK_PATH=$(ls bigfoot_mobile/build/app/outputs/flutter-apk/app-arm64-v8a-production-release.apk)
+          echo "Found $APK_PATH"
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+        working-directory: ${{ github.workspace }}
 
       - name: Upload to Firebase App Distribution
-        env:
-          FIREBASE_APP_ID: ${{ env.FIREBASE_APP_ID }}
-          RELEASE_NOTES: ${{ github.event.inputs.release_notes || format('Auto build {0} from commit {1}', github.run_number, github.sha) }}
-        run: |
-          APK_PATH=$(ls build/app/outputs/flutter-apk/app-arm64-v8a-production-release.apk)
-          echo "Uploading $APK_PATH"
-          # The firebase CLI's appdistribution plugin does not auto-read
-          # GOOGLE_APPLICATION_CREDENTIALS — we have to pass the
-          # service-account JSON path with --service-credentials-file or
-          # the call bails out with "Failed to authenticate, have you run
-          # firebase login?". google-github-actions/auth@v2 exports the
-          # path in $GOOGLE_APPLICATION_CREDENTIALS, so we forward it.
-          firebase appdistribution:distribute "$APK_PATH" \
-            --app "$FIREBASE_APP_ID" \
-            --groups "${{ env.TESTER_GROUPS }}" \
-            --release-notes "$RELEASE_NOTES" \
-            --service-credentials-file "$GOOGLE_APPLICATION_CREDENTIALS"
+        # Swapped off the bare `firebase appdistribution:distribute` CLI
+        # call: the latest firebase-tools removed (or never had) the
+        # `--service-credentials-file` flag we tried before, which left
+        # the upload step bouncing on "Failed to authenticate" / "unknown
+        # option". wzieba/Firebase-Distribution-Github-Action takes the
+        # raw service-account JSON straight from the secret, so we skip
+        # the CLI auth dance entirely.
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ env.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: ${{ env.TESTER_GROUPS }}
+          file: ${{ steps.apk.outputs.apk_path }}
+          releaseNotes: ${{ github.event.inputs.release_notes || format('Auto build {0} from commit {1}', github.run_number, github.sha) }}
 
       - name: Upload APK as workflow artifact
         if: always()
