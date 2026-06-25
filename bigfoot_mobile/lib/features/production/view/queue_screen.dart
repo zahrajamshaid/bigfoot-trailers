@@ -482,6 +482,7 @@ class _QueueCard extends StatelessWidget {
                                 customerName: item.customerName,
                                 isStockBuild: item.isStockBuild,
                                 soldToName: item.soldToName,
+                                saleStatus: item.saleStatus,
                               ),
                               if (item.isHot || stallLevel >= 1)
                                 StallReasonChip(

@@ -24,6 +24,11 @@ class QueueItem {
   /// set when [isStockBuild] is true and the sale-status moved off
   /// `available`. Always null for customer-order trailers.
   final String? soldToName;
+  /// Mirrors trailer.saleStatus — `available` / `sale_pending` / `sold`.
+  /// Drives the ownership chip: every `sold` trailer renders as a customer
+  /// chip on the queue tile regardless of where the buyer name lives
+  /// (customer record vs free-text soldToName).
+  final String? saleStatus;
   final String? optionsNotes;
   final String? qbSoPdfUrl;
   final String? qbSoPdfStorageKey;
@@ -52,6 +57,7 @@ class QueueItem {
     this.customerName,
     this.isStockBuild = false,
     this.soldToName,
+    this.saleStatus,
     this.optionsNotes,
     this.qbSoPdfUrl,
     this.qbSoPdfStorageKey,

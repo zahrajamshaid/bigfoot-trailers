@@ -18,6 +18,9 @@ class QcQueueItem {
   /// instead of leaving the inspector to guess from the customer field alone.
   final bool isStockBuild;
   final String? soldToName;
+  /// trailer.saleStatus — used by OwnershipChip to render any 'sold'
+  /// trailer as a customer chip regardless of where the buyer name lives.
+  final String? saleStatus;
   final DateTime? becameActiveAt;
   final String status; // 'active' | 'waiting'
   final String? currentStageCode;
@@ -37,6 +40,7 @@ class QcQueueItem {
     this.customerName,
     this.isStockBuild = false,
     this.soldToName,
+    this.saleStatus,
     this.becameActiveAt,
     this.status = 'active',
     this.currentStageCode,
@@ -78,6 +82,7 @@ class QcQueueItem {
       customerName: json['customerName'] as String? ?? json['customer_name'] as String?,
       isStockBuild: _toBool(json['isStockBuild'] ?? json['is_stock_build']),
       soldToName: json['soldToName'] as String? ?? json['sold_to_name'] as String?,
+      saleStatus: json['saleStatus'] as String? ?? json['sale_status'] as String?,
       becameActiveAt: json['becameActiveAt'] != null
           ? DateTime.tryParse(json['becameActiveAt'].toString())
           : json['became_active_at'] != null

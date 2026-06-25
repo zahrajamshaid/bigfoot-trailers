@@ -499,9 +499,14 @@ class _TrailerCard extends StatelessWidget {
                     customerName: customerNameRaw,
                     isStockBuild: isStock,
                     soldToName: soldToNameRaw,
+                    saleStatus: saleStatus,
                     dense: true,
                   ),
-                  if (saleStatus != 'available' && customerNameRaw == null)
+                  // Sold/sale_pending badge is redundant once the
+                  // ownership chip already renders sold trailers as a
+                  // customer chip. Keep it only for sale_pending where the
+                  // trailer's still effectively unsold.
+                  if (saleStatus == 'sale_pending')
                     SaleStatusBadge(saleStatus: saleStatus),
                   StatusBadge(status: t.status),
                 ],

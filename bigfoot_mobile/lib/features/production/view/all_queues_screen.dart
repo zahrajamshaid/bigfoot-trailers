@@ -340,6 +340,7 @@ class _AllQueueCard extends StatelessWidget {
                                     customerName: item.customerName,
                                     isStockBuild: item.isStockBuild,
                                     soldToName: item.soldToName,
+                                    saleStatus: item.saleStatus,
                                     dense: true,
                                   ),
                                   if (item.isHot || stallLevel >= 1)

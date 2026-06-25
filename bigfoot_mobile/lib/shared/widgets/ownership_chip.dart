@@ -3,30 +3,36 @@ import '../../core/constants/app_colors.dart';
 
 /// Visual category that drives an OwnershipChip's color + label.
 enum OwnershipKind {
-  /// Customer-order trailer (created with a customer attached).
+  /// Trailer is sold — render as customer (green). Per the operator's
+  /// rule, any saleStatus='sold' trailer is "owned by a customer", and
+  /// soldToName IS the customer name (the customers table is barely used
+  /// in prod). Covers both customer-order trailers and stock builds that
+  /// later got sold.
   customer,
-  /// Stock build that has been sold to a buyer (soldToName populated).
-  soldStock,
-  /// Stock build that has not been sold yet.
+  /// Stock build that has not been sold (saleStatus != 'sold') — grey
+  /// inventory chip.
   openStock,
 }
 
-/// Resolves the right OwnershipKind for the given trailer signals. Pass
-/// nullable strings + isStockBuild; callers don't need to write this branch
-/// at every call site.
+/// Resolves the OwnershipKind from raw trailer signals.
+///
+/// Rule (from the floor):
+///   * saleStatus == 'sold'  →  customer chip (name comes from
+///     customerName if a Customer record is attached, otherwise from
+///     soldToName — the free-text buyer field that's the de-facto
+///     "customer name" everywhere in prod).
+///   * else if customer-order trailer (!isStockBuild) → customer chip
+///     even without a sold flag (a customer-order with no sale is rare
+///     but still belongs in the customer bucket visually).
+///   * else → open stock chip (grey).
 OwnershipKind resolveOwnership({
   required String? customerName,
+  required String? saleStatus,
   required bool isStockBuild,
   String? soldToName,
 }) {
-  if (customerName != null && customerName.trim().isNotEmpty) {
-    return OwnershipKind.customer;
-  }
-  if (isStockBuild &&
-      soldToName != null &&
-      soldToName.trim().isNotEmpty) {
-    return OwnershipKind.soldStock;
-  }
+  if (saleStatus == 'sold') return OwnershipKind.customer;
+  if (!isStockBuild) return OwnershipKind.customer;
   return OwnershipKind.openStock;
 }
 
@@ -60,24 +66,22 @@ class OwnershipChip extends StatelessWidget {
     required String? customerName,
     required bool isStockBuild,
     String? soldToName,
+    String? saleStatus,
     bool dense = false,
   }) {
     final kind = resolveOwnership(
       customerName: customerName,
+      saleStatus: saleStatus,
       isStockBuild: isStockBuild,
       soldToName: soldToName,
     );
+    // Customer record name wins when present (rare in prod); soldToName
+    // is the standard buyer field. openStock has no buyer to name.
     String? name;
-    switch (kind) {
-      case OwnershipKind.customer:
-        name = customerName?.trim();
-        break;
-      case OwnershipKind.soldStock:
-        name = soldToName?.trim();
-        break;
-      case OwnershipKind.openStock:
-        name = null;
-        break;
+    if (kind == OwnershipKind.customer) {
+      final c = customerName?.trim();
+      final s = soldToName?.trim();
+      name = (c != null && c.isNotEmpty) ? c : (s?.isNotEmpty == true ? s : null);
     }
     return OwnershipChip(key: key, kind: kind, name: name, dense: dense);
   }
@@ -136,12 +140,6 @@ class OwnershipChip extends StatelessWidget {
           AppColors.success,
           Icons.person_outline,
           hasName ? trimmed.toUpperCase() : 'CUSTOMER',
-        );
-      case OwnershipKind.soldStock:
-        return (
-          AppColors.amber,
-          Icons.sell_outlined,
-          hasName ? 'SOLD · ${trimmed.toUpperCase()}' : 'SOLD STOCK',
         );
       case OwnershipKind.openStock:
         return (

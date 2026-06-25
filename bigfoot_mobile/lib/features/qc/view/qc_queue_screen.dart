@@ -441,6 +441,7 @@ class _QcQueueCard extends StatelessWidget {
                                       customerName: item.customerName,
                                       isStockBuild: item.isStockBuild,
                                       soldToName: item.soldToName,
+                                      saleStatus: item.saleStatus,
                                       dense: true,
                                     ),
                                     if (isWaiting) const _WaitingChip(),
