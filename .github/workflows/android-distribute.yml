@@ -113,10 +113,17 @@ jobs:
         run: |
           APK_PATH=$(ls build/app/outputs/flutter-apk/app-arm64-v8a-production-release.apk)
           echo "Uploading $APK_PATH"
+          # The firebase CLI's appdistribution plugin does not auto-read
+          # GOOGLE_APPLICATION_CREDENTIALS — we have to pass the
+          # service-account JSON path with --service-credentials-file or
+          # the call bails out with "Failed to authenticate, have you run
+          # firebase login?". google-github-actions/auth@v2 exports the
+          # path in $GOOGLE_APPLICATION_CREDENTIALS, so we forward it.
           firebase appdistribution:distribute "$APK_PATH" \
             --app "$FIREBASE_APP_ID" \
             --groups "${{ env.TESTER_GROUPS }}" \
-            --release-notes "$RELEASE_NOTES"
+            --release-notes "$RELEASE_NOTES" \
+            --service-credentials-file "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Upload APK as workflow artifact
         if: always()
