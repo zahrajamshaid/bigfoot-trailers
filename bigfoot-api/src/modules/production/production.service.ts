@@ -907,6 +907,12 @@ export class ProductionService {
         color: step.trailer.color,
         sizeFt: step.trailer.sizeFt,
         customerName: step.trailer.customer?.name ?? null,
+        // Workers need to see customer vs stock at a glance on the queue
+        // tile — customer orders are prioritized, so we ship the stock-build
+        // flag + free-text sold-to name so the UI can render an unambiguous
+        // ownership badge without having to drill into the trailer detail.
+        isStockBuild: step.trailer.isStockBuild,
+        soldToName: step.trailer.soldToName ?? null,
         optionsNotes: step.trailer.optionsNotes,
         qbSoPdfUrl: step.trailer.qbSoPdfStorageUrl,
         qbSoPdfStorageKey: step.trailer.qbSoPdfStorageKey,
