@@ -68,7 +68,11 @@ class _QueueView extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final authState = context.watch<AuthViewModel>().state;
     final user = authState is Authenticated ? authState.user : null;
-    final isManager = user?.isManager ?? false;
+    // QC inspectors get the same production-floor UI as production_manager
+    // (tap-card-to-detail, no "Complete step" button on each row, queue
+    // reorder permission). The User.isProductionAdmin getter covers
+    // owner + office + production_manager + qc_inspector.
+    final isManager = user?.isProductionAdmin ?? false;
 
     return BlocConsumer<ProductionViewModel, ProductionQueueState>(
       listener: (context, state) {
@@ -376,22 +380,27 @@ class _QueueCard extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final stallLevel = item.stallLevel;
 
+    // Long-press lives on the InkWell, not on an outer GestureDetector,
+    // because Material's InkWell claims the press-down gesture as soon as
+    // the user touches the card to draw the ripple. With the press claimed,
+    // a sibling GestureDetector's onLongPress timer never fires (Flutter's
+    // gesture arena resolves to the InkWell). Wiring onLongPress directly
+    // into the InkWell hands it both the tap and the long-press cleanly.
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: GestureDetector(
-        onLongPress: onLongPress,
-        child: Card(
-          elevation: isFirst && !isManager ? 4 : 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: isFirst && !isManager
-                ? const BorderSide(color: AppColors.amber, width: 2)
-                : BorderSide.none,
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: IntrinsicHeight(
+      child: Card(
+        elevation: isFirst && !isManager ? 4 : 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isFirst && !isManager
+              ? const BorderSide(color: AppColors.amber, width: 2)
+              : BorderSide.none,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: IntrinsicHeight(
               child: Row(
                 children: [
                   // Left color strip — hot = red, stall = yellow/red, default = navy
@@ -633,8 +642,7 @@ class _QueueCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
