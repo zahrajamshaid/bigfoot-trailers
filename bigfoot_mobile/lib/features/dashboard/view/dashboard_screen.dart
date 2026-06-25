@@ -57,11 +57,13 @@ class DashboardScreen extends StatelessWidget {
                         _TransportDashboard(data: data),
                       _ => _ManagerDashboard(data: data),
                     },
+                    // QC's dashboard intentionally drops the stock-inventory
+                    // strip — they're not part of the stack-to-yard flow and
+                    // the card is just noise on their card list.
                     if (role == UserRole.owner ||
                         role == UserRole.office ||
                         role == UserRole.transportManager ||
                         role == UserRole.productionManager ||
-                        role == UserRole.qcInspector ||
                         role == UserRole.sales)
                       const _StockInventoryCard(),
                   ],
