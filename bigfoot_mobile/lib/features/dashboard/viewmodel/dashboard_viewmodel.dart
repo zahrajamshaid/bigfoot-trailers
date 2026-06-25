@@ -290,12 +290,45 @@ class DashboardViewModel extends Cubit<DashboardState> {
   Future<DashboardStats> _fetchData() async {
     switch (_role) {
       case 'owner':
+      case 'office':
       case 'production_manager':
         return _repository.fetchManagerStats();
       case 'worker':
         return _repository.fetchWorkerStats(_userId ?? 0, _departmentId);
       case 'qc_inspector':
-        return _repository.fetchQcStats();
+        // QC now lives in the production-admin tier and its dashboard
+        // surfaces both the original QC metrics (ready-for-inspection,
+        // inspections-today, fail-rate-today, rework-queue) AND the
+        // shop-floor counts (total trailers, pending production, in
+        // production, hot, stalled, completed-this-week, archived).
+        // The two backend feeds live behind different endpoints, so we
+        // fan out in parallel and merge the result. /qc/stats already
+        // returns qcFailRate as part of fetchManagerStats — we let the
+        // manager-fetch value win because it's the same endpoint
+        // computed once and cached on the response.
+        final results = await Future.wait([
+          _repository.fetchManagerStats(),
+          _repository.fetchQcStats(),
+        ]);
+        final mgr = results[0];
+        final qc = results[1];
+        return DashboardStats(
+          // shop-floor counts (manager-fetch)
+          activeTrailers: mgr.activeTrailers,
+          readyForDelivery: mgr.readyForDelivery,
+          hotTrailers: mgr.hotTrailers,
+          stalledSteps: mgr.stalledSteps,
+          weeklyCompleted: mgr.weeklyCompleted,
+          archivedTotal: mgr.archivedTotal,
+          qcFailRate: mgr.qcFailRate,
+          totalTrailers: mgr.totalTrailers,
+          pendingProduction: mgr.pendingProduction,
+          // QC-specific (qc-stats fetch)
+          readyForInspection: qc.readyForInspection,
+          inspectionsToday: qc.inspectionsToday,
+          failRateToday: qc.failRateToday,
+          reworkQueue: qc.reworkQueue,
+        );
       case 'driver':
         return _repository.fetchDriverStats();
       case 'transport_manager':

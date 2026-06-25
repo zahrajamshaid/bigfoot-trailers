@@ -11,25 +11,41 @@ class DashboardRepositoryImpl implements DashboardRepository {
   Future<DashboardStats> fetchManagerStats() async {
     final trailersResp = await _api.get<Map<String, dynamic>>(
       ApiEndpoints.trailers,
-      queryParameters: {'limit': 100},
+      queryParameters: {'limit': 1},
       fromJson: (d) => d as Map<String, dynamic>,
     );
-    final trailers = (trailersResp.data?['trailers'] as List<dynamic>?) ?? [];
-    // /trailers also returns the true total count (independent of the page
-    // limit), so we surface it on the Owner / PM / Sales dashboards
-    // instead of relying on the page we just fetched.
-    final totalTrailers = (trailersResp.data?['total'] as num?)?.toInt() ??
-        trailers.length;
+    // We used to page in 100 trailers and tally status / isHot in memory,
+    // which undercounted active / ready / hot whenever the shop had more
+    // than 100 trailers in the active set. The API exposes a `total`
+    // count per filter — much cheaper and always accurate — so each tile
+    // now gets its own filtered limit=1 round-trip. The first call above
+    // is only used for totalTrailers + a quick reachability check.
+    final totalTrailers = (trailersResp.data?['total'] as num?)?.toInt() ?? 0;
 
-    int active = 0, ready = 0, hot = 0;
-    for (final t in trailers) {
-      if (t is Map<String, dynamic>) {
-        final status = t['status'] as String?;
-        if (status == 'in_production') active++;
-        if (status == 'ready_for_delivery') ready++;
-        if (t['isHot'] == true) hot++;
+    Future<int> filteredTotal(Map<String, dynamic> q) async {
+      try {
+        final r = await _api.get<Map<String, dynamic>>(
+          ApiEndpoints.trailers,
+          queryParameters: {...q, 'limit': 1},
+          fromJson: (d) => d as Map<String, dynamic>,
+        );
+        return (r.data?['total'] as num?)?.toInt() ?? 0;
+      } catch (_) {
+        return 0;
       }
     }
+
+    final perStatus = await Future.wait([
+      filteredTotal({'status': 'in_production'}),
+      filteredTotal({'status': 'ready_for_delivery'}),
+      // Backend filter is `isHot`, not `hot` — sending the wrong key
+      // landed back as "no filter applied" and the count came back equal
+      // to the full trailer total instead of the hot subset.
+      filteredTotal({'isHot': 'true'}),
+    ]);
+    final active = perStatus[0];
+    final ready = perStatus[1];
+    final hot = perStatus[2];
 
     // Manager dashboard shows the "QC fail rate" tile, so pull the same
     // 30-day rate the QC dashboard uses. Don't fail the whole manager card
