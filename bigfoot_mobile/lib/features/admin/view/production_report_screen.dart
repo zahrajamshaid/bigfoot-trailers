@@ -146,8 +146,11 @@ class _ProductionReportScreenState extends State<ProductionReportScreen> {
   Widget build(BuildContext context) {
     final canDownload = !_loading && _error == null && _report != null;
     final authState = context.watch<AuthViewModel>().state;
-    final canEditCostMatrix =
-        authState is Authenticated && authState.user.role == UserRole.owner;
+    // Cost matrix is financial config — full-admin tier only (owner + office).
+    // Production_manager + QC see Health Check but can't edit the matrix.
+    final canEditCostMatrix = authState is Authenticated &&
+        (authState.user.role == UserRole.owner ||
+            authState.user.role == UserRole.office);
 
     return Scaffold(
       backgroundColor: AppColors.background,

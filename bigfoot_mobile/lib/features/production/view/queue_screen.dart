@@ -664,7 +664,11 @@ class _StallText extends StatelessWidget {
       text = l.queueDaysHoursInQueue(days, (hours % 24).round());
     }
 
-    if (stallLevel == 2) text = '⚠️ $text';
+    // Stalled / hot trailers are already loud-called-out by StallReasonChip
+    // at the top of the card, so this bottom row stays as a quiet time-in-
+    // queue readout. Earlier this prepended a ⚠️ glyph that doubled up
+    // alongside the clock icon next to it and read as "stall symbol stacked
+    // on the clock symbol".
 
     return Text(
       text,

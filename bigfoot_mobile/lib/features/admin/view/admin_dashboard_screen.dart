@@ -8,7 +8,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/websocket/realtime_cubits.dart';
+import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/admin_viewmodel.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -115,12 +117,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       subtitle: l.adminNavWorkflowSubtitle,
                       onTap: () => context.pushNamed(RouteNames.workflowViewer),
                     ),
-                    _NavTile(
-                      icon: Icons.history,
-                      title: l.adminAuditLog,
-                      subtitle: l.adminNavAuditSubtitle,
-                      onTap: () => context.pushNamed(RouteNames.auditLog),
-                    ),
+                    // Audit log is a full-admin / office-tier tool — QC and
+                    // production_manager don't get a backend grant for it,
+                    // so hide the tile rather than ship a 403 dead-end.
+                    if (_isFullAdmin(context))
+                      _NavTile(
+                        icon: Icons.history,
+                        title: l.adminAuditLog,
+                        subtitle: l.adminNavAuditSubtitle,
+                        onTap: () => context.pushNamed(RouteNames.auditLog),
+                      ),
                     _NavTile(
                       icon: Icons.monitor_heart_outlined,
                       title: 'Health Check',
@@ -141,6 +147,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
     );
+  }
+
+  bool _isFullAdmin(BuildContext context) {
+    final s = context.read<AuthViewModel>().state;
+    return s is Authenticated &&
+        (s.user.role == UserRole.owner ||
+            s.user.role == UserRole.office);
   }
 }
 

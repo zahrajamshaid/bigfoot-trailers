@@ -408,27 +408,33 @@ class AppRouter {
     return '/payroll';
   }
 
-  /// Guards the /admin area — owner-only. Without this guard a Forbidden
-  /// response inside an /admin/* child screen left the user one Back press
-  /// away from the unguarded admin dashboard. Anyone else lands back on the
-  /// general dashboard.
+  /// Guards the /admin area — production-admin tier: owner, office (full
+  /// admin), production_manager, and qc_inspector (production-admin role).
+  /// The individual /admin subscreens still gate financial / office pages
+  /// (payroll edits, audit log, role assignment) via the backend's stricter
+  /// @Roles on those endpoints, so QC drops into a thinner admin page.
   String? _adminOnly(BuildContext context, GoRouterState state) {
     final authState = context.read<AuthViewModel>().state;
-    if (authState is Authenticated && authState.user.role == 'owner') {
+    if (authState is Authenticated &&
+        (authState.user.role == 'owner' ||
+            authState.user.role == 'office' ||
+            authState.user.role == 'production_manager' ||
+            authState.user.role == 'qc_inspector')) {
       return null;
     }
     return '/dashboard';
   }
 
-  /// Production report is visible to owner + production_manager. Anyone
-  /// else gets bounced to their normal home dashboard (the report tile is
-  /// already hidden for those roles; this guard catches deep links + Back
-  /// pops).
+  /// Health Check (production report). Production-admin tier — owner +
+  /// office + production_manager + qc_inspector. The tile is hidden for
+  /// other roles; this guard catches deep links + Back pops.
   String? _productionReportAccess(BuildContext context, GoRouterState state) {
     final authState = context.read<AuthViewModel>().state;
     if (authState is Authenticated &&
         (authState.user.role == 'owner' ||
-            authState.user.role == 'production_manager')) {
+            authState.user.role == 'office' ||
+            authState.user.role == 'production_manager' ||
+            authState.user.role == 'qc_inspector')) {
       return null;
     }
     return '/dashboard';

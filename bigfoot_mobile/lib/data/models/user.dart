@@ -50,16 +50,30 @@ class User extends Equatable {
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
   Map<String, dynamic> toJson() => _$UserToJson(this);
 
-  /// Whether this user can access admin features.
-  bool get isAdmin => role == UserRole.owner;
+  /// Whether this user has full-admin access — admin pages, audit log,
+  /// payroll edit, role changes. Office was promoted to full admin so it
+  /// now sits alongside owner.
+  bool get isAdmin =>
+      role == UserRole.owner || role == UserRole.office;
 
-  /// Whether this user can manage production.
+  /// Whether this user can manage production. Includes [isAdmin] (owner +
+  /// office) and the production_manager itself. QC inspectors are also
+  /// production admins for the read paths — see [isProductionAdmin].
   bool get isManager =>
-      role == UserRole.owner || role == UserRole.productionManager;
+      isAdmin || role == UserRole.productionManager;
+
+  /// Production-admin tier: everyone in [isManager] plus QC inspectors.
+  /// QC inspectors get the production-manager UI surface (all queues, all
+  /// trailers, Health Check, workflow templates, announcements) but are
+  /// kept out of office/financial pages (payroll, cost matrix edits,
+  /// audit-log changes, role assignment). Use this for production-related
+  /// UI gates; use [isAdmin] for financial/office gates.
+  bool get isProductionAdmin =>
+      isManager || role == UserRole.qcInspector;
 
   /// Whether this user can manage deliveries.
   bool get isTransportManager =>
-      role == UserRole.owner || role == UserRole.transportManager;
+      isAdmin || role == UserRole.transportManager;
 
   /// Whether this user is a QC inspector.
   bool get isQcInspector =>

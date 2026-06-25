@@ -76,7 +76,12 @@ class _AppShellState extends State<AppShell> {
             final useBottom = !useRail && tabs.length > 1;
             // Owner/admin requested that all drawer items be available in the
             // phone bottom bar. Keep truncation for other roles.
-            final showAllBottomTabs = user?.role == UserRole.owner;
+            // Full-admin accounts (owner + office) and the production-admin
+            // QC account get every tab pinned on the bottom bar; everyone
+            // else keeps the top-5 truncation so the bar doesn't overflow.
+            final showAllBottomTabs = user?.role == UserRole.owner ||
+                user?.role == UserRole.office ||
+                user?.role == UserRole.qcInspector;
             final bottomTabs = showAllBottomTabs
                 ? tabs
                 : (tabs.length > 5 ? tabs.take(5).toList() : tabs);
@@ -501,10 +506,12 @@ class _AppShellState extends State<AppShell> {
           ),
         ];
       case UserRole.qcInspector:
-        // QC gets the Trailers tab too so they can pull up any trailer's
-        // detail screen and use jump-to-step like admin / production
-        // manager — needed when an inspection fails and QC bounces a
-        // trailer into a rework department other than the canonical one.
+        // QC is now a "production admin": same nav as production_manager
+        // *except* payroll (kept financial/office-only). They see every
+        // department queue, every trailer in production, Health Check, and
+        // the admin screen — but the admin screen itself drops the audit
+        // log + worker payroll report entries because those check isAdmin
+        // (owner + office), which QC is not.
         return [
           _NavTab(
             '/dashboard',
@@ -518,7 +525,19 @@ class _AppShellState extends State<AppShell> {
             Icons.local_shipping_outlined,
             Icons.local_shipping,
           ),
+          _NavTab(
+            '/production',
+            l.navProduction,
+            Icons.precision_manufacturing_outlined,
+            Icons.precision_manufacturing,
+          ),
           _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
+          _NavTab(
+            '/admin',
+            l.navAdmin,
+            Icons.admin_panel_settings_outlined,
+            Icons.admin_panel_settings,
+          ),
         ];
       case UserRole.worker:
         return [
@@ -536,12 +555,45 @@ class _AppShellState extends State<AppShell> {
           ),
         ];
       case UserRole.office:
+        // Office was promoted to full admin including payroll — mirrors the
+        // owner nav exactly so they get every screen owner can reach.
         return [
+          _NavTab(
+            '/dashboard',
+            l.navDashboard,
+            Icons.dashboard_outlined,
+            Icons.dashboard,
+          ),
+          _NavTab(
+            '/trailers',
+            l.navTrailers,
+            Icons.local_shipping_outlined,
+            Icons.local_shipping,
+          ),
+          _NavTab(
+            '/production',
+            l.navProduction,
+            Icons.precision_manufacturing_outlined,
+            Icons.precision_manufacturing,
+          ),
+          _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
+          _NavTab(
+            '/payroll',
+            l.navPayroll,
+            Icons.payments_outlined,
+            Icons.payments,
+          ),
           _NavTab(
             '/deliveries',
             l.navDeliveries,
             Icons.delivery_dining_outlined,
             Icons.delivery_dining,
+          ),
+          _NavTab(
+            '/admin',
+            l.navAdmin,
+            Icons.admin_panel_settings_outlined,
+            Icons.admin_panel_settings,
           ),
         ];
       case UserRole.sales:

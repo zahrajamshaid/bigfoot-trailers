@@ -47,17 +47,25 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     _Greeting(user: user),
                     switch (role) {
-                      UserRole.owner || UserRole.productionManager =>
+                      UserRole.owner ||
+                      UserRole.office ||
+                      UserRole.productionManager =>
                         _ManagerDashboard(data: data),
                       UserRole.worker => _WorkerDashboard(data: data),
-                      UserRole.qcInspector => _QcDashboard(data: data),
+                      // QC now sees the manager dashboard so they get the
+                      // full production read-out (queues, hot/stalled tiles,
+                      // Health Check, etc.). The QC-specific dashboard
+                      // remained too narrow for the production-admin tier.
+                      UserRole.qcInspector => _ManagerDashboard(data: data),
                       UserRole.transportManager =>
                         _TransportDashboard(data: data),
                       _ => _ManagerDashboard(data: data),
                     },
                     if (role == UserRole.owner ||
+                        role == UserRole.office ||
                         role == UserRole.transportManager ||
                         role == UserRole.productionManager ||
+                        role == UserRole.qcInspector ||
                         role == UserRole.sales)
                       const _StockInventoryCard(),
                   ],
@@ -127,12 +135,15 @@ class _ManagerDashboard extends StatelessWidget {
     final authState = context.watch<AuthViewModel>().state;
     final role = authState is Authenticated ? authState.user.role : null;
     final canSeeQcTiles = role == UserRole.owner ||
+        role == UserRole.office ||
         role == UserRole.productionManager ||
         role == UserRole.qcInspector;
-    // Production report is owner + production_manager only — every other role
-    // would just get a Forbidden screen + a Back hop into /admin.
-    final canSeeProductionReport =
-        role == UserRole.owner || role == UserRole.productionManager;
+    // Health Check is the production-admin dashboard — every tier above
+    // worker gets it (owner / office / production_manager / qc_inspector).
+    final canSeeProductionReport = role == UserRole.owner ||
+        role == UserRole.office ||
+        role == UserRole.productionManager ||
+        role == UserRole.qcInspector;
     return Column(
       children: [
         Padding(
@@ -350,60 +361,6 @@ class _WorkerDashboard extends StatelessWidget {
             onTap: () => context.goNamed(RouteNames.productionQueue),
           ),
       ],
-    );
-  }
-}
-
-// ── QC Inspector ─────────────────────────────────────────────────────────────
-
-class _QcDashboard extends StatelessWidget {
-  final DashboardData data;
-  const _QcDashboard({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final r = context.responsive;
-    final l = AppLocalizations.of(context);
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
-      child: GridView.count(
-        crossAxisCount: r.gridColumns(compact: 2, medium: 4, expanded: 4, large: 4),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: r.statCardAspectRatio,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        children: [
-          StatCard(
-            title: l.dashStatReadyForInspection,
-            value: '${data.readyForInspection}',
-            icon: Icons.fact_check,
-            color: AppColors.navy,
-            onTap: () => context.goNamed(RouteNames.qcQueue),
-          ),
-          StatCard(
-            title: l.dashStatInspectionsToday,
-            value: '${data.inspectionsToday}',
-            icon: Icons.checklist,
-            color: AppColors.success,
-            onTap: () => context.goNamed(RouteNames.qcQueue),
-          ),
-          StatCard(
-            title: l.dashStatFailRateToday,
-            value: '${data.failRateToday.toStringAsFixed(1)}%',
-            icon: Icons.trending_down,
-            color: data.failRateToday > 20 ? AppColors.error : AppColors.navy,
-            onTap: () => context.goNamed(RouteNames.qcFailed),
-          ),
-          StatCard(
-            title: l.dashStatReworkQueue,
-            value: '${data.reworkQueue}',
-            icon: Icons.replay,
-            color: AppColors.warning,
-            onTap: () => context.goNamed(RouteNames.qcRework),
-          ),
-        ],
-      ),
     );
   }
 }
