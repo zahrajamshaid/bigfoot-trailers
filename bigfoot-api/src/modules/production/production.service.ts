@@ -914,16 +914,25 @@ export class ProductionService {
         sizeFt: step.trailer.sizeFt,
         customerName: step.trailer.customer?.name ?? null,
         // Workers need to see customer vs stock at a glance on the queue
-        // tile — customer orders are prioritized, so we ship the stock-build
-        // flag + free-text sold-to name + sale status so the UI can render
-        // an unambiguous ownership badge without having to drill into the
-        // trailer detail. saleStatus is the primary signal: any 'sold'
-        // trailer renders as a customer chip on the mobile, regardless of
-        // whether the buyer was captured in the customer table or as a
-        // free-text soldToName (the latter is the common case in prod).
+        // tile — customer orders are prioritized, so we ship the raw
+        // ownership signals AND a server-computed classification so the
+        // mobile chip can render directly without re-deriving the rule.
+        //
+        // Rule (from the floor): saleStatus='sold' = customer trailer,
+        // anything else = open stock — even an unsold customer-order shell
+        // is just inventory until it's actually sold.
+        //
+        // buyerName falls back to soldToName when no customer record is
+        // attached; the customer table is barely used in prod, soldToName
+        // is the de-facto buyer field.
         isStockBuild: step.trailer.isStockBuild,
         soldToName: step.trailer.soldToName ?? null,
         saleStatus: step.trailer.saleStatus,
+        isCustomerOrder: step.trailer.saleStatus === 'sold',
+        buyerName:
+          step.trailer.customer?.name ??
+          step.trailer.soldToName ??
+          null,
         optionsNotes: step.trailer.optionsNotes,
         qbSoPdfUrl: step.trailer.qbSoPdfStorageUrl,
         qbSoPdfStorageKey: step.trailer.qbSoPdfStorageKey,

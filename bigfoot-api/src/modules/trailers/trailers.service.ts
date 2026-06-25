@@ -249,7 +249,7 @@ export class TrailersService {
       where.AND = andClauses;
     }
 
-    const [trailers, total] = await this.prisma.$transaction([
+    const [rawTrailers, total] = await this.prisma.$transaction([
       this.prisma.trailer.findMany({
         where,
         select: TRAILER_LIST_SELECT,
@@ -259,6 +259,17 @@ export class TrailersService {
       }),
       this.prisma.trailer.count({ where }),
     ]);
+
+    // Decorate each row with the same ownership classification the queue
+    // payload carries — saleStatus='sold' is a customer trailer, anything
+    // else is stock; buyerName falls back to soldToName when no customer
+    // record is attached. Centralising this here keeps the mobile chip
+    // dumb: it just trusts isCustomerOrder + buyerName.
+    const trailers = rawTrailers.map((t) => ({
+      ...t,
+      isCustomerOrder: t.saleStatus === 'sold',
+      buyerName: t.customer?.name ?? t.soldToName ?? null,
+    }));
 
     return { trailers, total, page, limit };
   }
