@@ -506,12 +506,10 @@ class _AppShellState extends State<AppShell> {
           ),
         ];
       case UserRole.qcInspector:
-        // QC is now a "production admin": same nav as production_manager
-        // *except* payroll (kept financial/office-only). They see every
-        // department queue, every trailer in production, Health Check, and
-        // the admin screen — but the admin screen itself drops the audit
-        // log + worker payroll report entries because those check isAdmin
-        // (owner + office), which QC is not.
+        // QC is a "production admin": all queues + every trailer in
+        // production, but no /admin tab. Admin tiles like user management,
+        // workflow templates, announcements, and the audit log are
+        // intentionally out of scope for QC.
         return [
           _NavTab(
             '/dashboard',
@@ -532,12 +530,6 @@ class _AppShellState extends State<AppShell> {
             Icons.precision_manufacturing,
           ),
           _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
-          _NavTab(
-            '/admin',
-            l.navAdmin,
-            Icons.admin_panel_settings_outlined,
-            Icons.admin_panel_settings,
-          ),
         ];
       case UserRole.worker:
         return [

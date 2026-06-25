@@ -52,11 +52,7 @@ class DashboardScreen extends StatelessWidget {
                       UserRole.productionManager =>
                         _ManagerDashboard(data: data),
                       UserRole.worker => _WorkerDashboard(data: data),
-                      // QC now sees the manager dashboard so they get the
-                      // full production read-out (queues, hot/stalled tiles,
-                      // Health Check, etc.). The QC-specific dashboard
-                      // remained too narrow for the production-admin tier.
-                      UserRole.qcInspector => _ManagerDashboard(data: data),
+                      UserRole.qcInspector => _QcDashboard(data: data),
                       UserRole.transportManager =>
                         _TransportDashboard(data: data),
                       _ => _ManagerDashboard(data: data),
@@ -136,14 +132,13 @@ class _ManagerDashboard extends StatelessWidget {
     final role = authState is Authenticated ? authState.user.role : null;
     final canSeeQcTiles = role == UserRole.owner ||
         role == UserRole.office ||
-        role == UserRole.productionManager ||
-        role == UserRole.qcInspector;
-    // Health Check is the production-admin dashboard — every tier above
-    // worker gets it (owner / office / production_manager / qc_inspector).
+        role == UserRole.productionManager;
+    // Health Check tile is hidden for QC (they have their own dashboard
+    // anyway, but this dashboard renders for the manager / office / owner
+    // tier and shouldn't expose Health Check to QC by accident).
     final canSeeProductionReport = role == UserRole.owner ||
         role == UserRole.office ||
-        role == UserRole.productionManager ||
-        role == UserRole.qcInspector;
+        role == UserRole.productionManager;
     return Column(
       children: [
         Padding(
@@ -361,6 +356,188 @@ class _WorkerDashboard extends StatelessWidget {
             onTap: () => context.goNamed(RouteNames.productionQueue),
           ),
       ],
+    );
+  }
+}
+
+// ── QC Inspector ─────────────────────────────────────────────────────────────
+//
+// QC sits in the production-admin tier so they see the same shop-floor
+// stats production_manager / owner do (in-production count, hot trailers,
+// stalled steps, completed-this-week, archived). On top of that they keep
+// their original QC-specific tiles: ready-for-inspection, inspections-
+// today, today's fail rate, rework queue.
+//
+// Intentionally left out:
+//   • Ready-for-delivery + Health Check  — QC has no action on these and
+//     the user asked for them to be hidden on this dashboard.
+//   • Total trailers + Pending production — kept (counts they routinely
+//     look at while triaging).
+
+class _QcDashboard extends StatelessWidget {
+  final DashboardData data;
+  const _QcDashboard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = context.responsive;
+    final l = AppLocalizations.of(context);
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
+      child: GridView.count(
+        crossAxisCount:
+            r.gridColumns(compact: 2, medium: 3, expanded: 4, large: 4),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: r.statCardAspectRatio,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        children: [
+          // ── Original QC tiles ──────────────────────────────────────────
+          StatCard(
+            title: l.dashStatReadyForInspection,
+            value: '${data.readyForInspection}',
+            icon: Icons.fact_check,
+            color: AppColors.navy,
+            onTap: () => context.goNamed(RouteNames.qcQueue),
+          ),
+          StatCard(
+            title: l.dashStatInspectionsToday,
+            value: '${data.inspectionsToday}',
+            icon: Icons.checklist,
+            color: AppColors.success,
+            onTap: () => context.goNamed(RouteNames.qcQueue),
+          ),
+          StatCard(
+            title: l.dashStatFailRateToday,
+            value: '${data.failRateToday.toStringAsFixed(1)}%',
+            icon: Icons.trending_down,
+            color: data.failRateToday > 20
+                ? AppColors.error
+                : AppColors.navy,
+            onTap: () => context.goNamed(RouteNames.qcFailed),
+          ),
+          StatCard(
+            title: l.dashStatReworkQueue,
+            value: '${data.reworkQueue}',
+            icon: Icons.replay,
+            color: AppColors.warning,
+            onTap: () => context.goNamed(RouteNames.qcRework),
+          ),
+          // ── Production-admin tiles (manager set minus ready-for-
+          //    delivery and Health Check) ────────────────────────────────
+          StatCard(
+            title: 'Total trailers',
+            value: '${data.totalTrailers}',
+            icon: Icons.inventory_2_outlined,
+            color: AppColors.navy,
+            onTap: () => context.goNamed(RouteNames.trailerList),
+          ),
+          StatCard(
+            title: 'Pending production',
+            value: '${data.pendingProduction}',
+            icon: Icons.schedule_outlined,
+            color: AppColors.statusPending,
+            onTap: () => context.goNamed(
+              RouteNames.trailerList,
+              queryParameters: {'status': 'pending_production'},
+            ),
+          ),
+          StatCard(
+            title: l.dashStatActiveTrailers,
+            value: '${data.activeTrailers}',
+            icon: Icons.precision_manufacturing,
+            color: AppColors.statusInProduction,
+            onTap: () => context.goNamed(
+              RouteNames.trailerList,
+              queryParameters: {'status': 'in_production'},
+            ),
+          ),
+          StatCard(
+            title: l.dashStatHotTrailers,
+            value: '${data.hotTrailers}',
+            icon: Icons.local_fire_department,
+            color: AppColors.error,
+            onTap: () => context.goNamed(
+              RouteNames.trailerList,
+              queryParameters: {'hot': 'true'},
+            ),
+            badge: data.hotTrailers > 0
+                ? Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(l.dashStatHotBadge,
+                        style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700)),
+                  )
+                : null,
+          ),
+          StatCard(
+            title: l.dashStatStalledSteps,
+            value: '${data.stalledSteps}',
+            icon: Icons.warning_amber,
+            color: AppColors.warning,
+            onTap: () => context.goNamed(
+              RouteNames.productionQueue,
+              queryParameters: {'filter': 'stalled'},
+            ),
+            badge: data.stalledSteps > 0
+                ? Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.warning,
+                    ),
+                  )
+                : null,
+          ),
+          StatCard(
+            title: l.dashStatCompletedThisWeek,
+            value: '${data.weeklyCompleted}',
+            icon: Icons.check_circle_outline,
+            color: AppColors.statusDelivered,
+            onTap: () {
+              final now = DateTime.now().toUtc();
+              final daysBack = now.weekday % 7;
+              final sunday =
+                  DateTime.utc(now.year, now.month, now.day - daysBack);
+              context.goNamed(
+                RouteNames.trailerList,
+                queryParameters: {
+                  'status': 'delivered',
+                  'completedSince': sunday.toIso8601String(),
+                },
+              );
+            },
+          ),
+          StatCard(
+            title: l.dashStatQcFailRate,
+            value: '${data.qcFailRate.toStringAsFixed(1)}%',
+            icon: Icons.analytics_outlined,
+            color: data.qcFailRate > 15
+                ? AppColors.error
+                : AppColors.navy,
+            onTap: () => context.goNamed(RouteNames.qcFailed),
+          ),
+          StatCard(
+            title: 'Archived',
+            value: '${data.archivedTotal}',
+            icon: Icons.inventory_2_outlined,
+            color: AppColors.disabled,
+            onTap: () => context.goNamed(
+              RouteNames.trailerList,
+              queryParameters: {'status': 'delivered'},
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
