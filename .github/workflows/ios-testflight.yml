@@ -155,11 +155,41 @@ jobs:
         run: |
           IPA_PATH=$(ls build/ios/ipa/*.ipa | head -n 1)
           echo "Uploading $IPA_PATH"
+
+          # altool exits 0 even when it prints fatal "ERROR:" lines for
+          # things like a missing Apple Developer agreement or a bad API
+          # key — Apple has shipped this quirk for years. Without extra
+          # checks the workflow goes green, the IPA artifact uploads
+          # cleanly to GitHub, and nothing ever shows up on App Store
+          # Connect / TestFlight. Capture stderr+stdout, tee it back to
+          # the runner log so we can still see progress, then grep for
+          # any line altool considers fatal and exit non-zero so the
+          # step actually fails.
+          set +e
           xcrun altool --upload-app \
             -f "$IPA_PATH" \
             -t ios \
+            --output-format normal \
             --apiKey "$API_KEY_ID" \
-            --apiIssuer "$API_ISSUER_ID"
+            --apiIssuer "$API_ISSUER_ID" 2>&1 | tee /tmp/altool.log
+          ALTOOL_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if grep -qE "^[0-9: -]*ERROR:|UPLOAD FAILED|Apple's web service operation was not successful" /tmp/altool.log; then
+            echo "::error::altool reported an error — failing the step (exit was $ALTOOL_EXIT)"
+            grep -E "ERROR:|UPLOAD FAILED|Apple's web service" /tmp/altool.log || true
+            exit 1
+          fi
+
+          if [ "$ALTOOL_EXIT" -ne 0 ]; then
+            echo "::error::altool exited with $ALTOOL_EXIT"
+            exit "$ALTOOL_EXIT"
+          fi
+
+          # Success path leaves either "No errors uploading" or a Delivery
+          # UUID line — surface either as a positive confirmation so the
+          # next operator knows the build really landed.
+          grep -E "Delivery UUID|No errors uploading|UPLOAD SUCCEEDED" /tmp/altool.log || true
 
       - name: Upload IPA as workflow artifact
         if: always()
