@@ -45,11 +45,34 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<TrailersViewModel>().load(
-          status: widget.initialStatus,
-          hotOnly: widget.initialHotOnly,
-          completedSince: widget.initialCompletedSince,
-        );
+    final cubit = context.read<TrailersViewModel>();
+    final state = cubit.state;
+    // Tapping a card pushes the trailer detail onto the root navigator; a
+    // back-nav from there typically preserves this screen's State, but
+    // certain go_router rebuild paths and bottom-nav round-trips can still
+    // re-instantiate it. Without this guard, every fresh mount of the list
+    // would call .load() and erase the chip-set filters the user had on.
+    //
+    // Logic:
+    //   • when opened from a dashboard deep link (initialStatus / initialHotOnly
+    //     / initialCompletedSince present), always load to apply that intent.
+    //   • otherwise only load when the cubit hasn't loaded yet — a back-nav
+    //     re-mount finds the existing TrailersLoaded state and leaves it alone.
+    final hasDeepLink = widget.initialStatus != null ||
+        widget.initialHotOnly ||
+        widget.initialCompletedSince != null;
+    final alreadyLoaded = state is TrailersLoaded;
+    if (hasDeepLink || !alreadyLoaded) {
+      cubit.load(
+        status: widget.initialStatus,
+        hotOnly: widget.initialHotOnly,
+        completedSince: widget.initialCompletedSince,
+      );
+    } else if (state.search != null && state.search!.isNotEmpty) {
+      // Sync the search input with what the cubit already knows about so a
+      // restored list shows the active query in the text field.
+      _searchController.text = state.search!;
+    }
     _scrollController.addListener(_onScroll);
     _loadLocations();
   }

@@ -3,10 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/websocket/ws_client.dart';
 import '../../../data/models/queue_item.dart';
 import '../../../data/models/department.dart';
-import '../../../domain/repositories/production_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/production_viewmodel.dart';
@@ -17,7 +15,7 @@ import 'step_completion_dialog.dart';
 
 /// Department production queue — primary worker interface.
 /// Workers see their department's queue. Managers get a department selector.
-class QueueScreen extends StatelessWidget {
+class QueueScreen extends StatefulWidget {
   /// When true the queue opens with the "Stalled only" filter applied —
   /// used by the dashboard "Stalled Steps" deep link (`?filter=stalled`).
   final bool initialStalledOnly;
@@ -25,30 +23,41 @@ class QueueScreen extends StatelessWidget {
   const QueueScreen({super.key, this.initialStalledOnly = false});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (ctx) {
-        final cubit = ProductionViewModel(
-          repository: ctx.read<ProductionRepository>(),
-          ws: ctx.read<WsClient>(),
-        );
-        final authState = ctx.read<AuthViewModel>().state;
-        if (authState is Authenticated) {
-          final user = authState.user;
-          final isManager = user.isManager;
-          final deptId = user.departmentId;
-          cubit.load(
-            deptId,
-            isManager: isManager,
-            allowedDepartmentIds: user.allDepartmentIds,
-            stalledOnly: initialStalledOnly,
-          );
-        }
-        return cubit;
-      },
-      child: const _QueueView(),
-    );
+  State<QueueScreen> createState() => _QueueScreenState();
+}
+
+class _QueueScreenState extends State<QueueScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // The cubit is provided at app level so its filter state outlives any
+    // re-mount of this screen (tap a card -> root nav push -> back). We only
+    // trigger an initial load when there's no data yet, or when the screen
+    // was opened from a deep link that wants to force a specific filter.
+    // Without this guard a back-nav re-instantiation would smash the user's
+    // chip / search selections every time.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final cubit = context.read<ProductionViewModel>();
+      final state = cubit.state;
+      final hasDeepLink = widget.initialStalledOnly;
+      final alreadyLoaded = state is ProductionQueueLoaded;
+      if (alreadyLoaded && !hasDeepLink) return;
+
+      final authState = context.read<AuthViewModel>().state;
+      if (authState is! Authenticated) return;
+      final user = authState.user;
+      cubit.load(
+        user.departmentId,
+        isManager: user.isManager,
+        allowedDepartmentIds: user.allDepartmentIds,
+        stalledOnly: widget.initialStalledOnly,
+      );
+    });
   }
+
+  @override
+  Widget build(BuildContext context) => const _QueueView();
 }
 
 class _QueueView extends StatelessWidget {

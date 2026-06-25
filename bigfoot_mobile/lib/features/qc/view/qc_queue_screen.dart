@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/websocket/ws_client.dart';
-import '../../../domain/repositories/qc_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/qc_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/ownership_chip.dart';
 
 /// QC Queue — shows all active QC steps grouped by QC department.
-class QcQueueScreen extends StatelessWidget {
+class QcQueueScreen extends StatefulWidget {
   /// When true the queue opens with the "Rework" filter applied — used by the
   /// dashboard "Rework Queue" deep link (`?filter=rework`).
   final bool initialReworkOnly;
@@ -18,16 +16,33 @@ class QcQueueScreen extends StatelessWidget {
   const QcQueueScreen({super.key, this.initialReworkOnly = false});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (ctx) => QcViewModel(
-        repository: ctx.read<QcRepository>(),
-        ws: ctx.read<WsClient>(),
-        reworkOnly: initialReworkOnly,
-      )..load(),
-      child: const _QcQueueView(),
-    );
+  State<QcQueueScreen> createState() => _QcQueueScreenState();
+}
+
+class _QcQueueScreenState extends State<QcQueueScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // QcViewModel is provided at app level so its rework-only / search state
+    // outlives any back-nav re-mount of this screen. We only kick off a load
+    // when there's nothing yet, or when a deep link is asking us to flip the
+    // rework-only filter (which only makes sense to honour on entry).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final cubit = context.read<QcViewModel>();
+      final state = cubit.state;
+      final alreadyLoaded = state is QcLoaded;
+      if (widget.initialReworkOnly) {
+        cubit.setReworkOnly(true);
+        if (!alreadyLoaded) cubit.load();
+      } else if (!alreadyLoaded) {
+        cubit.load();
+      }
+    });
   }
+
+  @override
+  Widget build(BuildContext context) => const _QcQueueView();
 }
 
 class _QcQueueView extends StatelessWidget {

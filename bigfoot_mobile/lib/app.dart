@@ -28,6 +28,8 @@ import 'features/deliveries/viewmodel/deliveries_viewmodel.dart';
 import 'features/notifications/viewmodel/messages_viewmodel.dart';
 import 'features/notifications/viewmodel/notifications_viewmodel.dart';
 import 'features/payroll/viewmodel/payroll_viewmodel.dart';
+import 'features/production/viewmodel/production_viewmodel.dart';
+import 'features/qc/viewmodel/qc_viewmodel.dart';
 import 'features/trailers/viewmodel/trailers_viewmodel.dart';
 
 class BigfootApp extends StatefulWidget {
@@ -49,6 +51,12 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
   late final CustomersViewModel _customersViewModel;
   late final MessagesViewModel _messagesViewModel;
   late final NotificationsViewModel _notificationsViewModel;
+  // Production + QC queues used to live in screen-scoped BlocProviders, which
+  // meant a tap-into-detail + back-nav re-instantiated the screen and lost
+  // any chip-set filters (stalled-only / rework-only / search query). Hoisting
+  // them up here lets the cubit + its filter state outlive the screen widget.
+  late final ProductionViewModel _productionViewModel;
+  late final QcViewModel _qcViewModel;
 
   late final DepartmentQueueRealtimeCubit _departmentQueueRealtimeCubit;
   late final TrailerDetailRealtimeCubit _trailerDetailRealtimeCubit;
@@ -114,6 +122,17 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
     _adminViewModel = AdminViewModel(repository: _sl.adminRepository);
     _customersViewModel = CustomersViewModel(repository: _sl.customerRepository);
     _messagesViewModel = MessagesViewModel(repository: _sl.messageRepository);
+    // Production + QC cubits are created up-front but NOT auto-loaded — the
+    // screens trigger the first load() once the auth context is known. The
+    // cubit's filter state then survives any subsequent screen unmount.
+    _productionViewModel = ProductionViewModel(
+      repository: _sl.productionRepository,
+      ws: _sl.wsClient,
+    );
+    _qcViewModel = QcViewModel(
+      repository: _sl.qcRepository,
+      ws: _sl.wsClient,
+    );
     _notificationsViewModel = NotificationsViewModel(
       repository: _sl.notificationRepository,
       ws: _sl.wsClient,
@@ -350,6 +369,8 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
           BlocProvider<MessagesViewModel>.value(value: _messagesViewModel),
           BlocProvider<NotificationsViewModel>.value(
               value: _notificationsViewModel),
+          BlocProvider<ProductionViewModel>.value(value: _productionViewModel),
+          BlocProvider<QcViewModel>.value(value: _qcViewModel),
           BlocProvider<DepartmentQueueRealtimeCubit>.value(
               value: _departmentQueueRealtimeCubit),
           BlocProvider<TrailerDetailRealtimeCubit>.value(
