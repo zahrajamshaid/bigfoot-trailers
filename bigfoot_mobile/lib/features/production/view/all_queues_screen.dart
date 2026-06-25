@@ -9,6 +9,8 @@ import '../../../data/models/queue_item.dart';
 import '../../../data/models/department.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/ownership_chip.dart';
+import '../../../shared/widgets/stall_reason_chip.dart';
 
 /// All-departments queue view for production_manager and owner.
 /// Horizontal tabs per department with drag-to-reorder support.
@@ -282,6 +284,7 @@ class _AllQueueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final stallLevel = item.stallLevel;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Card(
@@ -295,39 +298,33 @@ class _AllQueueCard extends StatelessWidget {
               children: [
                 Container(
                   width: 5,
-                  color: item.isHot ? AppColors.error : AppColors.navy,
+                  color: item.isHot || stallLevel >= 2
+                      ? AppColors.error
+                      : stallLevel == 1
+                          ? AppColors.warning
+                          : AppColors.navy,
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     child: Row(
                       children: [
-                        // Position
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: AppColors.navy.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '#${item.queuePosition}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.navy,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // SO + model
+                        // SO + model + ownership + reason chips.
+                        //
+                        // The numeric queue position circle was dropped — on
+                        // the manager all-queues view the drag handle on the
+                        // right already conveys "this is the ordering" and
+                        // the integer offered no actionable information.
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Row(
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     item.soNumber,
@@ -337,48 +334,77 @@ class _AllQueueCard extends StatelessWidget {
                                       color: AppColors.navy,
                                     ),
                                   ),
-                                  if (item.isHot) ...[
-                                    const SizedBox(width: 6),
-                                    const Text('🔥', style: TextStyle(fontSize: 14)),
-                                  ],
-                                  if (item.isRework) ...[
-                                    const SizedBox(width: 6),
+                                  if (item.series != null)
+                                    SeriesBadge(series: item.series!),
+                                  OwnershipChip.fromSignals(
+                                    customerName: item.customerName,
+                                    isStockBuild: item.isStockBuild,
+                                    soldToName: item.soldToName,
+                                    dense: true,
+                                  ),
+                                  if (item.isHot || stallLevel >= 1)
+                                    StallReasonChip(
+                                      isHot: item.isHot,
+                                      stallLevel: stallLevel,
+                                      hoursInQueue:
+                                          item.calculatedHoursInQueue,
+                                      dense: true,
+                                    ),
+                                  if (item.isRework)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: AppColors.warning.withValues(alpha: 0.15),
+                                        color: AppColors.warning
+                                            .withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                            color: AppColors.warning
+                                                .withValues(alpha: 0.4)),
                                       ),
-                                      child: Text(
-                                        AppLocalizations.of(context)
-                                            .queueReworkBadge(item.reworkCount),
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.warning,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.replay,
+                                              size: 11,
+                                              color: AppColors.warning),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            AppLocalizations.of(context)
+                                                .queueReworkBadge(
+                                                    item.reworkCount),
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.warning,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
                                 ],
                               ),
-                              if (item.modelName != null || item.customerName != null)
-                                Text(
-                                  [item.modelName, item.customerName]
-                                      .where((s) => s != null && s.isNotEmpty)
-                                      .join(' • '),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              if (item.modelName != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    item.modelName!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                             ],
                           ),
                         ),
-                        if (item.series != null)
-                          SeriesBadge(series: item.series!),
                         const SizedBox(width: 8),
-                        // Drag handle
-                        const Icon(Icons.drag_handle, color: Colors.grey, size: 20),
+                        // Drag handle — primary affordance for manager
+                        // ordering on this view.
+                        const Icon(Icons.drag_handle,
+                            color: Colors.grey, size: 20),
                       ],
                     ),
                   ),

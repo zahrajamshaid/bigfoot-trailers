@@ -7,6 +7,7 @@ import '../../../domain/repositories/qc_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/qc_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/ownership_chip.dart';
 
 /// QC Queue — shows all active QC steps grouped by QC department.
 class QcQueueScreen extends StatelessWidget {
@@ -421,6 +422,12 @@ class _QcQueueCard extends StatelessWidget {
                                       ),
                                     ),
                                     _StageChip(code: item.departmentCode),
+                                    OwnershipChip.fromSignals(
+                                      customerName: item.customerName,
+                                      isStockBuild: item.isStockBuild,
+                                      soldToName: item.soldToName,
+                                      dense: true,
+                                    ),
                                     if (isWaiting) const _WaitingChip(),
                                     if (item.isRework)
                                       Container(

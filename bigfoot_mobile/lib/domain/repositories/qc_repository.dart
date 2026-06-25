@@ -13,6 +13,11 @@ class QcQueueItem {
   final bool isRework;
   final int reworkCount;
   final String? customerName;
+  /// Mirrors [QueueItem.isStockBuild] — lets the QC tile show the same
+  /// ownership badge as the production queue (customer / stock / sold-stock)
+  /// instead of leaving the inspector to guess from the customer field alone.
+  final bool isStockBuild;
+  final String? soldToName;
   final DateTime? becameActiveAt;
   final String status; // 'active' | 'waiting'
   final String? currentStageCode;
@@ -30,6 +35,8 @@ class QcQueueItem {
     this.isRework = false,
     this.reworkCount = 0,
     this.customerName,
+    this.isStockBuild = false,
+    this.soldToName,
     this.becameActiveAt,
     this.status = 'active',
     this.currentStageCode,
@@ -69,6 +76,8 @@ class QcQueueItem {
       isRework: _toBool(json['isRework'] ?? json['is_rework']),
       reworkCount: _toInt(json['reworkCount'] ?? json['rework_count']),
       customerName: json['customerName'] as String? ?? json['customer_name'] as String?,
+      isStockBuild: _toBool(json['isStockBuild'] ?? json['is_stock_build']),
+      soldToName: json['soldToName'] as String? ?? json['sold_to_name'] as String?,
       becameActiveAt: json['becameActiveAt'] != null
           ? DateTime.tryParse(json['becameActiveAt'].toString())
           : json['became_active_at'] != null

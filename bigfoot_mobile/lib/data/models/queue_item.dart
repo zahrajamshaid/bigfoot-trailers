@@ -15,6 +15,15 @@ class QueueItem {
   @JsonKey(name: 'sizeFt')
   final String? size;
   final String? customerName;
+  /// True when the trailer was created without a customer attached. Combined
+  /// with [soldToName] this lets the queue tile render an unambiguous
+  /// ownership badge — customer order / stock build / sold-stock — without
+  /// the worker having to open the trailer detail.
+  final bool isStockBuild;
+  /// Free-text buyer name captured when a stock build is marked sold. Only
+  /// set when [isStockBuild] is true and the sale-status moved off
+  /// `available`. Always null for customer-order trailers.
+  final String? soldToName;
   final String? optionsNotes;
   final String? qbSoPdfUrl;
   final String? qbSoPdfStorageKey;
@@ -41,6 +50,8 @@ class QueueItem {
     this.color,
     this.size,
     this.customerName,
+    this.isStockBuild = false,
+    this.soldToName,
     this.optionsNotes,
     this.qbSoPdfUrl,
     this.qbSoPdfStorageKey,

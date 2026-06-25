@@ -11,6 +11,8 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/production_viewmodel.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/ownership_chip.dart';
+import '../../../shared/widgets/stall_reason_chip.dart';
 import 'step_completion_dialog.dart';
 
 /// Department production queue — primary worker interface.
@@ -402,58 +404,47 @@ class _QueueCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Row 1: Position + SO# + badges
-                          Row(
+                          // Row 1: SO# + series badge + ownership + reason
+                          //
+                          // The internal `#queuePosition` circle was
+                          // dropped — workers don't act on the numeric
+                          // index, only on "is this my next one to grab"
+                          // which is already conveyed by the amber border
+                          // on the first card. The badges that DO matter
+                          // (ownership + stall reason) get the freed space.
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              // Queue position
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: isFirst
-                                      ? AppColors.amber
-                                      : AppColors.navy.withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '#${item.queuePosition}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: isFirst
-                                        ? AppColors.white
-                                        : AppColors.navy,
-                                  ),
+                              Text(
+                                item.soNumber,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.navy,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              // SO number
-                              Expanded(
-                                child: Text(
-                                  item.soNumber,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.navy,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ),
-                              if (item.isHot) ...[
-                                const Text(
-                                  '🔥',
-                                  style: TextStyle(fontSize: 20),
-                                ),
-                                const SizedBox(width: 4),
-                              ],
                               if (item.series != null)
                                 SeriesBadge(series: item.series!),
+                              OwnershipChip.fromSignals(
+                                customerName: item.customerName,
+                                isStockBuild: item.isStockBuild,
+                                soldToName: item.soldToName,
+                              ),
+                              if (item.isHot || stallLevel >= 1)
+                                StallReasonChip(
+                                  isHot: item.isHot,
+                                  stallLevel: stallLevel,
+                                  hoursInQueue:
+                                      item.calculatedHoursInQueue,
+                                ),
                             ],
                           ),
                           const SizedBox(height: 8),
 
-                          // Row 2: Model + customer
+                          // Row 2: Model name
                           if (item.modelName != null)
                             Text(
                               item.modelName!,
@@ -461,18 +452,6 @@ class _QueueCard extends StatelessWidget {
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 color: Colors.grey.shade700,
-                              ),
-                            ),
-                          if (item.customerName != null &&
-                              item.customerName!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                item.customerName!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                ),
                               ),
                             ),
 

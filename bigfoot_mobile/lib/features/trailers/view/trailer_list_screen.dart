@@ -11,6 +11,7 @@ import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/trailers_viewmodel.dart';
 import '../../../shared/widgets/hover_tap.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/ownership_chip.dart';
 
 class TrailerListScreen extends StatefulWidget {
   /// Optional status filter applied on first load — set by dashboard deep
@@ -360,9 +361,16 @@ class _TrailerCard extends StatelessWidget {
     final t = trailer;
     final series = t.trailerModel?.series ?? '';
     final modelName = t.trailerModel?.displayName ?? '';
-    final customerName = t.customer?.name ??
-        (t.soldToName as String?) ??
-        (t.isStockBuild ? l.trailersStockBuild : '');
+    // Signals for the OwnershipChip — render the customer's real name when
+    // there's one, otherwise differentiate "STOCK" vs "SOLD STOCK".
+    final customerNameRaw = (t.customer?.name as String?)?.trim();
+    final soldToNameRaw = (t.soldToName as String?)?.trim();
+    final isStock = (t.isStockBuild as bool?) ?? false;
+    // Legacy "customerName" text used by the row-3 details line below; we
+    // keep this for the colour/size pairing only, not for ownership signal.
+    final customerName = customerNameRaw ??
+        soldToNameRaw ??
+        (isStock ? l.trailersStockBuild : '');
 
     // A customer trailer is sold by definition; otherwise use the stored flag.
     final saleStatus = t.customer != null
@@ -450,21 +458,28 @@ class _TrailerCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
 
-              // Row 2: Model + sale-status badge + production status badge
-              Row(
+              // Row 2: Model + ownership + sale-status + production-status
+              //
+              // OwnershipChip lives in this top row so the customer-vs-stock
+              // distinction is the second thing the eye lands on after the
+              // SO number — workers no longer need to scan for it.
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (modelName.isNotEmpty) ...[
-                    Expanded(
-                      child: Text(modelName,
-                          style: const TextStyle(
-                              fontSize: 13, color: AppColors.disabled)),
-                    ),
-                  ] else
-                    const Spacer(),
-                  if (saleStatus != 'available') ...[
+                  if (modelName.isNotEmpty)
+                    Text(modelName,
+                        style: const TextStyle(
+                            fontSize: 13, color: AppColors.disabled)),
+                  OwnershipChip.fromSignals(
+                    customerName: customerNameRaw,
+                    isStockBuild: isStock,
+                    soldToName: soldToNameRaw,
+                    dense: true,
+                  ),
+                  if (saleStatus != 'available' && customerNameRaw == null)
                     SaleStatusBadge(saleStatus: saleStatus),
-                    const SizedBox(width: 6),
-                  ],
                   StatusBadge(status: t.status),
                 ],
               ),
