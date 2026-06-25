@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/queue_item.dart';
 import '../../../data/models/department.dart';
+import '../../../domain/repositories/trailer_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/production_viewmodel.dart';
@@ -47,9 +48,16 @@ class _QueueScreenState extends State<QueueScreen> {
       final authState = context.read<AuthViewModel>().state;
       if (authState is! Authenticated) return;
       final user = authState.user;
+      // Production-admin tier (owner / office / production_manager /
+      // qc_inspector) gets the multi-dept fetch path: every department's
+      // queue is loaded and a selector lets them switch between any of
+      // them. Workers still get just their own primary + extras. Without
+      // this, QC fell into the worker branch and hit "no department is
+      // assigned to this account" because qc_inspector accounts have no
+      // primary production department.
       cubit.load(
         user.departmentId,
-        isManager: user.isManager,
+        isManager: user.isProductionAdmin,
         allowedDepartmentIds: user.allDepartmentIds,
         stalledOnly: widget.initialStalledOnly,
       );
@@ -253,13 +261,14 @@ class _LoadedQueue extends StatelessWidget {
 
   void _showReverseDialog(BuildContext context, QueueItem item) {
     final l = AppLocalizations.of(context);
-    // Capture the cubit + scaffold messenger off the *queue screen's*
-    // context before opening the dialog. The dialog's builder context dies
-    // the moment Navigator.pop fires, and previously this code called
-    // `context.read<ProductionViewModel>()` AFTER the pop — Flutter throws
-    // "Looking up a deactivated widget's ancestor is unsafe" and the app
-    // dies right when the user taps Undo.
+    // Capture everything that needs a context off the *queue screen's*
+    // context before the dialog opens. The dialog's own builder context is
+    // disposed the moment Navigator.pop fires — calling context.read or
+    // ScaffoldMessenger.of on it after pop throws "Looking up a
+    // deactivated widget's ancestor is unsafe", which used to crash the
+    // app the instant the user tapped Undo.
     final cubit = context.read<ProductionViewModel>();
+    final trailerRepo = context.read<TrailerRepository>();
     final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
@@ -290,7 +299,31 @@ class _LoadedQueue extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
-                await cubit.reverseStep(item.stepId);
+                // Queue items always reference the trailer's *active* step,
+                // but POST /production/steps/:id/reverse only operates on
+                // completed steps (the active one has nothing to roll back
+                // to). To send the trailer "back to its previous
+                // department" we need to find the most recently completed
+                // step on the same trailer and reverse THAT — the prior
+                // step becomes active again and the current active drops
+                // back to waiting.
+                final steps = await trailerRepo.getSteps(item.trailerId);
+                final completed = steps
+                    .where((s) => s.status == 'complete')
+                    .toList()
+                  ..sort((a, b) => b.stepOrder.compareTo(a.stepOrder));
+                if (completed.isEmpty) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Nothing to undo — this trailer has not '
+                        'completed a step yet.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                await cubit.reverseStep(completed.first.id);
                 messenger.showSnackBar(
                   SnackBar(content: Text(l.queueReversed)),
                 );
