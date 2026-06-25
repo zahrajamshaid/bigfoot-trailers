@@ -249,12 +249,17 @@ class _LoadedQueue extends StatelessWidget {
 
   void _showReverseDialog(BuildContext context, QueueItem item) {
     final l = AppLocalizations.of(context);
-    // Only allow reversal within 10 minutes of becoming active
-    // (We check if item was recently completed — but since it's still in queue,
-    //  this is for items the user just saw complete. Reversal is on the cubit side.)
+    // Capture the cubit + scaffold messenger off the *queue screen's*
+    // context before opening the dialog. The dialog's builder context dies
+    // the moment Navigator.pop fires, and previously this code called
+    // `context.read<ProductionViewModel>()` AFTER the pop — Flutter throws
+    // "Looking up a deactivated widget's ancestor is unsafe" and the app
+    // dies right when the user taps Undo.
+    final cubit = context.read<ProductionViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(l.queueUndoTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -273,28 +278,22 @@ class _LoadedQueue extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text(l.commonCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               try {
-                await context.read<ProductionViewModel>().reverseStep(
-                  item.stepId,
+                await cubit.reverseStep(item.stepId);
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l.queueReversed)),
                 );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.queueReversed)),
-                  );
-                }
               } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.queueReverseFailed('$e'))),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l.queueReverseFailed('$e'))),
+                );
               }
             },
             child: Text(l.commonUndo),
