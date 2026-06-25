@@ -33,7 +33,14 @@ export class UsersController {
   // GET /users — owner and production_manager only
   // ---------------------------------------------------------------------------
   @Get()
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // QC inspectors can list users (needed for queue ownership / dept assignment
+  // context). Office is full admin.
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'List all users with pagination and filters' })
   @ApiResponse({ status: 200, description: 'Paginated user list' })
   @ApiResponse({ status: 403, description: 'Forbidden — insufficient role' })
@@ -45,7 +52,8 @@ export class UsersController {
   // POST /users — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post()
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Office is full admin and can create users. QC stays read-only on users.
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new user (owner or production manager)' })
   @ApiResponse({ status: 201, description: 'User created' })
@@ -64,7 +72,12 @@ export class UsersController {
   // automatically without a mobile rebuild.
   // ---------------------------------------------------------------------------
   @Get('roles')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'List every user role with a display label' })
   @ApiResponse({ status: 200, description: 'Array of { value, label } objects' })
   async listRoles() {
@@ -136,7 +149,8 @@ export class UsersController {
   // DELETE /users/:id — soft-delete, owner only
   // ---------------------------------------------------------------------------
   @Delete(':id')
-  @Roles(UserRole.OWNER)
+  // Soft-delete is full-admin only — Office gets it now, QC does not.
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Deactivate a user (soft-delete, owner only)' })
   @ApiParam({ name: 'id', type: 'number' })

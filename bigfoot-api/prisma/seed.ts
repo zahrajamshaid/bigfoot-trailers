@@ -1106,6 +1106,15 @@ async function main() {
       role: UserRole.office,
       primaryDepartmentId: null,
     },
+    // Second office account — Office was promoted to full admin (#18),
+    // so we want two seeded accounts to cover the "two people in admin
+    // payroll" workflow during local dev.
+    {
+      email: 'office2@bigfoot.dev',
+      fullName: 'Dev Office #2',
+      role: UserRole.office,
+      primaryDepartmentId: null,
+    },
     {
       email: 'purchasing@bigfoot.dev',
       fullName: 'Dev Purchasing',

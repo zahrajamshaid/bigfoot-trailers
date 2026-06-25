@@ -53,7 +53,9 @@ export class PayrollController {
   // POST /payroll/point-values — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('point-values')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Payroll is full-admin + production_manager — Office is now full admin
+  // and gets the same payroll access as owner. QC is excluded (financial).
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a point value entry' })
   @ApiResponse({ status: 201, description: 'Point value created' })
@@ -66,7 +68,9 @@ export class PayrollController {
   // PATCH /payroll/point-values/:id — owner, production_manager
   // ---------------------------------------------------------------------------
   @Patch('point-values/:id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Payroll is full-admin + production_manager — Office is now full admin
+  // and gets the same payroll access as owner. QC is excluded (financial).
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Update a point value entry' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Point value updated' })
@@ -92,7 +96,9 @@ export class PayrollController {
   // POST /payroll/dollar-rates — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('dollar-rates')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Payroll is full-admin + production_manager — Office is now full admin
+  // and gets the same payroll access as owner. QC is excluded (financial).
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a dollar-per-point rate entry' })
   @ApiResponse({ status: 201, description: 'Dollar rate created' })
@@ -105,7 +111,9 @@ export class PayrollController {
   // DELETE /payroll/dollar-rates/:id — owner + production_manager
   // ---------------------------------------------------------------------------
   @Delete('dollar-rates/:id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Payroll is full-admin + production_manager — Office is now full admin
+  // and gets the same payroll access as owner. QC is excluded (financial).
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a dollar-per-point rate entry' })
   @ApiParam({ name: 'id', type: 'number', description: 'Dollar rate id' })
@@ -119,7 +127,9 @@ export class PayrollController {
   // GET /payroll/records
   // ---------------------------------------------------------------------------
   @Get('records')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Payroll is full-admin + production_manager — Office is now full admin
+  // and gets the same payroll access as owner. QC is excluded (financial).
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Get payroll records with filters' })
   @ApiResponse({ status: 200, description: 'List of payroll records' })
   async findPayrollRecords(@Query() query: QueryPayrollRecordsDto) {
@@ -130,7 +140,9 @@ export class PayrollController {
   // GET /payroll/records/week/:week_start
   // ---------------------------------------------------------------------------
   @Get('records/week/:week_start')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Payroll is full-admin + production_manager — Office is now full admin
+  // and gets the same payroll access as owner. QC is excluded (financial).
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Full weekly payroll report for a specific Sunday' })
   @ApiParam({
     name: 'week_start',
@@ -147,7 +159,9 @@ export class PayrollController {
   // POST /payroll/records/lock/:week_start — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('records/lock/:week_start')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Payroll is full-admin + production_manager — Office is now full admin
+  // and gets the same payroll access as owner. QC is excluded (financial).
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Lock a week's payroll" })

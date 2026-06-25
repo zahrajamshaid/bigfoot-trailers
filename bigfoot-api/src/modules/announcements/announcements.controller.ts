@@ -64,7 +64,12 @@ export class AnnouncementsController {
   // POST /admin/announcements — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('admin/announcements')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Publish a new announcement to every user.' })
   @ApiResponse({ status: 201, description: 'Announcement created' })
@@ -79,7 +84,12 @@ export class AnnouncementsController {
   // GET /admin/announcements — owner + production_manager
   // ---------------------------------------------------------------------------
   @Get('admin/announcements')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({
     summary:
       'List every announcement with ack counts so the admin screen can show "X of Y acknowledged".',
@@ -93,7 +103,12 @@ export class AnnouncementsController {
   // PATCH /admin/announcements/:id — owner + production_manager
   // ---------------------------------------------------------------------------
   @Patch('admin/announcements/:id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'Edit / deactivate / re-expire an announcement.' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Announcement updated' })
@@ -109,7 +124,12 @@ export class AnnouncementsController {
   // DELETE /admin/announcements/:id — owner + production_manager
   // ---------------------------------------------------------------------------
   @Delete('admin/announcements/:id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:

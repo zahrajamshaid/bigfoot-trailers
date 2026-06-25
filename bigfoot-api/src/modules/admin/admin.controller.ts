@@ -49,7 +49,16 @@ export class AdminController {
   // GET /admin/workflow-templates
   // ---------------------------------------------------------------------------
   @Get('workflow-templates')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // QC inspectors are "production admins": same read access as
+  // production_manager across the production-data surface (queues, models,
+  // workflows, dept catalog, Health Check). Office is the new full admin
+  // and gets everything OWNER does.
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'List all workflow templates by series' })
   @ApiResponse({ status: 200, description: 'Workflow templates grouped by series' })
   async getWorkflowTemplates() {
@@ -80,7 +89,12 @@ export class AdminController {
   // GET /admin/departments
   // ---------------------------------------------------------------------------
   @Get('departments')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'List all departments' })
   @ApiResponse({ status: 200, description: 'All departments with config' })
   async getDepartments() {
@@ -91,7 +105,8 @@ export class AdminController {
   // PATCH /admin/departments/:id
   // ---------------------------------------------------------------------------
   @Patch('departments/:id')
-  @Roles(UserRole.OWNER)
+  // Stall-threshold config is admin-level — office gets it, QC does not.
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiOperation({ summary: 'Update department stall threshold' })
   @ApiParam({ name: 'id', type: Number })
@@ -114,7 +129,7 @@ export class AdminController {
   // GET /admin/audit-log
   // ---------------------------------------------------------------------------
   @Get('audit-log')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
   @ApiOperation({ summary: 'Query the append-only audit log' })
   @ApiResponse({ status: 200, description: 'Paginated audit log entries' })
   async queryAuditLog(@Query() query: QueryAuditLogDto) {
@@ -125,7 +140,7 @@ export class AdminController {
   // GET /admin/audit-log/:entity_type/:id
   // ---------------------------------------------------------------------------
   @Get('audit-log/:entityType/:id')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
   @ApiOperation({ summary: 'Full audit history for a specific entity' })
   @ApiParam({ name: 'entityType', type: String })
   @ApiParam({ name: 'id', type: Number })
@@ -146,7 +161,9 @@ export class AdminController {
   // GET /admin/reports/weekly-production
   // ---------------------------------------------------------------------------
   @Get('reports/weekly-production')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Worker payroll report — office (full admin) + production_manager only.
+  // QC inspectors are excluded since this is financial data.
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Get weekly production report data' })
   @ApiResponse({ status: 200, description: 'Weekly production summary' })
   async getWeeklyProductionReport(@Query() query: WeeklyReportQueryDto) {
@@ -157,7 +174,7 @@ export class AdminController {
   // POST /admin/reports/weekly-production/send
   // ---------------------------------------------------------------------------
   @Post('reports/weekly-production/send')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Lock and send weekly production report' })
@@ -179,7 +196,8 @@ export class AdminController {
   // value. Owner + production_manager only.
   // ---------------------------------------------------------------------------
   @Get('production-costs')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Cost matrix is financial config — office (full admin) sees it, QC does not.
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Production cost matrix (model × department → $)' })
   @ApiResponse({ status: 200, description: 'Cost matrix grid' })
   async getProductionCostMatrix() {
@@ -194,7 +212,7 @@ export class AdminController {
   // effective-dated row so prior values stay intact for historical reports.
   // ---------------------------------------------------------------------------
   @Post('production-costs')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Upsert a stage cost cell (model × department)' })
   @ApiResponse({ status: 200, description: 'Cell upserted' })
@@ -219,7 +237,14 @@ export class AdminController {
   // renamed to "Health Check".
   // ---------------------------------------------------------------------------
   @Get('production-report')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  // Health Check is the production-admin dashboard — full admin (owner/office)
+  // and production_manager + QC inspectors all see it.
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({
     summary: 'Health Check: throughput, sales, dept board + WIP cost',
   })

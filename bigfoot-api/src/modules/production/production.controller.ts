@@ -58,7 +58,14 @@ export class ProductionController {
   // GET /production/queue/all — production_manager, owner
   // ---------------------------------------------------------------------------
   @Get('queue/all')
-  @Roles(UserRole.PRODUCTION_MANAGER, UserRole.OWNER)
+  // QC inspectors are production admins — they need the all-queues view
+  // to triage trailers across departments. Office is full admin.
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'Get all department queues' })
   @ApiResponse({ status: 200, description: 'All queue items grouped by department' })
   async getAllQueues() {

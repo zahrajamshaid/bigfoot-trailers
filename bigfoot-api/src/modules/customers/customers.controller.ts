@@ -78,7 +78,8 @@ export class CustomersController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.OWNER)
+  // Customer delete (with cascade) is full-admin — Office now has it.
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
   @ApiOperation({
     summary:
       'Delete customer. Fails with 400 if trailers reference this customer ' +
