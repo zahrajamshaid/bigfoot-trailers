@@ -174,6 +174,22 @@ export class TrailersService {
         ],
       });
     }
+    // Independent current vs. intended-stock filters. Unlike `locationId`
+    // (which OR's across both relations), these AND together — picking
+    // `currentLocationCode=MULBERRY` and `intendedStockLocationCode=
+    // TAPPAHANNOCK` returns exactly the stock builds at Mulberry that
+    // are bound for VA, which is what the new Mulberry-ready dashboard
+    // tile drills into.
+    if (query.currentLocationCode) {
+      andClauses.push({
+        currentLocation: { code: query.currentLocationCode },
+      });
+    }
+    if (query.intendedStockLocationCode) {
+      andClauses.push({
+        intendedStockLocation: { code: query.intendedStockLocationCode },
+      });
+    }
     if (query.saleStatus) where.saleStatus = query.saleStatus as TrailerSaleStatus;
     // Delivered trailers are history — they belong in Completed Deliveries,
     // not the active inventory list. Hide them by default so location /
@@ -272,6 +288,62 @@ export class TrailersService {
     }));
 
     return { trailers, total, page, limit };
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /trailers/mulberry-ready-shipping
+  // ---------------------------------------------------------------------------
+  // Powers two dashboard tiles. Counts trailers physically at Mulberry that
+  // are ready_for_delivery, split by what they're waiting on:
+  //   - stockByYard:        stock builds with an intendedStockLocation (the
+  //                         four satellite yards) — these are stack-to-yard
+  //                         loads transport needs to plan.
+  //   - customerPickupsAtMulberry: customer-order trailers (no
+  //                         intendedStockLocation by definition) parked at
+  //                         Mulberry waiting on a factory_pickup.
+  //
+  // Only the four satellite yards (JAX / TAPPAHANNOCK / TAL / ATL) appear
+  // in stockByYard. Anything intended for Mulberry itself (or unset) falls
+  // into the customer-pickup bucket.
+  // ---------------------------------------------------------------------------
+  async getMulberryReadyShipping() {
+    const YARD_CODES = ['JACKSONVILLE', 'TAPPAHANNOCK', 'TALLAHASSEE', 'ATLANTA'];
+
+    const [stockGrouped, customerPickups] = await Promise.all([
+      // Stock builds at Mulberry ready, grouped by intended yard.
+      this.prisma.trailer.findMany({
+        where: {
+          status: TrailerStatus.ready_for_delivery,
+          isStockBuild: true,
+          currentLocation: { code: 'MULBERRY' },
+          intendedStockLocation: { code: { in: YARD_CODES } },
+        },
+        select: { intendedStockLocation: { select: { code: true } } },
+      }),
+      // Customer-order pickups at Mulberry ready (no intendedStockLocation).
+      this.prisma.trailer.count({
+        where: {
+          status: TrailerStatus.ready_for_delivery,
+          isStockBuild: false,
+          currentLocation: { code: 'MULBERRY' },
+        },
+      }),
+    ]);
+
+    const byYard: Record<string, number> = Object.fromEntries(
+      YARD_CODES.map((c) => [c, 0]),
+    );
+    for (const row of stockGrouped) {
+      const code = row.intendedStockLocation?.code;
+      if (code && code in byYard) byYard[code] += 1;
+    }
+    const totalStock = Object.values(byYard).reduce((a, b) => a + b, 0);
+
+    return {
+      stockByYard: byYard,
+      totalStock,
+      customerPickupsAtMulberry: customerPickups,
+    };
   }
 
   // ---------------------------------------------------------------------------

@@ -68,6 +68,29 @@ export class QueryTrailersDto {
   @Type(() => Number)
   locationId?: number;
 
+  @ApiPropertyOptional({
+    description:
+      'Filter by current location code. Matches Location.code (e.g. ' +
+      'MULBERRY, JACKSONVILLE). Independent of locationId and ' +
+      'intendedStockLocationCode — combining the two gives an AND match ' +
+      '("currently at A, destined for B"), which is what the Mulberry-' +
+      'ready-to-ship drilldowns need.',
+  })
+  @IsOptional()
+  @IsString()
+  currentLocationCode?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter by intended stock location code. Matches ' +
+      'Location.code on the trailer.intendedStockLocation relation. Used by ' +
+      'the dashboard tile that lists stock builds at Mulberry waiting to be ' +
+      'shipped to a specific yard.',
+  })
+  @IsOptional()
+  @IsString()
+  intendedStockLocationCode?: string;
+
   @ApiPropertyOptional({ description: 'Filter hot trailers only' })
   @IsOptional()
   @IsBoolean()

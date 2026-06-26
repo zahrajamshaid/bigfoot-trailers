@@ -595,6 +595,12 @@ export class QcService {
       inspectionsToday,
       failRateToday,
       qcFailRate,
+      // Raw 30-day counts so the dashboard tile can render "5.2% · 3 of 58"
+      // alongside the percent. The percent alone hides the sample size —
+      // 100% off 1 inspection means something very different from 100%
+      // off 200 inspections, and operators want both at a glance.
+      qcFailRateInspections: inspections30d,
+      qcFailRateFails: fails30d,
       reworkQueue,
     };
   }

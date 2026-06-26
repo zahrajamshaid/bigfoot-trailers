@@ -50,6 +50,32 @@ export class TrailersController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /trailers/mulberry-ready-shipping
+  //
+  // Powers two dashboard tiles: stock builds at Mulberry waiting to be
+  // stack-shipped to a yard (split by destination), and customer-order
+  // trailers parked at Mulberry waiting on a factory pickup. Same audience
+  // as the existing Ready-for-delivery tile.
+  // ---------------------------------------------------------------------------
+  @Get('mulberry-ready-shipping')
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.TRANSPORT_MANAGER,
+    UserRole.SALES,
+  )
+  @ApiOperation({
+    summary:
+      'Counts of trailers at Mulberry that are ready_for_delivery, split ' +
+      'by destination yard (stock) + customer-pickup total.',
+  })
+  @ApiResponse({ status: 200, description: 'Mulberry ready-to-ship counts' })
+  async getMulberryReadyShipping() {
+    return this.trailersService.getMulberryReadyShipping();
+  }
+
+  // ---------------------------------------------------------------------------
   // POST /trailers — owner + production_manager + sales
   //
   // Sales lands customer orders and needs to drop the SO into production
