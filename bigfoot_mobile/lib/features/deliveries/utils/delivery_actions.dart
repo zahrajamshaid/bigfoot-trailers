@@ -45,6 +45,18 @@ String? deliveryContactPhone(Delivery d) {
   return (customer == null || customer.isEmpty) ? null : customer;
 }
 
+/// Builds an `sms:<phone>?body=<msg>` URI that iOS Messages will accept.
+///
+/// We intentionally hand-roll the query instead of using `Uri(scheme:, path:,
+/// queryParameters: {...})`. `queryParameters` applies `application/x-www-form-
+/// urlencoded` encoding, which turns spaces into `+`. iOS Messages does NOT
+/// decode `+` back to a space — it renders the body verbatim as
+/// "Hi,+this+is+your+...". `Uri.encodeComponent` uses `%20` for spaces, which
+/// iOS handles correctly. Android Messages handles either, so this is the
+/// safe form for both platforms.
+Uri _smsUri(String phone, String body) =>
+    Uri.parse('sms:$phone?body=${Uri.encodeComponent(body)}');
+
 /// Opens the device SMS app addressed to the delivery's contact, pre-filled
 /// with a starter message the driver can edit. Returns `false` when there is
 /// no phone number on file.
@@ -53,12 +65,7 @@ Future<bool> textDeliveryCustomer(Delivery d) async {
   if (phone == null) return false;
   final body =
       'Hi, this is your BigFoot driver for trailer ${d.soNumber}. ';
-  final uri = Uri(
-    scheme: 'sms',
-    path: phone,
-    queryParameters: {'body': body},
-  );
-  return launchUrl(uri);
+  return launchUrl(_smsUri(phone, body));
 }
 
 /// Opens the device SMS app to tell the customer their trailer is ready to be
@@ -69,12 +76,7 @@ Future<bool> textCustomerReadyForPickup(Delivery d) async {
   final body =
       'Hi, your BigFoot trailer ${d.soNumber} is ready for pickup at the '
       'factory. Please contact us to arrange collection.';
-  final uri = Uri(
-    scheme: 'sms',
-    path: phone,
-    queryParameters: {'body': body},
-  );
-  return launchUrl(uri);
+  return launchUrl(_smsUri(phone, body));
 }
 
 /// Whether the delivery has a phone number available to text.

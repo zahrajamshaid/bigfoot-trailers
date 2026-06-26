@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/delivery.dart';
@@ -132,6 +134,20 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
               title: l.deliveryDetailSectionDriver,
               children: [Text(l.deliveryDetailAssigned(d.driverName))],
             ),
+            // Customer contact + balance — surfaced as its own section so a
+            // dispatcher / driver looking at a scheduled delivery can see at
+            // a glance who to call and what's still owed without bouncing to
+            // the trailer detail. Phone is tap-to-call and long-press to
+            // copy; balance reads "Paid in full" when zero so we don't
+            // imply "no info" on prepaid orders.
+            _SectionCard(
+              title: 'Customer',
+              children: [
+                _PhoneRow(phone: deliveryContactPhone(d)),
+                const SizedBox(height: 6),
+                _BalanceRow(amount: d.balanceDue),
+              ],
+            ),
             _SectionCard(
               title: l.deliveryDetailSectionDestination,
               children: [
@@ -163,11 +179,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                 ),
               ],
             ),
-            if ((d.balanceDue ?? 0) > 0)
-              _SectionCard(
-                title: l.deliveryDetailSectionBalance,
-                children: [Text(_money(d.balanceDue))],
-              ),
+            // Balance is now rendered inside the Customer section above,
+            // unconditionally (with "Paid in full" when zero), so the old
+            // standalone Balance card is gone.
             if ((d.pickedUpByName ?? '').isNotEmpty)
               _SectionCard(
                 title: l.deliveryDetailSectionPickedUp,
@@ -207,8 +221,6 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
       ),
     );
   }
-
-  String _money(double? v) => v == null ? '-' : r'$ ' + v.toStringAsFixed(2);
 
   Future<void> _openMaps(Delivery d) async {
     final ok = await openDeliveryInMaps(d);
@@ -561,6 +573,95 @@ class _SectionCard extends StatelessWidget {
           ...children,
         ],
       ),
+    );
+  }
+}
+
+/// Customer phone — tap-to-call, long-press-to-copy. Reads "Not on file"
+/// when neither delivery.contactPhone nor trailer.customer.smsPhone is set.
+class _PhoneRow extends StatelessWidget {
+  final String? phone;
+
+  const _PhoneRow({required this.phone});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = phone?.trim();
+    if (p == null || p.isEmpty) {
+      return Row(
+        children: const [
+          Icon(Icons.phone_outlined,
+              size: 18, color: AppColors.disabled),
+          SizedBox(width: 8),
+          Text('Phone: Not on file',
+              style: TextStyle(color: AppColors.disabled)),
+        ],
+      );
+    }
+    final tel = Uri.parse('tel:$p');
+    return InkWell(
+      onTap: () => launchUrl(tel),
+      onLongPress: () async {
+        await Clipboard.setData(ClipboardData(text: p));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Phone copied')),
+        );
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            const Icon(Icons.phone_outlined, size: 18, color: AppColors.navy),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                p,
+                style: const TextStyle(
+                  color: AppColors.navy,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Amount due — formatted as "$X.XX". Renders "Paid in full" in green
+/// when the balance is zero (or absent) so a prepaid delivery doesn't
+/// look like data is missing.
+class _BalanceRow extends StatelessWidget {
+  final double? amount;
+
+  const _BalanceRow({required this.amount});
+
+  @override
+  Widget build(BuildContext context) {
+    final due = amount ?? 0;
+    final isPaid = due <= 0;
+    return Row(
+      children: [
+        Icon(
+          isPaid ? Icons.check_circle_outline : Icons.account_balance_wallet_outlined,
+          size: 18,
+          color: isPaid ? AppColors.success : AppColors.amber,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          isPaid
+              ? 'Amount due: Paid in full'
+              : 'Amount due: \$${due.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isPaid ? AppColors.success : AppColors.amber,
+          ),
+        ),
+      ],
     );
   }
 }
