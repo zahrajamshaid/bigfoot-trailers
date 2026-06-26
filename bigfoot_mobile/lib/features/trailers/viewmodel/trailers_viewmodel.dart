@@ -42,6 +42,15 @@ class TrailersLoaded extends TrailersState {
   /// ISO 8601 cutoff for the "delivery completed at or after" filter —
   /// used by the dashboard "Completed this week" tile's deep link.
   final String? completedSince;
+  /// Deep-link filters that AND with the cubit-managed chip filters:
+  ///   currentLocationCode      — Location.code the trailer is physically at
+  ///   intendedStockLocationCode — Location.code it's destined for
+  ///   isStockBuild              — true/false/null (null = no constraint)
+  /// Persisted through chip taps so the Mulberry-Ready drill-down survives
+  /// a status / series chip change without the user re-opening it.
+  final String? currentLocationCode;
+  final String? intendedStockLocationCode;
+  final bool? isStockBuild;
 
   const TrailersLoaded({
     required this.trailers,
@@ -57,6 +66,9 @@ class TrailersLoaded extends TrailersState {
     this.hotOnly = false,
     this.isLoadingMore = false,
     this.completedSince,
+    this.currentLocationCode,
+    this.intendedStockLocationCode,
+    this.isStockBuild,
   });
 
   TrailersLoaded copyWith({
@@ -73,6 +85,9 @@ class TrailersLoaded extends TrailersState {
     bool? hotOnly,
     bool? isLoadingMore,
     String? completedSince,
+    String? currentLocationCode,
+    String? intendedStockLocationCode,
+    bool? isStockBuild,
   }) {
     return TrailersLoaded(
       trailers: trailers ?? this.trailers,
@@ -88,6 +103,10 @@ class TrailersLoaded extends TrailersState {
       hotOnly: hotOnly ?? this.hotOnly,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       completedSince: completedSince ?? this.completedSince,
+      currentLocationCode: currentLocationCode ?? this.currentLocationCode,
+      intendedStockLocationCode:
+          intendedStockLocationCode ?? this.intendedStockLocationCode,
+      isStockBuild: isStockBuild ?? this.isStockBuild,
     );
   }
 
@@ -107,6 +126,9 @@ class TrailersLoaded extends TrailersState {
         hotOnly,
         isLoadingMore,
         completedSince,
+        currentLocationCode,
+        intendedStockLocationCode,
+        isStockBuild,
       ];
 }
 
@@ -140,6 +162,9 @@ class TrailersViewModel extends Cubit<TrailersState> {
     String? saleStatus,
     bool hotOnly = false,
     String? completedSince,
+    String? currentLocationCode,
+    String? intendedStockLocationCode,
+    bool? isStockBuild,
   }) async {
     emit(const TrailersLoading());
     try {
@@ -152,6 +177,9 @@ class TrailersViewModel extends Cubit<TrailersState> {
         saleStatus: saleStatus,
         hotOnly: hotOnly,
         completedSince: completedSince,
+        currentLocationCode: currentLocationCode,
+        intendedStockLocationCode: intendedStockLocationCode,
+        isStockBuild: isStockBuild,
       );
       emit(TrailersLoaded(
         trailers: _sortTrailers(result.items),
@@ -166,6 +194,9 @@ class TrailersViewModel extends Cubit<TrailersState> {
         saleStatusFilter: saleStatus,
         hotOnly: hotOnly,
         completedSince: completedSince,
+        currentLocationCode: currentLocationCode,
+        intendedStockLocationCode: intendedStockLocationCode,
+        isStockBuild: isStockBuild,
       ));
     } on ApiException catch (e) {
       emit(TrailersError(e.displayMessage));
@@ -196,6 +227,9 @@ class TrailersViewModel extends Cubit<TrailersState> {
         saleStatus: current.saleStatusFilter,
         hotOnly: current.hotOnly,
         completedSince: current.completedSince,
+        currentLocationCode: current.currentLocationCode,
+        intendedStockLocationCode: current.intendedStockLocationCode,
+        isStockBuild: current.isStockBuild,
       );
       emit(TrailersLoaded(
         trailers: _sortTrailers([...current.trailers, ...result.items]),
@@ -210,6 +244,9 @@ class TrailersViewModel extends Cubit<TrailersState> {
         saleStatusFilter: current.saleStatusFilter,
         hotOnly: current.hotOnly,
         completedSince: current.completedSince,
+        currentLocationCode: current.currentLocationCode,
+        intendedStockLocationCode: current.intendedStockLocationCode,
+        isStockBuild: current.isStockBuild,
       ));
     } catch (_) {
       emit(current.copyWith(isLoadingMore: false));
@@ -227,6 +264,15 @@ class TrailersViewModel extends Cubit<TrailersState> {
         locationId: current is TrailersLoaded ? current.locationFilter : null,
         saleStatus: current is TrailersLoaded ? current.saleStatusFilter : null,
         hotOnly: current is TrailersLoaded ? current.hotOnly : false,
+        completedSince:
+            current is TrailersLoaded ? current.completedSince : null,
+        currentLocationCode:
+            current is TrailersLoaded ? current.currentLocationCode : null,
+        intendedStockLocationCode: current is TrailersLoaded
+            ? current.intendedStockLocationCode
+            : null,
+        isStockBuild:
+            current is TrailersLoaded ? current.isStockBuild : null,
       );
     });
   }
@@ -242,6 +288,13 @@ class TrailersViewModel extends Cubit<TrailersState> {
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
       completedSince:
           current is TrailersLoaded ? current.completedSince : null,
+      currentLocationCode:
+          current is TrailersLoaded ? current.currentLocationCode : null,
+      intendedStockLocationCode: current is TrailersLoaded
+          ? current.intendedStockLocationCode
+          : null,
+      isStockBuild:
+          current is TrailersLoaded ? current.isStockBuild : null,
     );
   }
 
@@ -256,6 +309,13 @@ class TrailersViewModel extends Cubit<TrailersState> {
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
       completedSince:
           current is TrailersLoaded ? current.completedSince : null,
+      currentLocationCode:
+          current is TrailersLoaded ? current.currentLocationCode : null,
+      intendedStockLocationCode: current is TrailersLoaded
+          ? current.intendedStockLocationCode
+          : null,
+      isStockBuild:
+          current is TrailersLoaded ? current.isStockBuild : null,
     );
   }
 
@@ -270,6 +330,13 @@ class TrailersViewModel extends Cubit<TrailersState> {
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
       completedSince:
           current is TrailersLoaded ? current.completedSince : null,
+      currentLocationCode:
+          current is TrailersLoaded ? current.currentLocationCode : null,
+      intendedStockLocationCode: current is TrailersLoaded
+          ? current.intendedStockLocationCode
+          : null,
+      isStockBuild:
+          current is TrailersLoaded ? current.isStockBuild : null,
     );
   }
 
@@ -284,6 +351,13 @@ class TrailersViewModel extends Cubit<TrailersState> {
       hotOnly: current is TrailersLoaded ? current.hotOnly : false,
       completedSince:
           current is TrailersLoaded ? current.completedSince : null,
+      currentLocationCode:
+          current is TrailersLoaded ? current.currentLocationCode : null,
+      intendedStockLocationCode: current is TrailersLoaded
+          ? current.intendedStockLocationCode
+          : null,
+      isStockBuild:
+          current is TrailersLoaded ? current.isStockBuild : null,
     );
   }
 
@@ -299,6 +373,13 @@ class TrailersViewModel extends Cubit<TrailersState> {
       hotOnly: !wasHot,
       completedSince:
           current is TrailersLoaded ? current.completedSince : null,
+      currentLocationCode:
+          current is TrailersLoaded ? current.currentLocationCode : null,
+      intendedStockLocationCode: current is TrailersLoaded
+          ? current.intendedStockLocationCode
+          : null,
+      isStockBuild:
+          current is TrailersLoaded ? current.isStockBuild : null,
     );
   }
 
@@ -336,6 +417,9 @@ class TrailersViewModel extends Cubit<TrailersState> {
           saleStatus: current.saleStatusFilter,
           hotOnly: current.hotOnly,
           completedSince: current.completedSince,
+          currentLocationCode: current.currentLocationCode,
+          intendedStockLocationCode: current.intendedStockLocationCode,
+          isStockBuild: current.isStockBuild,
         );
       }
     }

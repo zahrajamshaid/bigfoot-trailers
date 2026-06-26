@@ -22,12 +22,26 @@ class TrailerListScreen extends StatefulWidget {
   /// When true the list opens with the "Hot Only" filter applied
   /// (`?hot=true` deep link).
   final bool initialHotOnly;
+  /// Independent location-code filters used by the dashboard
+  /// "Mulberry → Yards" drill-down. They AND together — the cubit ships
+  /// them straight through to the backend as currentLocationCode + the
+  /// intendedStockLocationCode query params, which the new API filter
+  /// treats as an AND match (current=MULBERRY AND intended=TAPPAHANNOCK,
+  /// for example).
+  final String? initialCurrentLocationCode;
+  final String? initialIntendedStockLocationCode;
+  /// True/false/null. Used by the "Customer pickups @ Mulberry" tile to
+  /// limit the deep-link to customer trailers (isStockBuild=false).
+  final bool? initialIsStockBuild;
 
   const TrailerListScreen({
     super.key,
     this.initialStatus,
     this.initialHotOnly = false,
     this.initialCompletedSince,
+    this.initialCurrentLocationCode,
+    this.initialIntendedStockLocationCode,
+    this.initialIsStockBuild,
   });
 
   @override
@@ -60,13 +74,19 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
     //     re-mount finds the existing TrailersLoaded state and leaves it alone.
     final hasDeepLink = widget.initialStatus != null ||
         widget.initialHotOnly ||
-        widget.initialCompletedSince != null;
+        widget.initialCompletedSince != null ||
+        widget.initialCurrentLocationCode != null ||
+        widget.initialIntendedStockLocationCode != null ||
+        widget.initialIsStockBuild != null;
     final alreadyLoaded = state is TrailersLoaded;
     if (hasDeepLink || !alreadyLoaded) {
       cubit.load(
         status: widget.initialStatus,
         hotOnly: widget.initialHotOnly,
         completedSince: widget.initialCompletedSince,
+        currentLocationCode: widget.initialCurrentLocationCode,
+        intendedStockLocationCode: widget.initialIntendedStockLocationCode,
+        isStockBuild: widget.initialIsStockBuild,
       );
     } else if (state.search != null && state.search!.isNotEmpty) {
       // Sync the search input with what the cubit already knows about so a

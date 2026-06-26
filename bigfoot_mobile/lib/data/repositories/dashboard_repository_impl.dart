@@ -129,6 +129,31 @@ class DashboardRepositoryImpl implements DashboardRepository {
       archivedTotal = 0;
     }
 
+    // Mulberry-ready breakdown — stock builds at Mulberry split by
+    // destination yard, plus the count of customer-pickup trailers also
+    // parked at Mulberry. Fail-soft: an older API that doesn't expose the
+    // endpoint just renders the tiles with zero counts.
+    Map<String, int> mulberryStockByYard = const <String, int>{};
+    int mulberryStockTotal = 0;
+    int mulberryCustomerPickups = 0;
+    try {
+      final m = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.trailersMulberryReady,
+        fromJson: (d) => d as Map<String, dynamic>,
+      );
+      final by = m.data?['stockByYard'] as Map<String, dynamic>? ?? const {};
+      mulberryStockByYard = by.map(
+        (k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0),
+      );
+      mulberryStockTotal = (m.data?['totalStock'] as num?)?.toInt() ?? 0;
+      mulberryCustomerPickups =
+          (m.data?['customerPickupsAtMulberry'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      mulberryStockByYard = const <String, int>{};
+      mulberryStockTotal = 0;
+      mulberryCustomerPickups = 0;
+    }
+
     return DashboardStats(
       activeTrailers: active,
       readyForDelivery: ready,
@@ -139,6 +164,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
       weeklyCompleted: weeklyCompleted,
       stalledSteps: stalledSteps,
       archivedTotal: archivedTotal,
+      mulberryStockByYard: mulberryStockByYard,
+      mulberryStockTotal: mulberryStockTotal,
+      mulberryCustomerPickups: mulberryCustomerPickups,
     );
   }
 
@@ -186,6 +214,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
       // (A real 100% rate against the new API still reads as 100 here.)
       failRateToday: _asPercent(data['failRateToday']),
       qcFailRate: _asPercent(data['qcFailRate']),
+      // Raw 30-day counts behind the rolling fail-rate tile so the UI
+      // can render "X.X% · F of N (30d)". Older API responses omit
+      // these — default to 0 so the tile still works.
+      qcFailRateInspections:
+          (data['qcFailRateInspections'] as num?)?.toInt() ?? 0,
+      qcFailRateFails: (data['qcFailRateFails'] as num?)?.toInt() ?? 0,
       reworkQueue: (data['reworkQueue'] as num?)?.toInt() ?? 0,
     );
   }

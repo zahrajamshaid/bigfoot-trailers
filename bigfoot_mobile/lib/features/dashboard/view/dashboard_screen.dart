@@ -262,11 +262,43 @@ class _ManagerDashboard extends StatelessWidget {
               if (canSeeQcTiles)
                 StatCard(
                   title: l.dashStatQcFailRate,
-                  value: '${data.qcFailRate.toStringAsFixed(1)}%',
+                  // Show the raw fraction beside the percent so a 100%
+                  // rate off 1 inspection reads differently from 100%
+                  // off 200. Both numbers carry "(30d)" via the title
+                  // suffix below so the window is unambiguous.
+                  value: data.qcFailRateInspections > 0
+                      ? '${data.qcFailRate.toStringAsFixed(1)}% · '
+                          '${data.qcFailRateFails}/${data.qcFailRateInspections}'
+                      : '${data.qcFailRate.toStringAsFixed(1)}%',
                   icon: Icons.analytics_outlined,
                   color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
                   onTap: () => context.goNamed(RouteNames.qcFailed),
                 ),
+              // Mulberry-Ready tiles. Same audience as the Ready-for-
+              // delivery tile (everyone in _ManagerDashboard) — the
+              // transport_manager dashboard renders these too via its own
+              // tile block.
+              StatCard(
+                title: 'Mulberry → Yards',
+                value: '${data.mulberryStockTotal}',
+                icon: Icons.local_shipping_outlined,
+                color: AppColors.navy,
+                onTap: () => _showMulberryYardSheet(context, data),
+              ),
+              StatCard(
+                title: 'Customer Pickups @ Mulberry',
+                value: '${data.mulberryCustomerPickups}',
+                icon: Icons.directions_car_outlined,
+                color: AppColors.amber,
+                onTap: () => context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {
+                    'status': 'ready_for_delivery',
+                    'currentLocationCode': 'MULBERRY',
+                    'isStockBuild': 'false',
+                  },
+                ),
+              ),
               // Archived: deep-link to the trailers list with the Delivered
               // chip on. The list view already auto-hides delivered units
               // from other filters, so this is the one screen they show up
@@ -521,7 +553,10 @@ class _QcDashboard extends StatelessWidget {
           ),
           StatCard(
             title: l.dashStatQcFailRate,
-            value: '${data.qcFailRate.toStringAsFixed(1)}%',
+            value: data.qcFailRateInspections > 0
+                ? '${data.qcFailRate.toStringAsFixed(1)}% · '
+                    '${data.qcFailRateFails}/${data.qcFailRateInspections}'
+                : '${data.qcFailRate.toStringAsFixed(1)}%',
             icon: Icons.analytics_outlined,
             color: data.qcFailRate > 15
                 ? AppColors.error
@@ -716,4 +751,117 @@ class _StockInventoryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Mulberry-Ready drill-down ────────────────────────────────────────────────
+//
+// Tapping the "Mulberry → Yards" tile opens a bottom sheet listing the four
+// satellite yards (Jacksonville / Tappahannock / Tallahassee / Atlanta) with
+// the count of stock builds at Mulberry destined for each. Tapping a row
+// deep-links into the trailer list filtered to "at Mulberry AND intended
+// for that yard" — the new currentLocationCode + intendedStockLocationCode
+// query params on /trailers.
+
+void _showMulberryYardSheet(BuildContext context, DashboardData data) {
+  final yards = const [
+    ('JACKSONVILLE', 'Jacksonville'),
+    ('TAPPAHANNOCK', 'Tappahannock'),
+    ('TALLAHASSEE', 'Tallahassee'),
+    ('ATLANTA', 'Atlanta'),
+  ];
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetCtx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.local_shipping_outlined,
+                    color: AppColors.navy),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Mulberry → Yards',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${data.mulberryStockTotal} ready',
+                    style: const TextStyle(
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          for (final (code, label) in yards)
+            ListTile(
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.navy.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.warehouse_outlined,
+                    color: AppColors.navy),
+              ),
+              title: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Stock at Mulberry',
+                  style: TextStyle(color: AppColors.disabled, fontSize: 12)),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (data.mulberryStockByYard[code] ?? 0) > 0
+                      ? AppColors.statusInProduction.withValues(alpha: 0.12)
+                      : AppColors.disabled.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${data.mulberryStockByYard[code] ?? 0}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: (data.mulberryStockByYard[code] ?? 0) > 0
+                        ? AppColors.statusInProduction
+                        : AppColors.disabled,
+                  ),
+                ),
+              ),
+              onTap: () {
+                Navigator.of(sheetCtx).pop();
+                context.goNamed(
+                  RouteNames.trailerList,
+                  queryParameters: {
+                    'status': 'ready_for_delivery',
+                    'currentLocationCode': 'MULBERRY',
+                    'intendedStockLocationCode': code,
+                  },
+                );
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
 }

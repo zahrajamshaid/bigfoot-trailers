@@ -28,6 +28,9 @@ class TrailerRepositoryImpl implements TrailerRepository {
     String? saleStatus,
     bool hotOnly = false,
     String? completedSince,
+    String? currentLocationCode,
+    String? intendedStockLocationCode,
+    bool? isStockBuild,
   }) async {
     final params = <String, dynamic>{
       'page': page,
@@ -40,6 +43,13 @@ class TrailerRepositoryImpl implements TrailerRepository {
     if (saleStatus != null) params['saleStatus'] = saleStatus;
     if (hotOnly) params['isHot'] = true;
     if (completedSince != null) params['completedSince'] = completedSince;
+    if (currentLocationCode != null) {
+      params['currentLocationCode'] = currentLocationCode;
+    }
+    if (intendedStockLocationCode != null) {
+      params['intendedStockLocationCode'] = intendedStockLocationCode;
+    }
+    if (isStockBuild != null) params['isStockBuild'] = isStockBuild;
 
     final cacheKey = _listCacheKey(params);
     try {

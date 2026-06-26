@@ -26,6 +26,17 @@ class DashboardStats {
   /// manager dashboard. Deep-links to the trailers list with the Delivered
   /// chip on.
   final int archivedTotal;
+  /// Stock builds physically at Mulberry that are `ready_for_delivery` and
+  /// waiting on a stack-to-yard run, grouped by destination yard code
+  /// (JACKSONVILLE / TAPPAHANNOCK / TALLAHASSEE / ATLANTA). Backs the new
+  /// "Mulberry → Yards" dashboard tile + its drill-down.
+  final Map<String, int> mulberryStockByYard;
+  /// Sum of [mulberryStockByYard] — convenience for the tile's headline
+  /// number. Defaults to 0 when the new endpoint is unreachable.
+  final int mulberryStockTotal;
+  /// Customer-order trailers (no intendedStockLocation) parked at Mulberry
+  /// waiting on a factory pickup. Backs the second new tile.
+  final int mulberryCustomerPickups;
 
   // Worker
   final int myQueueCount;
@@ -39,6 +50,12 @@ class DashboardStats {
   final int inspectionsToday;
   final double failRateToday;
   final int reworkQueue;
+  /// Raw 30-day inspection volume behind [qcFailRate] — surfaced so the
+  /// manager-dashboard tile can render "X.X% · F of N (30d)" instead of
+  /// the bare percent. A 100% rate off 1 inspection is wildly different
+  /// from 100% off 200, and operators want both numbers visible.
+  final int qcFailRateInspections;
+  final int qcFailRateFails;
 
   // Driver
   final int activeDeliveries;
@@ -60,6 +77,9 @@ class DashboardStats {
     this.totalTrailers = 0,
     this.pendingProduction = 0,
     this.archivedTotal = 0,
+    this.mulberryStockByYard = const <String, int>{},
+    this.mulberryStockTotal = 0,
+    this.mulberryCustomerPickups = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,
@@ -69,6 +89,8 @@ class DashboardStats {
     this.inspectionsToday = 0,
     this.failRateToday = 0,
     this.reworkQueue = 0,
+    this.qcFailRateInspections = 0,
+    this.qcFailRateFails = 0,
     this.activeDeliveries = 0,
     this.upcomingDeliveries = 0,
     this.completedThisWeek = 0,

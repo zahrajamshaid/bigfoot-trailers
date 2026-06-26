@@ -18,6 +18,8 @@ abstract final class ApiEndpoints {
 
   // ── Trailers ─────────────────────────────────────────────────────────────
   static const String trailers = '/trailers';
+  static const String trailersMulberryReady =
+      '/trailers/mulberry-ready-shipping';
   static String trailer(int id) => '/trailers/$id';
   static String trailerPriority(int id) => '/trailers/$id/priority';
   static String trailerHot(int id) => '/trailers/$id/hot';

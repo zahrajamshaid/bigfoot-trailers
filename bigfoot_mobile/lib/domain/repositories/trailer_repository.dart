@@ -12,6 +12,14 @@ abstract class TrailerRepository {
     String? saleStatus,
     bool hotOnly = false,
     String? completedSince,
+    /// Filter to trailers physically at this location code (e.g. MULBERRY).
+    /// ANDs with [intendedStockLocationCode] — together they isolate
+    /// "stock at Mulberry destined for Tappahannock" without the broader
+    /// locationId OR-match.
+    String? currentLocationCode,
+    String? intendedStockLocationCode,
+    /// true → stock builds only, false → customer orders only, null → both.
+    bool? isStockBuild,
   });
 
   Future<Trailer> getTrailer(int id);

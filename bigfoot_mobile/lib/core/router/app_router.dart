@@ -98,6 +98,14 @@ class AppRouter {
                   initialStatus: q['status'],
                   initialHotOnly: q['hot'] == 'true',
                   initialCompletedSince: q['completedSince'],
+                  initialCurrentLocationCode: q['currentLocationCode'],
+                  initialIntendedStockLocationCode:
+                      q['intendedStockLocationCode'],
+                  initialIsStockBuild: q['isStockBuild'] == 'true'
+                      ? true
+                      : q['isStockBuild'] == 'false'
+                          ? false
+                          : null,
                 );
               },
               routes: [

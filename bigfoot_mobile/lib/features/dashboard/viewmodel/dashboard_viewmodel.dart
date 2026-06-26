@@ -21,8 +21,22 @@ class DashboardData extends Equatable {
   /// Trailers list filtered for delivered units.
   final int archivedTotal;
   final double qcFailRate;
+  /// Raw 30-day counts behind [qcFailRate] — surfaced on the manager
+  /// dashboard tile as "X.X% · F of N (30d)".
+  final int qcFailRateInspections;
+  final int qcFailRateFails;
   final int totalTrailers;
   final int pendingProduction;
+  /// Stock builds at Mulberry currently ready_for_delivery, grouped by
+  /// destination yard code. Powers the "Mulberry → Yards" tile + its
+  /// drill-down. Always carries entries for JACKSONVILLE / TAPPAHANNOCK /
+  /// TALLAHASSEE / ATLANTA (zero when nothing is queued) once the new
+  /// API is live.
+  final Map<String, int> mulberryStockByYard;
+  final int mulberryStockTotal;
+  /// Customer-order trailers at Mulberry waiting on a factory pickup.
+  /// Powers the matched "Customer pickups @ Mulberry" tile.
+  final int mulberryCustomerPickups;
   final int myQueueCount;
   final double myPointsToday;
   final double myPointsWeek;
@@ -48,8 +62,13 @@ class DashboardData extends Equatable {
     this.weeklyCompleted = 0,
     this.archivedTotal = 0,
     this.qcFailRate = 0,
+    this.qcFailRateInspections = 0,
+    this.qcFailRateFails = 0,
     this.totalTrailers = 0,
     this.pendingProduction = 0,
+    this.mulberryStockByYard = const <String, int>{},
+    this.mulberryStockTotal = 0,
+    this.mulberryCustomerPickups = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,
@@ -76,8 +95,13 @@ class DashboardData extends Equatable {
     int? weeklyCompleted,
     int? archivedTotal,
     double? qcFailRate,
+    int? qcFailRateInspections,
+    int? qcFailRateFails,
     int? totalTrailers,
     int? pendingProduction,
+    Map<String, int>? mulberryStockByYard,
+    int? mulberryStockTotal,
+    int? mulberryCustomerPickups,
     int? myQueueCount,
     double? myPointsToday,
     double? myPointsWeek,
@@ -103,8 +127,15 @@ class DashboardData extends Equatable {
       weeklyCompleted: weeklyCompleted ?? this.weeklyCompleted,
       archivedTotal: archivedTotal ?? this.archivedTotal,
       qcFailRate: qcFailRate ?? this.qcFailRate,
+      qcFailRateInspections:
+          qcFailRateInspections ?? this.qcFailRateInspections,
+      qcFailRateFails: qcFailRateFails ?? this.qcFailRateFails,
       totalTrailers: totalTrailers ?? this.totalTrailers,
       pendingProduction: pendingProduction ?? this.pendingProduction,
+      mulberryStockByYard: mulberryStockByYard ?? this.mulberryStockByYard,
+      mulberryStockTotal: mulberryStockTotal ?? this.mulberryStockTotal,
+      mulberryCustomerPickups:
+          mulberryCustomerPickups ?? this.mulberryCustomerPickups,
       myQueueCount: myQueueCount ?? this.myQueueCount,
       myPointsToday: myPointsToday ?? this.myPointsToday,
       myPointsWeek: myPointsWeek ?? this.myPointsWeek,
@@ -127,7 +158,9 @@ class DashboardData extends Equatable {
   @override
   List<Object?> get props => [
         activeTrailers, readyForDelivery, hotTrailers, stalledSteps,
-        weeklyCompleted, archivedTotal, qcFailRate, totalTrailers, pendingProduction,
+        weeklyCompleted, archivedTotal, qcFailRate, qcFailRateInspections,
+        qcFailRateFails, totalTrailers, pendingProduction, mulberryStockByYard,
+        mulberryStockTotal, mulberryCustomerPickups,
         myQueueCount, myPointsToday,
         myPointsWeek, nextTrailerSo, nextTrailerColor,
         readyForInspection, inspectionsToday, failRateToday, reworkQueue,
@@ -269,8 +302,13 @@ class DashboardViewModel extends Cubit<DashboardState> {
       weeklyCompleted: stats.weeklyCompleted,
       archivedTotal: stats.archivedTotal,
       qcFailRate: stats.qcFailRate,
+      qcFailRateInspections: stats.qcFailRateInspections,
+      qcFailRateFails: stats.qcFailRateFails,
       totalTrailers: stats.totalTrailers,
       pendingProduction: stats.pendingProduction,
+      mulberryStockByYard: stats.mulberryStockByYard,
+      mulberryStockTotal: stats.mulberryStockTotal,
+      mulberryCustomerPickups: stats.mulberryCustomerPickups,
       myQueueCount: stats.myQueueCount,
       myPointsToday: stats.myPointsToday,
       myPointsWeek: stats.myPointsWeek,
@@ -321,8 +359,15 @@ class DashboardViewModel extends Cubit<DashboardState> {
           weeklyCompleted: mgr.weeklyCompleted,
           archivedTotal: mgr.archivedTotal,
           qcFailRate: mgr.qcFailRate,
+          // 30-day raw counts come back on /qc/stats only — the manager
+          // fetch piggybacks on the rate but not the breakdown.
+          qcFailRateInspections: qc.qcFailRateInspections,
+          qcFailRateFails: qc.qcFailRateFails,
           totalTrailers: mgr.totalTrailers,
           pendingProduction: mgr.pendingProduction,
+          mulberryStockByYard: mgr.mulberryStockByYard,
+          mulberryStockTotal: mgr.mulberryStockTotal,
+          mulberryCustomerPickups: mgr.mulberryCustomerPickups,
           // QC-specific (qc-stats fetch)
           readyForInspection: qc.readyForInspection,
           inspectionsToday: qc.inspectionsToday,
