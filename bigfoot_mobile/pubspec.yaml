@@ -83,6 +83,15 @@ dev_dependencies:
   # Windows MSIX installer packaging (Phase 4 distribution).
   msix: ^3.16.8
 
+# Replace the real permission_handler_windows with a local no-op so its native
+# DLL is never compiled into / bundled with the Windows build. That DLL crashes
+# the app at launch on clean client machines ("Bad Image", 0xc0e90002). Desktop
+# never calls permission_handler (all call sites are gated to mobile), so this is
+# safe; Android/iOS implementations are untouched. See the override's pubspec.
+dependency_overrides:
+  permission_handler_windows:
+    path: tool/overrides/permission_handler_windows
+
 flutter:
   uses-material-design: true
   generate: true

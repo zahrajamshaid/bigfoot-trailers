@@ -1,0 +1,19 @@
+name: permission_handler_windows
+description: >-
+  Local no-op override that REMOVES the real permission_handler_windows plugin
+  from the Windows desktop build. The real plugin bundles
+  permission_handler_windows_plugin.dll, which fails to load on clean client
+  machines ("Bad Image", error 0xc0e90002) and crashes the app at launch before
+  any Dart runs. The desktop app never calls permission_handler — every call
+  site is gated behind PlatformSupport.supportsPermissionHandler (mobile only) —
+  so dropping the Windows implementation is safe. Android/iOS keep using
+  permission_handler_android / permission_handler_apple, which are untouched.
+
+  This package intentionally declares NO `flutter: plugin:` block, so the
+  Flutter tool does not register a Windows plugin or compile/bundle any native
+  DLL for it.
+version: 0.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.8.1
