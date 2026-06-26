@@ -99,6 +99,22 @@ export class QueryTrailersDto {
 
   @ApiPropertyOptional({
     description:
+      'Filter by trailer.isStockBuild. `true` = stock builds only, ' +
+      '`false` = customer orders only, omitted = both. Used by the ' +
+      'dashboard "Customer Pickups @ Mulberry" tile.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === undefined) return undefined;
+    if (value === true || value === 'true') return true;
+    if (value === false || value === 'false') return false;
+    return value;
+  })
+  isStockBuild?: boolean;
+
+  @ApiPropertyOptional({
+    description:
       'Exclude trailers that already have an open (scheduled / in-transit) delivery',
   })
   @IsOptional()

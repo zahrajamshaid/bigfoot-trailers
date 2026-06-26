@@ -190,6 +190,9 @@ export class TrailersService {
         intendedStockLocation: { code: query.intendedStockLocationCode },
       });
     }
+    if (query.isStockBuild !== undefined) {
+      where.isStockBuild = query.isStockBuild;
+    }
     if (query.saleStatus) where.saleStatus = query.saleStatus as TrailerSaleStatus;
     // Delivered trailers are history — they belong in Completed Deliveries,
     // not the active inventory list. Hide them by default so location /
