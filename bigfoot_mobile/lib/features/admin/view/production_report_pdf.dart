@@ -269,7 +269,7 @@ pw.Widget _departmentBoard(HealthCheckLive live) {
   final totalWaiting =
       live.departments.fold<int>(0, (s, d) => s + d.waiting);
   final totalSold =
-      live.departments.fold<int>(0, (s, d) => s + d.soldNotStarted);
+      live.departments.fold<int>(0, (s, d) => s + d.soldHere);
   // Render as a flat Table — pw.GridView can't paginate (a too-tall page
   // throws TooManyPagesException), but Table rows break across pages cleanly.
   final headerStyle = pw.TextStyle(
@@ -279,7 +279,7 @@ pw.Widget _departmentBoard(HealthCheckLive live) {
       letterSpacing: 0.4);
   return _sectionBox('DEPARTMENT BOARD', [
     pw.Text(
-        'Total waiting $totalWaiting  |  sold-not-started $totalSold',
+        'Total waiting $totalWaiting  |  sold in build $totalSold',
         style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
     pw.SizedBox(height: 6),
     pw.Table(
@@ -295,7 +295,7 @@ pw.Widget _departmentBoard(HealthCheckLive live) {
           children: [
             _td('Department', headerStyle),
             _td('Waiting', headerStyle, align: pw.TextAlign.right),
-            _td('Sold not started', headerStyle, align: pw.TextAlign.right),
+            _td('Sold here', headerStyle, align: pw.TextAlign.right),
           ],
         ),
         ...live.departments.map(
@@ -306,13 +306,11 @@ pw.Widget _departmentBoard(HealthCheckLive live) {
                 pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
                 align: pw.TextAlign.right),
             _td(
-              d.soldNotStarted == 0
-                  ? '-'
-                  : '${d.soldNotStarted}',
+              d.soldHere == 0 ? '-' : '${d.soldHere}',
               pw.TextStyle(
                 fontSize: 11,
                 fontWeight: pw.FontWeight.bold,
-                color: d.soldNotStarted == 0
+                color: d.soldHere == 0
                     ? PdfColors.grey500
                     : PdfColors.amber800,
               ),

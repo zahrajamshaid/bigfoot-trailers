@@ -390,7 +390,7 @@ export class ProductionReportService {
   }
 
   // ---------------------------------------------------------------------------
-  // Live (point-in-time) snapshot: dept tile board + inventory + sold-not-started
+  // Live (point-in-time) snapshot: dept tile board + inventory + sold-here
   // ---------------------------------------------------------------------------
   private async buildLiveSnapshot() {
     const [
@@ -399,7 +399,6 @@ export class ProductionReportService {
       inventoryGroup,
       departments,
       activeSteps,
-      soldNotStartedTrailers,
     ] = await Promise.all([
       this.prisma.trailer.count({ where: { status: 'in_production' } }),
       this.prisma.trailer.count({ where: { status: 'ready_for_delivery' } }),
@@ -413,8 +412,10 @@ export class ProductionReportService {
         select: { id: true, code: true, displayName: true },
         orderBy: { id: 'asc' },
       }),
-      // Every trailer's currently-active step. Production is sequential so
-      // each in-prod trailer has exactly one row here.
+      // Every trailer's currently-active step + the trailer's saleStatus,
+      // so we can colour each dept tile with both the "waiting" count and
+      // the "sold here" count off the same pass. Production is sequential
+      // so each in-prod trailer has exactly one row.
       this.prisma.productionStep.findMany({
         where: { status: 'active' },
         select: {
@@ -424,25 +425,7 @@ export class ProductionReportService {
           department: {
             select: { id: true, code: true, isQcStep: true },
           },
-        },
-      }),
-      // Sold / pre-sold trailers that have not started yet (zero completed
-      // steps). Pull stepOrder=1's department so we can bucket on the first
-      // workflow stage.
-      this.prisma.trailer.findMany({
-        where: {
-          OR: [
-            { customerId: { not: null } },
-            { soldToName: { not: null } },
-          ],
-          productionSteps: { none: { status: 'complete' } },
-        },
-        select: {
-          id: true,
-          productionSteps: {
-            where: { stepOrder: 1 },
-            select: { departmentId: true },
-          },
+          trailer: { select: { saleStatus: true } },
         },
       }),
     ]);
@@ -489,6 +472,7 @@ export class ProductionReportService {
     }
 
     const waitingByDeptId = new Map<number, number>();
+    const soldByDeptId = new Map<number, number>();
     for (const step of activeSteps) {
       let bucketDeptId = step.departmentId;
       if (step.department.isQcStep) {
@@ -502,17 +486,18 @@ export class ProductionReportService {
         bucketDeptId,
         (waitingByDeptId.get(bucketDeptId) ?? 0) + 1,
       );
-    }
-
-    // ── Sold-but-not-yet-started bucketed by first-step dept ──────────────
-    const soldNotStartedByDeptId = new Map<number, number>();
-    for (const t of soldNotStartedTrailers) {
-      const firstStep = t.productionSteps[0];
-      if (!firstStep) continue; // no workflow generated yet (rare)
-      soldNotStartedByDeptId.set(
-        firstStep.departmentId,
-        (soldNotStartedByDeptId.get(firstStep.departmentId) ?? 0) + 1,
-      );
+      // "Sold here" — count of sold trailers currently active at this
+      // dept (with QC active steps rolled back into the prior prod dept
+      // exactly like the waiting count, so a sold trailer parked at QC_2
+      // shows up on XP Finish where the work is). Replaces the old
+      // "sold not started" badge, which only ever lit up the first
+      // welding dept and obscured how much sold work is actually mid-build.
+      if (step.trailer.saleStatus === 'sold') {
+        soldByDeptId.set(
+          bucketDeptId,
+          (soldByDeptId.get(bucketDeptId) ?? 0) + 1,
+        );
+      }
     }
 
     const deptBoard = departments.map((d) => ({
@@ -520,19 +505,24 @@ export class ProductionReportService {
       code: d.code,
       displayName: d.displayName,
       waiting: waitingByDeptId.get(d.id) ?? 0,
-      soldNotStarted: soldNotStartedByDeptId.get(d.id) ?? 0,
+      // Renamed from soldNotStarted — the semantic flipped to "sold
+      // trailers currently being worked on here." Mobile mirrors the
+      // rename; the previous build was only out for a couple of days so
+      // there's no long-tail client to keep the old name alive for.
+      soldHere: soldByDeptId.get(d.id) ?? 0,
     }));
 
-    const soldNotStartedTotal = soldNotStartedTrailers.filter(
-      (t) => t.productionSteps.length > 0,
-    ).length;
+    const soldHereTotal = Array.from(soldByDeptId.values()).reduce(
+      (a, b) => a + b,
+      0,
+    );
 
     return {
       inProduction: inProductionCount,
       readyForDelivery: readyForDeliveryCount,
       inventoryByYard,
       departments: deptBoard,
-      soldNotStartedTotal,
+      soldHereTotal,
     };
   }
 

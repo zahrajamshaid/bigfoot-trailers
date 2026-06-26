@@ -338,12 +338,17 @@ describe('ProductionReportService', () => {
             stepOrder: 2,
             departmentId: 99, // a QC dept id (not on the tile board)
             department: { id: 99, code: 'QC_1', isQcStep: true },
+            // trailer.saleStatus is selected alongside active steps now —
+            // the buildLiveSnapshot uses it to colour the "sold here"
+            // count. Available here so we only assert on `waiting`.
+            trailer: { saleStatus: 'available' },
           },
           {
             trailerId: 200n,
             stepOrder: 3,
             departmentId: 2, // XP_FIN, a real prod dept
             department: { id: 2, code: 'XP_FIN', isQcStep: false },
+            trailer: { saleStatus: 'available' },
           },
         ])
         // Predecessor query: stepOrder=1 for trailer 100 is XP_JIG (id=1)
@@ -362,25 +367,52 @@ describe('ProductionReportService', () => {
       expect(xpFin?.waiting).toBe(1); // direct active prod step
     });
 
-    it('buckets sold-but-not-started trailers onto their first-step dept', async () => {
+    it('counts sold trailers currently active at each dept (with QC roll-back)', async () => {
       mockPrisma.department.findMany.mockResolvedValue([
         { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
+        { id: 2, code: 'XP_FIN', displayName: 'XP Finish Weld' },
         { id: 3, code: 'DO_JIG', displayName: 'Deck Over Jig Weld' },
       ]);
-      // No active steps — board is purely showing sold-not-started.
-      mockPrisma.productionStep.findMany.mockResolvedValueOnce([]);
-      mockPrisma.trailer.findMany.mockImplementation((args: any) => {
-        // The first .findMany on trailer with productionSteps relation in the
-        // where clause is the sold-not-started query.
-        if (args?.where?.productionSteps?.none) {
-          return Promise.resolve([
-            { id: 1n, productionSteps: [{ departmentId: 1 }] },
-            { id: 2n, productionSteps: [{ departmentId: 1 }] },
-            { id: 3n, productionSteps: [{ departmentId: 3 }] },
-          ]);
-        }
-        return Promise.resolve([]);
-      });
+      // Active steps — three sold trailers, one unsold:
+      //   trailer 100 sold, active at XP_JIG directly
+      //   trailer 101 sold, active at QC_1 (rolled back to XP_JIG)
+      //   trailer 102 sold, active at XP_FIN directly
+      //   trailer 103 unsold, active at DO_JIG (does not bump sold count)
+      mockPrisma.productionStep.findMany
+        .mockResolvedValueOnce([
+          {
+            trailerId: 100n,
+            stepOrder: 1,
+            departmentId: 1,
+            department: { id: 1, code: 'XP_JIG', isQcStep: false },
+            trailer: { saleStatus: 'sold' },
+          },
+          {
+            trailerId: 101n,
+            stepOrder: 2,
+            departmentId: 99, // QC_1
+            department: { id: 99, code: 'QC_1', isQcStep: true },
+            trailer: { saleStatus: 'sold' },
+          },
+          {
+            trailerId: 102n,
+            stepOrder: 3,
+            departmentId: 2,
+            department: { id: 2, code: 'XP_FIN', isQcStep: false },
+            trailer: { saleStatus: 'sold' },
+          },
+          {
+            trailerId: 103n,
+            stepOrder: 1,
+            departmentId: 3,
+            department: { id: 3, code: 'DO_JIG', isQcStep: false },
+            trailer: { saleStatus: 'available' },
+          },
+        ])
+        // Predecessor lookup for QC active steps — trailer 101's step 1 is XP_JIG.
+        .mockResolvedValueOnce([
+          { trailerId: 101n, stepOrder: 1, departmentId: 1 },
+        ]);
 
       const result = await service.getReport({
         period: 'weekly',
@@ -388,9 +420,11 @@ describe('ProductionReportService', () => {
       });
 
       const xpJig = result.live.departments.find((d) => d.code === 'XP_JIG');
+      const xpFin = result.live.departments.find((d) => d.code === 'XP_FIN');
       const doJig = result.live.departments.find((d) => d.code === 'DO_JIG');
-      expect(xpJig?.soldNotStarted).toBe(2);
-      expect(doJig?.soldNotStarted).toBe(1);
+      expect(xpJig?.soldHere).toBe(2); // 100 directly + 101 rolled back from QC_1
+      expect(xpFin?.soldHere).toBe(1); // 102 directly
+      expect(doJig?.soldHere).toBe(0); // 103 is unsold
     });
   });
 });

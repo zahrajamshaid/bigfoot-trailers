@@ -607,14 +607,16 @@ class HealthCheckLive {
   final int readyForDelivery;
   final List<ProductionInventoryYard> inventoryByYard;
   final List<HealthCheckDeptTile> departments;
-  final int soldNotStartedTotal;
+  /// Sum of `soldHere` across every dept tile — a single dashboard-summary
+  /// number for how much sold work is currently mid-build on the floor.
+  final int soldHereTotal;
 
   const HealthCheckLive({
     required this.inProduction,
     required this.readyForDelivery,
     required this.inventoryByYard,
     required this.departments,
-    required this.soldNotStartedTotal,
+    required this.soldHereTotal,
   });
 
   factory HealthCheckLive.fromJson(Map<String, dynamic> j) => HealthCheckLive(
@@ -628,7 +630,11 @@ class HealthCheckLive {
             .whereType<Map<String, dynamic>>()
             .map(HealthCheckDeptTile.fromJson)
             .toList(),
-        soldNotStartedTotal: (j['soldNotStartedTotal'] as num?)?.toInt() ?? 0,
+        // Server now ships `soldHereTotal`; fall back to the legacy
+        // `soldNotStartedTotal` key for old API responses.
+        soldHereTotal: (j['soldHereTotal'] as num?)?.toInt() ??
+            (j['soldNotStartedTotal'] as num?)?.toInt() ??
+            0,
       );
 }
 
@@ -639,16 +645,18 @@ class HealthCheckDeptTile {
   /// Trailers currently active at this dept, including any QC steps rolled
   /// back to the prod step they inspect.
   final int waiting;
-  /// Sold trailers (customer order OR pre-sold stock) with zero completed
-  /// steps yet, bucketed onto their first workflow dept.
-  final int soldNotStarted;
+  /// Sold trailers currently being worked on at this dept (active step,
+  /// with QC active steps rolled back into the prod dept they inspect).
+  /// Replaces the older "sold not yet started" badge that only ever lit up
+  /// the first welding step of each series.
+  final int soldHere;
 
   const HealthCheckDeptTile({
     required this.departmentId,
     required this.code,
     required this.displayName,
     required this.waiting,
-    required this.soldNotStarted,
+    required this.soldHere,
   });
 
   factory HealthCheckDeptTile.fromJson(Map<String, dynamic> j) =>
@@ -657,7 +665,11 @@ class HealthCheckDeptTile {
         code: j['code'] as String,
         displayName: j['displayName'] as String,
         waiting: (j['waiting'] as num).toInt(),
-        soldNotStarted: (j['soldNotStarted'] as num).toInt(),
+        // Server now ships `soldHere`; fall back to the legacy
+        // `soldNotStarted` key while old API responses are still around.
+        soldHere: (j['soldHere'] as num?)?.toInt() ??
+            (j['soldNotStarted'] as num?)?.toInt() ??
+            0,
       );
 }
 

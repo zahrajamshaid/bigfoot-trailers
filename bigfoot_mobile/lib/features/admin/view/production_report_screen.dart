@@ -1348,8 +1348,8 @@ class _DepartmentBoardCard extends StatelessWidget {
     final cols = r.gridColumns(compact: 2, medium: 3, expanded: 4, large: 5);
     final totalWaiting =
         live.departments.fold<int>(0, (s, d) => s + d.waiting);
-    final totalSoldNotStarted =
-        live.departments.fold<int>(0, (s, d) => s + d.soldNotStarted);
+    final totalSoldHere =
+        live.departments.fold<int>(0, (s, d) => s + d.soldHere);
 
     // Slightly taller tiles on narrow phones so two numbers + label fit.
     final aspect = r.isSmallPhone
@@ -1370,8 +1370,8 @@ class _DepartmentBoardCard extends StatelessWidget {
             color: AppColors.navy,
           ),
           _SummaryPill(
-            label: 'Sold pending',
-            value: totalSoldNotStarted,
+            label: 'Sold in build',
+            value: totalSoldHere,
             color: AppColors.amber,
           ),
         ],
@@ -1406,7 +1406,7 @@ class _DeptTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = _colorForDept(tile.code);
-    final hasSold = tile.soldNotStarted > 0;
+    final hasSold = tile.soldHere > 0;
 
     return Material(
       elevation: 0,
@@ -1507,8 +1507,8 @@ class _DeptTile extends StatelessWidget {
                         Expanded(
                           child: Text(
                             hasSold
-                                ? '${tile.soldNotStarted} sold pending'
-                                : 'No sold pending',
+                                ? '${tile.soldHere} sold here'
+                                : 'No sold here',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
