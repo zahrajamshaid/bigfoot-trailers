@@ -7,13 +7,23 @@ class AdminDashboardStats {
   final int totalUsers;
   final int activeTrailers;
   final int weeklyProduction;
+  /// Rolling 30-day QC fail rate, in percent. Was previously a hard-coded
+  /// zero stub; now sourced from /qc/stats so the admin dashboard reads
+  /// the same number as the QC + manager dashboards.
   final double qcFailRate;
+  /// Raw 30-day inspection volume + fail count behind [qcFailRate] —
+  /// surfaced so the admin tile can render "X.X% · F/N" instead of the
+  /// bare percent. Matches the manager dashboard convention.
+  final int qcFailRateInspections;
+  final int qcFailRateFails;
 
   const AdminDashboardStats({
     this.totalUsers = 0,
     this.activeTrailers = 0,
     this.weeklyProduction = 0,
     this.qcFailRate = 0,
+    this.qcFailRateInspections = 0,
+    this.qcFailRateFails = 0,
   });
 }
 

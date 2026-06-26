@@ -47,18 +47,33 @@ class DashboardRepositoryImpl implements DashboardRepository {
     final ready = perStatus[1];
     final hot = perStatus[2];
 
-    // Manager dashboard shows the "QC fail rate" tile, so pull the same
-    // 30-day rate the QC dashboard uses. Don't fail the whole manager card
-    // load if /qc/stats hiccups — fall back to 0 quietly.
+    // Manager dashboard shows two QC fail-rate tiles (Today + 30d), and
+    // both want the raw fraction next to the percent. Pull all six fields
+    // off /qc/stats in one round-trip; fail soft if /qc/stats hiccups so
+    // the rest of the manager card still renders.
     double qcFailRate = 0;
+    int qcFailRateInspections = 0;
+    int qcFailRateFails = 0;
+    double failRateToday = 0;
+    int inspectionsToday = 0;
+    int failsToday = 0;
+    int reworkQueue = 0;
     try {
       final qc = await _api.get<Map<String, dynamic>>(
         ApiEndpoints.qcStats,
         fromJson: (d) => d as Map<String, dynamic>,
       );
-      qcFailRate = (qc.data?['qcFailRate'] as num?)?.toDouble() ?? 0;
+      final d = qc.data ?? const <String, dynamic>{};
+      qcFailRate = _asPercent(d['qcFailRate']);
+      qcFailRateInspections =
+          (d['qcFailRateInspections'] as num?)?.toInt() ?? 0;
+      qcFailRateFails = (d['qcFailRateFails'] as num?)?.toInt() ?? 0;
+      failRateToday = _asPercent(d['failRateToday']);
+      inspectionsToday = (d['inspectionsToday'] as num?)?.toInt() ?? 0;
+      failsToday = (d['failsToday'] as num?)?.toInt() ?? 0;
+      reworkQueue = (d['reworkQueue'] as num?)?.toInt() ?? 0;
     } catch (_) {
-      qcFailRate = 0;
+      // leave defaults at 0
     }
 
     // Pending production tile uses the API's `total` for accuracy — the
@@ -159,6 +174,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
       readyForDelivery: ready,
       hotTrailers: hot,
       qcFailRate: qcFailRate,
+      qcFailRateInspections: qcFailRateInspections,
+      qcFailRateFails: qcFailRateFails,
+      failRateToday: failRateToday,
+      inspectionsToday: inspectionsToday,
+      failsToday: failsToday,
+      reworkQueue: reworkQueue,
       totalTrailers: totalTrailers,
       pendingProduction: pendingProduction,
       weeklyCompleted: weeklyCompleted,
@@ -213,6 +234,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
       // versions sent 0–1 fractions, so multiply when the value is < 1.0.
       // (A real 100% rate against the new API still reads as 100 here.)
       failRateToday: _asPercent(data['failRateToday']),
+      failsToday: (data['failsToday'] as num?)?.toInt() ?? 0,
       qcFailRate: _asPercent(data['qcFailRate']),
       // Raw 30-day counts behind the rolling fail-rate tile so the UI
       // can render "X.X% · F of N (30d)". Older API responses omit

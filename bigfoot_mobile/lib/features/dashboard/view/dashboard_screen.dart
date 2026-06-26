@@ -259,20 +259,47 @@ class _ManagerDashboard extends StatelessWidget {
                   );
                 },
               ),
+              // QC fail rate: managers + owner see two tiles — today and
+              // 30-day rolling — both with the raw fraction beside the
+              // percent so a 100% rate off 1 inspection reads differently
+              // from 100% off 200. The split is what QC managers asked for
+              // (the single 30d tile hid the daily signal they want every
+              // morning).
               if (canSeeQcTiles)
                 StatCard(
-                  title: l.dashStatQcFailRate,
-                  // Show the raw fraction beside the percent so a 100%
-                  // rate off 1 inspection reads differently from 100%
-                  // off 200. Both numbers carry "(30d)" via the title
-                  // suffix below so the window is unambiguous.
+                  title: 'QC fail today',
+                  value: data.inspectionsToday > 0
+                      ? '${data.failRateToday.toStringAsFixed(1)}% · '
+                          '${data.failsToday}/${data.inspectionsToday}'
+                      : '0% · 0/0',
+                  icon: Icons.today_outlined,
+                  color:
+                      data.failRateToday > 20 ? AppColors.error : AppColors.navy,
+                  onTap: () => context.goNamed(RouteNames.qcFailed),
+                ),
+              if (canSeeQcTiles)
+                StatCard(
+                  title: 'QC fail (30d)',
                   value: data.qcFailRateInspections > 0
                       ? '${data.qcFailRate.toStringAsFixed(1)}% · '
                           '${data.qcFailRateFails}/${data.qcFailRateInspections}'
-                      : '${data.qcFailRate.toStringAsFixed(1)}%',
+                      : '0% · 0/0',
                   icon: Icons.analytics_outlined,
                   color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
                   onTap: () => context.goNamed(RouteNames.qcFailed),
+                ),
+              // Rework queue rounds out the QC trio on the manager grid so
+              // it balances visually next to the two fail-rate tiles. Same
+              // tap target as the QC dashboard tile.
+              if (canSeeQcTiles)
+                StatCard(
+                  title: l.dashStatReworkQueue,
+                  value: '${data.reworkQueue}',
+                  icon: Icons.build_circle_outlined,
+                  color: data.reworkQueue > 0
+                      ? AppColors.amber
+                      : AppColors.navy,
+                  onTap: () => context.goNamed(RouteNames.qcRework),
                 ),
               // Mulberry-Ready tiles. Same audience as the Ready-for-
               // delivery tile (everyone in _ManagerDashboard) — the
@@ -296,6 +323,11 @@ class _ManagerDashboard extends StatelessWidget {
                     'status': 'ready_for_delivery',
                     'currentLocationCode': 'MULBERRY',
                     'isStockBuild': 'false',
+                    // Restrict to formally-sold customer orders so we
+                    // don't surface limbo trailers (built for a customer
+                    // but saleStatus still 'available' / 'sale_pending').
+                    // Matches the count query.
+                    'saleStatus': 'sold',
                   },
                 ),
               ),
@@ -444,7 +476,12 @@ class _QcDashboard extends StatelessWidget {
           ),
           StatCard(
             title: l.dashStatFailRateToday,
-            value: '${data.failRateToday.toStringAsFixed(1)}%',
+            // Show raw fraction beside the percent so an empty morning
+            // reads as "0% · 0/0" instead of a misleading 0%.
+            value: data.inspectionsToday > 0
+                ? '${data.failRateToday.toStringAsFixed(1)}% · '
+                    '${data.failsToday}/${data.inspectionsToday}'
+                : '0% · 0/0',
             icon: Icons.trending_down,
             color: data.failRateToday > 20
                 ? AppColors.error

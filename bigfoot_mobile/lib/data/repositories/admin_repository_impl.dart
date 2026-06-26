@@ -28,16 +28,40 @@ class AdminRepositoryImpl implements AdminRepository {
       queryParameters: {'weekStart': _weekStartSundayIso()},
       fromJson: (d) => d as Map<String, dynamic>,
     );
+    // QC fail rate was previously a hard-coded zero stub. Pull /qc/stats
+    // so the admin dashboard reads the same 30-day rate the QC and
+    // manager dashboards do. Fail-soft so a /qc/stats hiccup doesn't
+    // break the rest of the admin grid.
+    final qcFuture = _api.get<Map<String, dynamic>>(
+      ApiEndpoints.qcStats,
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
 
     final usersResp = await usersFuture;
     final trailersResp = await activeTrailersFuture;
     final weeklyResp = await weeklyFuture;
+    double qcFailRate = 0;
+    int qcFailRateInspections = 0;
+    int qcFailRateFails = 0;
+    try {
+      final qcResp = await qcFuture;
+      final d = qcResp.data ?? const <String, dynamic>{};
+      final raw = (d['qcFailRate'] as num?)?.toDouble() ?? 0;
+      qcFailRate = raw <= 1 ? raw * 100 : raw;
+      qcFailRateInspections =
+          (d['qcFailRateInspections'] as num?)?.toInt() ?? 0;
+      qcFailRateFails = (d['qcFailRateFails'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      // leave at zero
+    }
 
     return AdminDashboardStats(
       totalUsers: (usersResp.data?['total'] as num?)?.toInt() ?? 0,
       activeTrailers: (trailersResp.data?['total'] as num?)?.toInt() ?? 0,
       weeklyProduction: (weeklyResp.data?['totalStepsCompleted'] as num?)?.toInt() ?? 0,
-      qcFailRate: 0,
+      qcFailRate: qcFailRate,
+      qcFailRateInspections: qcFailRateInspections,
+      qcFailRateFails: qcFailRateFails,
     );
   }
 

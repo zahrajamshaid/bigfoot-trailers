@@ -33,6 +33,10 @@ class TrailerListScreen extends StatefulWidget {
   /// True/false/null. Used by the "Customer pickups @ Mulberry" tile to
   /// limit the deep-link to customer trailers (isStockBuild=false).
   final bool? initialIsStockBuild;
+  /// Optional sale-status filter applied on first load. The Customer
+  /// Pickups tile passes 'sold' so the list excludes customer-order
+  /// builds that aren't formally sold yet.
+  final String? initialSaleStatus;
 
   const TrailerListScreen({
     super.key,
@@ -42,6 +46,7 @@ class TrailerListScreen extends StatefulWidget {
     this.initialCurrentLocationCode,
     this.initialIntendedStockLocationCode,
     this.initialIsStockBuild,
+    this.initialSaleStatus,
   });
 
   @override
@@ -77,7 +82,8 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
         widget.initialCompletedSince != null ||
         widget.initialCurrentLocationCode != null ||
         widget.initialIntendedStockLocationCode != null ||
-        widget.initialIsStockBuild != null;
+        widget.initialIsStockBuild != null ||
+        widget.initialSaleStatus != null;
     final alreadyLoaded = state is TrailersLoaded;
     if (hasDeepLink || !alreadyLoaded) {
       cubit.load(
@@ -87,6 +93,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
         currentLocationCode: widget.initialCurrentLocationCode,
         intendedStockLocationCode: widget.initialIntendedStockLocationCode,
         isStockBuild: widget.initialIsStockBuild,
+        saleStatus: widget.initialSaleStatus,
       );
     } else if (state.search != null && state.search!.isNotEmpty) {
       // Sync the search input with what the cubit already knows about so a

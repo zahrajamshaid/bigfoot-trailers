@@ -593,6 +593,10 @@ export class QcService {
     return {
       readyForInspection,
       inspectionsToday,
+      // failsToday paired with inspectionsToday lets the daily tile show
+      // "0.0% · 0/0" honestly. The percent alone is misleading when the
+      // sample size is zero (or one).
+      failsToday,
       failRateToday,
       qcFailRate,
       // Raw 30-day counts so the dashboard tile can render "5.2% · 3 of 58"

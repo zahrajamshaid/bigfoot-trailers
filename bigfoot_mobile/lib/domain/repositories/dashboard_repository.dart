@@ -49,6 +49,10 @@ class DashboardStats {
   final int readyForInspection;
   final int inspectionsToday;
   final double failRateToday;
+  /// Today's raw fail count — paired with [inspectionsToday] for the
+  /// "QC fail today" tile so it can show "0.0% · 0/0" honestly on a
+  /// quiet morning instead of an empty percent.
+  final int failsToday;
   final int reworkQueue;
   /// Raw 30-day inspection volume behind [qcFailRate] — surfaced so the
   /// manager-dashboard tile can render "X.X% · F of N (30d)" instead of
@@ -88,6 +92,7 @@ class DashboardStats {
     this.readyForInspection = 0,
     this.inspectionsToday = 0,
     this.failRateToday = 0,
+    this.failsToday = 0,
     this.reworkQueue = 0,
     this.qcFailRateInspections = 0,
     this.qcFailRateFails = 0,

@@ -106,6 +106,7 @@ class AppRouter {
                       : q['isStockBuild'] == 'false'
                           ? false
                           : null,
+                  initialSaleStatus: q['saleStatus'],
                 );
               },
               routes: [

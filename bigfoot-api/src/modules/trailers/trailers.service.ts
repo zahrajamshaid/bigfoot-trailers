@@ -323,11 +323,15 @@ export class TrailersService {
         },
         select: { intendedStockLocation: { select: { code: true } } },
       }),
-      // Customer-order pickups at Mulberry ready (no intendedStockLocation).
+      // Customer-order pickups at Mulberry. saleStatus must be `sold` —
+      // a customer-order build that isn't formally sold yet is in limbo,
+      // not a pickup. The mobile tile's deep link applies the same
+      // saleStatus filter so the count and the list always agree.
       this.prisma.trailer.count({
         where: {
           status: TrailerStatus.ready_for_delivery,
           isStockBuild: false,
+          saleStatus: TrailerSaleStatus.sold,
           currentLocation: { code: 'MULBERRY' },
         },
       }),

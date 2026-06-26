@@ -45,6 +45,9 @@ class DashboardData extends Equatable {
   final int readyForInspection;
   final int inspectionsToday;
   final double failRateToday;
+  /// Today's raw fail count — paired with [inspectionsToday] for the
+  /// "QC fail today" tile so it can show "0.0% · 0/0" honestly.
+  final int failsToday;
   final int reworkQueue;
   final int activeDeliveries;
   final int upcomingDeliveries;
@@ -77,6 +80,7 @@ class DashboardData extends Equatable {
     this.readyForInspection = 0,
     this.inspectionsToday = 0,
     this.failRateToday = 0,
+    this.failsToday = 0,
     this.reworkQueue = 0,
     this.activeDeliveries = 0,
     this.upcomingDeliveries = 0,
@@ -110,6 +114,7 @@ class DashboardData extends Equatable {
     int? readyForInspection,
     int? inspectionsToday,
     double? failRateToday,
+    int? failsToday,
     int? reworkQueue,
     int? activeDeliveries,
     int? upcomingDeliveries,
@@ -144,6 +149,7 @@ class DashboardData extends Equatable {
       readyForInspection: readyForInspection ?? this.readyForInspection,
       inspectionsToday: inspectionsToday ?? this.inspectionsToday,
       failRateToday: failRateToday ?? this.failRateToday,
+      failsToday: failsToday ?? this.failsToday,
       reworkQueue: reworkQueue ?? this.reworkQueue,
       activeDeliveries: activeDeliveries ?? this.activeDeliveries,
       upcomingDeliveries: upcomingDeliveries ?? this.upcomingDeliveries,
@@ -163,7 +169,8 @@ class DashboardData extends Equatable {
         mulberryStockTotal, mulberryCustomerPickups,
         myQueueCount, myPointsToday,
         myPointsWeek, nextTrailerSo, nextTrailerColor,
-        readyForInspection, inspectionsToday, failRateToday, reworkQueue,
+        readyForInspection, inspectionsToday, failRateToday, failsToday,
+        reworkQueue,
         activeDeliveries, upcomingDeliveries, completedThisWeek,
         scheduledDeliveries, inTransitCount, readyForPickup, recentActivity,
       ];
@@ -315,6 +322,7 @@ class DashboardViewModel extends Cubit<DashboardState> {
       readyForInspection: stats.readyForInspection,
       inspectionsToday: stats.inspectionsToday,
       failRateToday: stats.failRateToday,
+      failsToday: stats.failsToday,
       reworkQueue: stats.reworkQueue,
       activeDeliveries: stats.activeDeliveries,
       upcomingDeliveries: stats.upcomingDeliveries,

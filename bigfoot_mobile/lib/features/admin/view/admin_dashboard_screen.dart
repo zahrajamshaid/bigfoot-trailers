@@ -94,7 +94,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         _StatCard(title: l.adminStatWeeklyOutput, value: '${stats.weeklyProduction}'),
                         _StatCard(
                           title: l.adminStatQcFailRate,
-                          value: '${stats.qcFailRate.toStringAsFixed(1)}%',
+                          // Show raw fraction beside the percent so a
+                          // 100% rate off 1 inspection reads differently
+                          // from 100% off 200. Matches the manager + QC
+                          // dashboards' 30-day tile format.
+                          value: stats.qcFailRateInspections > 0
+                              ? '${stats.qcFailRate.toStringAsFixed(1)}% · '
+                                  '${stats.qcFailRateFails}/${stats.qcFailRateInspections}'
+                              : '0% · 0/0',
                         ),
                       ],
                     ),
