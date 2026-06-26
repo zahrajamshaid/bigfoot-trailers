@@ -37,7 +37,17 @@ export class QcController {
   // GET /qc/stats — dashboard summary
   // ---------------------------------------------------------------------------
   @Get('stats')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
+  // Office is wired up as a full admin alongside owner — every QC read
+  // route accepts office so the manager-style dashboard renders the same
+  // fail-rate / rework numbers there as it does for owner. The earlier
+  // omission was why the QC tile on office's dashboard read zero even
+  // after the raw counts started shipping on /qc/stats.
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({ summary: 'QC dashboard summary (ready, today, rework)' })
   @ApiResponse({ status: 200, description: 'QC stats' })
   async getQcStats() {
@@ -48,7 +58,12 @@ export class QcController {
   // GET /qc/rework-queue — drilldown behind the dashboard rework tile
   // ---------------------------------------------------------------------------
   @Get('rework-queue')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({
     summary: 'Trailers currently in rework (production_steps active+isRework)',
     description:
@@ -65,7 +80,12 @@ export class QcController {
   // GET /qc/failed-inspections — drilldown list behind the fail-rate stat
   // ---------------------------------------------------------------------------
   @Get('failed-inspections')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+  )
   @ApiOperation({
     summary: 'Recent failed QC inspections (with trailer + dept context)',
     description:
@@ -97,7 +117,7 @@ export class QcController {
   // POST /qc/checklist-items — production_manager, owner
   // ---------------------------------------------------------------------------
   @Post('checklist-items')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a QC checklist item' })
   @ApiResponse({ status: 201, description: 'Checklist item created' })
@@ -110,7 +130,7 @@ export class QcController {
   // PATCH /qc/checklist-items/:id — production_manager, owner
   // ---------------------------------------------------------------------------
   @Patch('checklist-items/:id')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Update or deactivate a QC checklist item' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Checklist item updated' })
