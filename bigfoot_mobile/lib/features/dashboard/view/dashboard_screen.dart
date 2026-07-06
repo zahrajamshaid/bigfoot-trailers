@@ -141,227 +141,227 @@ class _ManagerDashboard extends StatelessWidget {
     final canSeeProductionReport = role == UserRole.owner ||
         role == UserRole.office ||
         role == UserRole.productionManager;
-    return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
-          child: GridView.count(
-            crossAxisCount: r.gridColumns(compact: 2, medium: 3, expanded: 4, large: 4),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: r.statCardAspectRatio,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            children: [
-              StatCard(
-                title: 'Total trailers',
-                value: '${data.totalTrailers}',
-                icon: Icons.inventory_2_outlined,
-                color: AppColors.navy,
-                onTap: () => context.goNamed(RouteNames.trailerList),
-              ),
-              StatCard(
-                title: 'Pending production',
-                value: '${data.pendingProduction}',
-                icon: Icons.schedule_outlined,
-                color: AppColors.statusPending,
-                onTap: () => context.goNamed(
-                  RouteNames.trailerList,
-                  queryParameters: {'status': 'pending_production'},
-                ),
-              ),
-              StatCard(
-                title: l.dashStatActiveTrailers,
-                value: '${data.activeTrailers}',
-                icon: Icons.precision_manufacturing,
-                color: AppColors.statusInProduction,
-                onTap: () => context.goNamed(
-                  RouteNames.trailerList,
-                  queryParameters: {'status': 'in_production'},
-                ),
-              ),
-              StatCard(
-                title: l.dashStatReadyForDelivery,
-                value: '${data.readyForDelivery}',
-                icon: Icons.local_shipping,
-                color: AppColors.success,
-                onTap: () => context.goNamed(
-                  RouteNames.trailerList,
-                  queryParameters: {'status': 'ready_for_delivery'},
-                ),
-              ),
-              StatCard(
-                title: l.dashStatHotTrailers,
-                value: '${data.hotTrailers}',
-                icon: Icons.local_fire_department,
-                color: AppColors.error,
-                onTap: () => context.goNamed(
-                  RouteNames.trailerList,
-                  queryParameters: {'hot': 'true'},
-                ),
-                badge: data.hotTrailers > 0
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.error,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(l.dashStatHotBadge,
-                            style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700)),
-                      )
-                    : null,
-              ),
-              StatCard(
-                title: l.dashStatStalledSteps,
-                value: '${data.stalledSteps}',
-                icon: Icons.warning_amber,
-                color: AppColors.warning,
-                onTap: () => context.goNamed(
-                  RouteNames.productionQueue,
-                  queryParameters: {'filter': 'stalled'},
-                ),
-                badge: data.stalledSteps > 0
-                    ? Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.warning,
-                        ),
-                      )
-                    : null,
-              ),
-              StatCard(
-                title: l.dashStatCompletedThisWeek,
-                value: '${data.weeklyCompleted}',
-                icon: Icons.check_circle_outline,
-                color: AppColors.statusDelivered,
-                // Deep-link to the trailer list scoped to deliveries that
-                // landed since the previous Sunday 00:00 UTC. Backend
-                // matches on Delivery.deliveredAt so a stale record edit
-                // doesn't shift a trailer into the window.
-                onTap: () {
-                  final now = DateTime.now().toUtc();
-                  // weekday: Mon=1 … Sat=6, Sun=7 → 0 days back from Sunday.
-                  final daysBack = now.weekday % 7;
-                  final sunday =
-                      DateTime.utc(now.year, now.month, now.day - daysBack);
-                  context.goNamed(
-                    RouteNames.trailerList,
-                    queryParameters: {
-                      'status': 'delivered',
-                      'completedSince': sunday.toIso8601String(),
-                    },
-                  );
-                },
-              ),
-              // QC fail rate: managers + owner see two tiles — today and
-              // 30-day rolling — both with the raw fraction beside the
-              // percent so a 100% rate off 1 inspection reads differently
-              // from 100% off 200. The split is what QC managers asked for
-              // (the single 30d tile hid the daily signal they want every
-              // morning).
-              if (canSeeQcTiles)
-                StatCard(
-                  title: 'QC fail today',
-                  value: data.inspectionsToday > 0
-                      ? '${data.failRateToday.toStringAsFixed(1)}% · '
-                          '${data.failsToday}/${data.inspectionsToday}'
-                      : '0% · 0/0',
-                  icon: Icons.today_outlined,
-                  color:
-                      data.failRateToday > 20 ? AppColors.error : AppColors.navy,
-                  onTap: () => context.goNamed(RouteNames.qcFailed),
-                ),
-              if (canSeeQcTiles)
-                StatCard(
-                  title: 'QC fail (30d)',
-                  value: data.qcFailRateInspections > 0
-                      ? '${data.qcFailRate.toStringAsFixed(1)}% · '
-                          '${data.qcFailRateFails}/${data.qcFailRateInspections}'
-                      : '0% · 0/0',
-                  icon: Icons.analytics_outlined,
-                  color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
-                  onTap: () => context.goNamed(RouteNames.qcFailed),
-                ),
-              // Rework queue rounds out the QC trio on the manager grid so
-              // it balances visually next to the two fail-rate tiles. Same
-              // tap target as the QC dashboard tile.
-              if (canSeeQcTiles)
-                StatCard(
-                  title: l.dashStatReworkQueue,
-                  value: '${data.reworkQueue}',
-                  icon: Icons.build_circle_outlined,
-                  color: data.reworkQueue > 0
-                      ? AppColors.amber
-                      : AppColors.navy,
-                  onTap: () => context.goNamed(RouteNames.qcRework),
-                ),
-              // Mulberry-Ready tiles. Same audience as the Ready-for-
-              // delivery tile (everyone in _ManagerDashboard) — the
-              // transport_manager dashboard renders these too via its own
-              // tile block.
-              StatCard(
-                title: 'Mulberry → Yards',
-                value: '${data.mulberryStockTotal}',
-                icon: Icons.local_shipping_outlined,
-                color: AppColors.navy,
-                onTap: () => _showMulberryYardSheet(context, data),
-              ),
-              StatCard(
-                title: 'Customer Pickups @ Mulberry',
-                value: '${data.mulberryCustomerPickups}',
-                icon: Icons.directions_car_outlined,
-                color: AppColors.amber,
-                onTap: () => context.goNamed(
-                  RouteNames.trailerList,
-                  queryParameters: {
-                    'status': 'ready_for_delivery',
-                    'currentLocationCode': 'MULBERRY',
-                    'isStockBuild': 'false',
-                    // Restrict to formally-sold customer orders so we
-                    // don't surface limbo trailers (built for a customer
-                    // but saleStatus still 'available' / 'sale_pending').
-                    // Matches the count query.
-                    'saleStatus': 'sold',
-                  },
-                ),
-              ),
-              // Archived: deep-link to the trailers list with the Delivered
-              // chip on. The list view already auto-hides delivered units
-              // from other filters, so this is the one screen they show up
-              // on — perfect "see every trailer we've ever shipped" entry.
-              StatCard(
-                title: 'Archived',
-                value: '${data.archivedTotal}',
-                icon: Icons.inventory_2_outlined,
-                color: AppColors.disabled,
-                onTap: () => context.goNamed(
-                  RouteNames.trailerList,
-                  queryParameters: {'status': 'delivered'},
-                ),
-              ),
-              // Health Check deep-link — owner + production_manager only.
-              // pushNamed so Back pops cleanly back to the dashboard instead
-              // of falling through to /admin (which is now guarded and would
-              // just bounce back to /dashboard anyway).
-              if (canSeeProductionReport)
-                StatCard(
-                  title: 'Health Check',
-                  value: '${data.activeTrailers}',
-                  icon: Icons.monitor_heart_outlined,
-                  color: AppColors.statusInProduction,
-                  onTap: () =>
-                      context.pushNamed(RouteNames.productionReport),
-                ),
-            ],
-          ),
+    // Build tiles up-front by section so each section can decide whether
+    // it renders at all (skip empty sections instead of leaving a
+    // dangling heading with no cards under it — happens when a role
+    // doesn't see any QC tile, for instance).
+    final productionTiles = <Widget>[
+      StatCard(
+        title: l.dashStatActiveTrailers,
+        value: '${data.activeTrailers}',
+        icon: Icons.precision_manufacturing,
+        color: AppColors.statusInProduction,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'in_production'},
         ),
-      ],
+      ),
+      StatCard(
+        title: 'Pending production',
+        value: '${data.pendingProduction}',
+        icon: Icons.schedule_outlined,
+        color: AppColors.statusPending,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'pending_production'},
+        ),
+      ),
+      StatCard(
+        title: l.dashStatHotTrailers,
+        value: '${data.hotTrailers}',
+        icon: Icons.local_fire_department,
+        color: AppColors.error,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'hot': 'true'},
+        ),
+        badge: data.hotTrailers > 0
+            ? Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(l.dashStatHotBadge,
+                    style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700)),
+              )
+            : null,
+      ),
+      StatCard(
+        title: l.dashStatStalledSteps,
+        value: '${data.stalledSteps}',
+        icon: Icons.warning_amber,
+        color: AppColors.warning,
+        onTap: () => context.goNamed(
+          RouteNames.productionQueue,
+          queryParameters: {'filter': 'stalled'},
+        ),
+        badge: data.stalledSteps > 0
+            ? Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.warning,
+                ),
+              )
+            : null,
+      ),
+      StatCard(
+        title: l.dashStatReadyForDelivery,
+        value: '${data.readyForDelivery}',
+        icon: Icons.local_shipping,
+        color: AppColors.success,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'ready_for_delivery'},
+        ),
+      ),
+      StatCard(
+        title: l.dashStatCompletedThisWeek,
+        value: '${data.weeklyCompleted}',
+        icon: Icons.check_circle_outline,
+        color: AppColors.statusDelivered,
+        // Deep-link to the trailer list scoped to deliveries that
+        // landed since the previous Sunday 00:00 UTC. Backend
+        // matches on Delivery.deliveredAt so a stale record edit
+        // doesn't shift a trailer into the window.
+        onTap: () {
+          final now = DateTime.now().toUtc();
+          // weekday: Mon=1 … Sat=6, Sun=7 → 0 days back from Sunday.
+          final daysBack = now.weekday % 7;
+          final sunday =
+              DateTime.utc(now.year, now.month, now.day - daysBack);
+          context.goNamed(
+            RouteNames.trailerList,
+            queryParameters: {
+              'status': 'delivered',
+              'completedSince': sunday.toIso8601String(),
+            },
+          );
+        },
+      ),
+      StatCard(
+        title: 'Total trailers',
+        value: '${data.totalTrailers}',
+        icon: Icons.inventory_2_outlined,
+        color: AppColors.navy,
+        onTap: () => context.goNamed(RouteNames.trailerList),
+      ),
+      // Archived: deep-link to the trailers list with the Delivered
+      // chip on. The list view already auto-hides delivered units
+      // from other filters, so this is the one screen they show up
+      // on — perfect "see every trailer we've ever shipped" entry.
+      StatCard(
+        title: 'Archived',
+        value: '${data.archivedTotal}',
+        icon: Icons.inventory_2_outlined,
+        color: AppColors.disabled,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'delivered'},
+        ),
+      ),
+    ];
+
+    // QC fail rate: managers + owner see two tiles — today and
+    // 30-day rolling — both with the raw fraction beside the percent so
+    // a 100% rate off 1 inspection reads differently from 100% off 200.
+    final qualityTiles = <Widget>[
+      if (canSeeQcTiles)
+        StatCard(
+          title: 'QC fail today',
+          value: data.inspectionsToday > 0
+              ? '${data.failRateToday.toStringAsFixed(1)}% · '
+                  '${data.failsToday}/${data.inspectionsToday}'
+              : '0% · 0/0',
+          icon: Icons.today_outlined,
+          color:
+              data.failRateToday > 20 ? AppColors.error : AppColors.navy,
+          onTap: () => context.goNamed(RouteNames.qcFailed),
+        ),
+      if (canSeeQcTiles)
+        StatCard(
+          title: 'QC fail (30d)',
+          value: data.qcFailRateInspections > 0
+              ? '${data.qcFailRate.toStringAsFixed(1)}% · '
+                  '${data.qcFailRateFails}/${data.qcFailRateInspections}'
+              : '0% · 0/0',
+          icon: Icons.analytics_outlined,
+          color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
+          onTap: () => context.goNamed(RouteNames.qcFailed),
+        ),
+      if (canSeeQcTiles)
+        StatCard(
+          title: l.dashStatReworkQueue,
+          value: '${data.reworkQueue}',
+          icon: Icons.build_circle_outlined,
+          color: data.reworkQueue > 0
+              ? AppColors.amber
+              : AppColors.navy,
+          onTap: () => context.goNamed(RouteNames.qcRework),
+        ),
+    ];
+
+    // Mulberry logistics — everyone on this dashboard sees both.
+    final logisticsTiles = <Widget>[
+      StatCard(
+        title: 'Mulberry → Yards',
+        value: '${data.mulberryStockTotal}',
+        icon: Icons.local_shipping_outlined,
+        color: AppColors.navy,
+        onTap: () => _showMulberryYardSheet(context, data),
+      ),
+      StatCard(
+        title: 'Customer Pickups @ Mulberry',
+        value: '${data.mulberryCustomerPickups}',
+        icon: Icons.directions_car_outlined,
+        color: AppColors.amber,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {
+            'status': 'ready_for_delivery',
+            'currentLocationCode': 'MULBERRY',
+            'isStockBuild': 'false',
+            // Restrict to formally-sold customer orders so we
+            // don't surface limbo trailers (built for a customer
+            // but saleStatus still 'available' / 'sale_pending').
+            // Matches the count query.
+            'saleStatus': 'sold',
+          },
+        ),
+      ),
+    ];
+
+    // Health Check deep-link — owner + production_manager only.
+    // pushNamed so Back pops cleanly back to the dashboard instead
+    // of falling through to /admin (which is now guarded and would
+    // just bounce back to /dashboard anyway).
+    final reportTiles = <Widget>[
+      if (canSeeProductionReport)
+        StatCard(
+          title: 'Health Check',
+          value: '${data.activeTrailers}',
+          icon: Icons.monitor_heart_outlined,
+          color: AppColors.statusInProduction,
+          onTap: () => context.pushNamed(RouteNames.productionReport),
+        ),
+    ];
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
+      child: Column(
+        children: [
+          _DashSection(label: 'Production', tiles: productionTiles),
+          _DashSection(label: 'Quality', tiles: qualityTiles),
+          _DashSection(label: 'Logistics', tiles: logisticsTiles),
+          _DashSection(label: 'Reports', tiles: reportTiles),
+        ],
+      ),
     );
   }
 }
@@ -448,168 +448,166 @@ class _QcDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = context.responsive;
     final l = AppLocalizations.of(context);
+
+    // QC tiles the inspector cares about first thing every morning — the
+    // work queue and the two rate/rework signals.
+    final qualityTiles = <Widget>[
+      StatCard(
+        title: l.dashStatReadyForInspection,
+        value: '${data.readyForInspection}',
+        icon: Icons.fact_check,
+        color: AppColors.navy,
+        onTap: () => context.goNamed(RouteNames.qcQueue),
+      ),
+      StatCard(
+        title: l.dashStatInspectionsToday,
+        value: '${data.inspectionsToday}',
+        icon: Icons.checklist,
+        color: AppColors.success,
+        onTap: () => context.goNamed(RouteNames.qcQueue),
+      ),
+      StatCard(
+        title: l.dashStatFailRateToday,
+        value: data.inspectionsToday > 0
+            ? '${data.failRateToday.toStringAsFixed(1)}% · '
+                '${data.failsToday}/${data.inspectionsToday}'
+            : '0% · 0/0',
+        icon: Icons.trending_down,
+        color:
+            data.failRateToday > 20 ? AppColors.error : AppColors.navy,
+        onTap: () => context.goNamed(RouteNames.qcFailed),
+      ),
+      StatCard(
+        title: l.dashStatQcFailRate,
+        value: data.qcFailRateInspections > 0
+            ? '${data.qcFailRate.toStringAsFixed(1)}% · '
+                '${data.qcFailRateFails}/${data.qcFailRateInspections}'
+            : '${data.qcFailRate.toStringAsFixed(1)}%',
+        icon: Icons.analytics_outlined,
+        color: data.qcFailRate > 15 ? AppColors.error : AppColors.navy,
+        onTap: () => context.goNamed(RouteNames.qcFailed),
+      ),
+      StatCard(
+        title: l.dashStatReworkQueue,
+        value: '${data.reworkQueue}',
+        icon: Icons.replay,
+        color: AppColors.warning,
+        onTap: () => context.goNamed(RouteNames.qcRework),
+      ),
+    ];
+
+    // Production-floor context so a QC manager can see what's coming
+    // and what's stuck, without leaving the dashboard.
+    final productionTiles = <Widget>[
+      StatCard(
+        title: l.dashStatActiveTrailers,
+        value: '${data.activeTrailers}',
+        icon: Icons.precision_manufacturing,
+        color: AppColors.statusInProduction,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'in_production'},
+        ),
+      ),
+      StatCard(
+        title: 'Pending production',
+        value: '${data.pendingProduction}',
+        icon: Icons.schedule_outlined,
+        color: AppColors.statusPending,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'pending_production'},
+        ),
+      ),
+      StatCard(
+        title: l.dashStatHotTrailers,
+        value: '${data.hotTrailers}',
+        icon: Icons.local_fire_department,
+        color: AppColors.error,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'hot': 'true'},
+        ),
+        badge: data.hotTrailers > 0
+            ? Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(l.dashStatHotBadge,
+                    style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700)),
+              )
+            : null,
+      ),
+      StatCard(
+        title: l.dashStatStalledSteps,
+        value: '${data.stalledSteps}',
+        icon: Icons.warning_amber,
+        color: AppColors.warning,
+        onTap: () => context.goNamed(
+          RouteNames.productionQueue,
+          queryParameters: {'filter': 'stalled'},
+        ),
+        badge: data.stalledSteps > 0
+            ? Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.warning,
+                ),
+              )
+            : null,
+      ),
+      StatCard(
+        title: l.dashStatCompletedThisWeek,
+        value: '${data.weeklyCompleted}',
+        icon: Icons.check_circle_outline,
+        color: AppColors.statusDelivered,
+        onTap: () {
+          final now = DateTime.now().toUtc();
+          final daysBack = now.weekday % 7;
+          final sunday =
+              DateTime.utc(now.year, now.month, now.day - daysBack);
+          context.goNamed(
+            RouteNames.trailerList,
+            queryParameters: {
+              'status': 'delivered',
+              'completedSince': sunday.toIso8601String(),
+            },
+          );
+        },
+      ),
+      StatCard(
+        title: 'Total trailers',
+        value: '${data.totalTrailers}',
+        icon: Icons.inventory_2_outlined,
+        color: AppColors.navy,
+        onTap: () => context.goNamed(RouteNames.trailerList),
+      ),
+      StatCard(
+        title: 'Archived',
+        value: '${data.archivedTotal}',
+        icon: Icons.inventory_2_outlined,
+        color: AppColors.disabled,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'delivered'},
+        ),
+      ),
+    ];
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
-      child: GridView.count(
-        crossAxisCount:
-            r.gridColumns(compact: 2, medium: 3, expanded: 4, large: 4),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: r.statCardAspectRatio,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
+      child: Column(
         children: [
-          // ── Original QC tiles ──────────────────────────────────────────
-          StatCard(
-            title: l.dashStatReadyForInspection,
-            value: '${data.readyForInspection}',
-            icon: Icons.fact_check,
-            color: AppColors.navy,
-            onTap: () => context.goNamed(RouteNames.qcQueue),
-          ),
-          StatCard(
-            title: l.dashStatInspectionsToday,
-            value: '${data.inspectionsToday}',
-            icon: Icons.checklist,
-            color: AppColors.success,
-            onTap: () => context.goNamed(RouteNames.qcQueue),
-          ),
-          StatCard(
-            title: l.dashStatFailRateToday,
-            // Show raw fraction beside the percent so an empty morning
-            // reads as "0% · 0/0" instead of a misleading 0%.
-            value: data.inspectionsToday > 0
-                ? '${data.failRateToday.toStringAsFixed(1)}% · '
-                    '${data.failsToday}/${data.inspectionsToday}'
-                : '0% · 0/0',
-            icon: Icons.trending_down,
-            color: data.failRateToday > 20
-                ? AppColors.error
-                : AppColors.navy,
-            onTap: () => context.goNamed(RouteNames.qcFailed),
-          ),
-          StatCard(
-            title: l.dashStatReworkQueue,
-            value: '${data.reworkQueue}',
-            icon: Icons.replay,
-            color: AppColors.warning,
-            onTap: () => context.goNamed(RouteNames.qcRework),
-          ),
-          // ── Production-admin tiles (manager set minus ready-for-
-          //    delivery and Health Check) ────────────────────────────────
-          StatCard(
-            title: 'Total trailers',
-            value: '${data.totalTrailers}',
-            icon: Icons.inventory_2_outlined,
-            color: AppColors.navy,
-            onTap: () => context.goNamed(RouteNames.trailerList),
-          ),
-          StatCard(
-            title: 'Pending production',
-            value: '${data.pendingProduction}',
-            icon: Icons.schedule_outlined,
-            color: AppColors.statusPending,
-            onTap: () => context.goNamed(
-              RouteNames.trailerList,
-              queryParameters: {'status': 'pending_production'},
-            ),
-          ),
-          StatCard(
-            title: l.dashStatActiveTrailers,
-            value: '${data.activeTrailers}',
-            icon: Icons.precision_manufacturing,
-            color: AppColors.statusInProduction,
-            onTap: () => context.goNamed(
-              RouteNames.trailerList,
-              queryParameters: {'status': 'in_production'},
-            ),
-          ),
-          StatCard(
-            title: l.dashStatHotTrailers,
-            value: '${data.hotTrailers}',
-            icon: Icons.local_fire_department,
-            color: AppColors.error,
-            onTap: () => context.goNamed(
-              RouteNames.trailerList,
-              queryParameters: {'hot': 'true'},
-            ),
-            badge: data.hotTrailers > 0
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(l.dashStatHotBadge,
-                        style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700)),
-                  )
-                : null,
-          ),
-          StatCard(
-            title: l.dashStatStalledSteps,
-            value: '${data.stalledSteps}',
-            icon: Icons.warning_amber,
-            color: AppColors.warning,
-            onTap: () => context.goNamed(
-              RouteNames.productionQueue,
-              queryParameters: {'filter': 'stalled'},
-            ),
-            badge: data.stalledSteps > 0
-                ? Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.warning,
-                    ),
-                  )
-                : null,
-          ),
-          StatCard(
-            title: l.dashStatCompletedThisWeek,
-            value: '${data.weeklyCompleted}',
-            icon: Icons.check_circle_outline,
-            color: AppColors.statusDelivered,
-            onTap: () {
-              final now = DateTime.now().toUtc();
-              final daysBack = now.weekday % 7;
-              final sunday =
-                  DateTime.utc(now.year, now.month, now.day - daysBack);
-              context.goNamed(
-                RouteNames.trailerList,
-                queryParameters: {
-                  'status': 'delivered',
-                  'completedSince': sunday.toIso8601String(),
-                },
-              );
-            },
-          ),
-          StatCard(
-            title: l.dashStatQcFailRate,
-            value: data.qcFailRateInspections > 0
-                ? '${data.qcFailRate.toStringAsFixed(1)}% · '
-                    '${data.qcFailRateFails}/${data.qcFailRateInspections}'
-                : '${data.qcFailRate.toStringAsFixed(1)}%',
-            icon: Icons.analytics_outlined,
-            color: data.qcFailRate > 15
-                ? AppColors.error
-                : AppColors.navy,
-            onTap: () => context.goNamed(RouteNames.qcFailed),
-          ),
-          StatCard(
-            title: 'Archived',
-            value: '${data.archivedTotal}',
-            icon: Icons.inventory_2_outlined,
-            color: AppColors.disabled,
-            onTap: () => context.goNamed(
-              RouteNames.trailerList,
-              queryParameters: {'status': 'delivered'},
-            ),
-          ),
+          _DashSection(label: 'Quality', tiles: qualityTiles),
+          _DashSection(label: 'Production', tiles: productionTiles),
         ],
       ),
     );
@@ -626,36 +624,76 @@ class _TransportDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = context.responsive;
     final l = AppLocalizations.of(context);
+
+    // What's flowing through transport right now — the three counts a
+    // dispatcher opens the app to see.
+    final deliveryTiles = <Widget>[
+      StatCard(
+        title: l.dashStatScheduled,
+        value: '${data.scheduledDeliveries}',
+        icon: Icons.event_note,
+        color: AppColors.navy,
+        onTap: () => context.goNamed(
+          RouteNames.deliveryList,
+          queryParameters: {'status': 'scheduled'},
+        ),
+      ),
+      StatCard(
+        title: 'In transit',
+        value: '${data.inTransitCount}',
+        icon: Icons.local_shipping_outlined,
+        color: AppColors.statusInTransit,
+        onTap: () => context.goNamed(
+          RouteNames.deliveryList,
+          queryParameters: {'status': 'in_transit'},
+        ),
+      ),
+      StatCard(
+        title: l.dashStatReadyForPickup,
+        value: '${data.readyForPickup}',
+        icon: Icons.inventory,
+        color: AppColors.success,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {'status': 'ready_for_delivery'},
+        ),
+      ),
+    ];
+
+    // Mulberry outbound flow — the same tiles the manager dashboard
+    // shows, since transport is the audience that plans the stack runs
+    // and customer pickups from Mulberry.
+    final logisticsTiles = <Widget>[
+      StatCard(
+        title: 'Mulberry → Yards',
+        value: '${data.mulberryStockTotal}',
+        icon: Icons.local_shipping_outlined,
+        color: AppColors.navy,
+        onTap: () => _showMulberryYardSheet(context, data),
+      ),
+      StatCard(
+        title: 'Customer Pickups @ Mulberry',
+        value: '${data.mulberryCustomerPickups}',
+        icon: Icons.directions_car_outlined,
+        color: AppColors.amber,
+        onTap: () => context.goNamed(
+          RouteNames.trailerList,
+          queryParameters: {
+            'status': 'ready_for_delivery',
+            'currentLocationCode': 'MULBERRY',
+            'isStockBuild': 'false',
+            'saleStatus': 'sold',
+          },
+        ),
+      ),
+    ];
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: r.pagePadding),
-      child: GridView.count(
-        crossAxisCount: r.gridColumns(compact: 2, medium: 3, expanded: 3, large: 3),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: r.statCardAspectRatio,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
+      child: Column(
         children: [
-          StatCard(
-            title: l.dashStatScheduled,
-            value: '${data.scheduledDeliveries}',
-            icon: Icons.event_note,
-            color: AppColors.navy,
-            onTap: () => context.goNamed(
-              RouteNames.deliveryList,
-              queryParameters: {'status': 'scheduled'},
-            ),
-          ),
-          StatCard(
-            title: l.dashStatReadyForPickup,
-            value: '${data.readyForPickup}',
-            icon: Icons.inventory,
-            color: AppColors.success,
-            onTap: () => context.goNamed(
-              RouteNames.trailerList,
-              queryParameters: {'status': 'ready_for_delivery'},
-            ),
-          ),
+          _DashSection(label: 'Deliveries', tiles: deliveryTiles),
+          _DashSection(label: 'Logistics', tiles: logisticsTiles),
         ],
       ),
     );
@@ -901,4 +939,104 @@ void _showMulberryYardSheet(BuildContext context, DashboardData data) {
       ),
     ),
   );
+}
+
+/// Collapsible labelled group of dashboard tiles. Renders a section
+/// heading ("PRODUCTION", "QUALITY", ...) as a tappable row with an
+/// animated chevron, followed by a responsive grid of [tiles]. Defaults
+/// to expanded — the user can tap to collapse a section they don't
+/// currently care about (e.g. sales rolling up the Production section
+/// on a busy sales day). State is kept per-widget so collapsed
+/// sections stay collapsed while the dashboard refreshes.
+///
+/// Yields nothing when [tiles] is empty — sections whose tiles are all
+/// role-gated away don't leave a dangling heading behind.
+class _DashSection extends StatefulWidget {
+  final String label;
+  final List<Widget> tiles;
+
+  const _DashSection({required this.label, required this.tiles});
+
+  @override
+  State<_DashSection> createState() => _DashSectionState();
+}
+
+class _DashSectionState extends State<_DashSection>
+    with SingleTickerProviderStateMixin {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.tiles.isEmpty) return const SizedBox.shrink();
+    final r = context.responsive;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              child: Row(
+                children: [
+                  // Navy — the app's primary brand color. Bumped from 11pt
+                  // to 15pt with letter-spacing pulled down proportionally
+                  // so headings hold their own next to the tile grid
+                  // instead of getting swallowed by it.
+                  Text(
+                    widget.label.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.9,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Divider(
+                      color: AppColors.navy.withValues(alpha: 0.25),
+                      thickness: 1,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedRotation(
+                    turns: _expanded ? 0 : -0.25,
+                    duration: const Duration(milliseconds: 180),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.navy,
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: _expanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: GridView.count(
+                      crossAxisCount: r.gridColumns(
+                          compact: 2, medium: 3, expanded: 4, large: 4),
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: r.statCardAspectRatio,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      children: widget.tiles,
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
 }

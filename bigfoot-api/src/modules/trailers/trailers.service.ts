@@ -237,7 +237,16 @@ export class TrailersService {
     // for Mulberry." We additionally require intent to be Mulberry (or
     // unset) before hiding — a stock build destined for TAL / JAX / VA IS
     // ready, transport just hasn't dispatched the stack_to_location yet.
-    if (query.status === TrailerStatus.ready_for_delivery) {
+    //
+    // `includeOpenStock=true` opts out. Set by the delivery-creation form
+    // so a sales user can book a delivery for a Mulberry stock trailer
+    // that hasn't been sold yet — the exclusion was hiding those from the
+    // picker (SO 6862 was the report), which made otherwise-eligible
+    // trailers un-bookable without a data workaround.
+    if (
+      query.status === TrailerStatus.ready_for_delivery &&
+      !query.includeOpenStock
+    ) {
       where.NOT = {
         ...(where.NOT as Prisma.TrailerWhereInput | undefined),
         isStockBuild: true,
@@ -458,11 +467,16 @@ export class TrailersService {
             : TrailerStatus.pending_production,
           soldToName: dto.soldToName?.trim() || null,
           // A trailer created against a customer (record or free-text name)
-          // is, by definition, sold.
+          // is, by definition, sold. Record the sale timestamp so the
+          // Health Check → Sales counts read off soldAt instead of
+          // createdAt/updatedAt (both of which drift for a variety of
+          // reasons — see production-report.service.buildPeriodSnapshot).
           saleStatus:
             dto.customerId || dto.soldToName?.trim()
               ? TrailerSaleStatus.sold
               : TrailerSaleStatus.available,
+          soldAt:
+            dto.customerId || dto.soldToName?.trim() ? new Date() : null,
         },
         select: TRAILER_DETAIL_SELECT,
       });
@@ -532,6 +546,11 @@ export class TrailersService {
         soNumber: true,
         isStockBuild: true,
         currentLocationId: true,
+        // saleStatus is read alongside the other fields so the update can
+        // detect a real sale-flip (available → sold or sold → available)
+        // and sync `soldAt` accordingly. Without this the sales counts on
+        // Health Check still drift on unrelated edits.
+        saleStatus: true,
         trailerModel: { select: { series: true } },
       },
     });
@@ -650,6 +669,18 @@ export class TrailersService {
     if (dto.specialNote !== undefined) data.specialNote = dto.specialNote;
     if (dto.qbSoId !== undefined) data.qbSoId = dto.qbSoId;
     if (dto.status !== undefined) data.status = dto.status as TrailerStatus;
+
+    // Sync soldAt off the FINAL saleStatus, only when it's a real
+    // transition. Skipping the "already sold, still sold" case matters —
+    // otherwise a later address/status edit that also happened to touch
+    // the sale-related paths would re-stamp soldAt and rewrite history.
+    // Available → sold sets soldAt = now (the sale event).
+    // Sold → available clears soldAt (the un-sale — safer than leaving
+    // a stale timestamp on a trailer that's no longer sold, and lets a
+    // subsequent re-sale get its own fresh timestamp).
+    if (data.saleStatus !== undefined && data.saleStatus !== existing.saleStatus) {
+      data.soldAt = data.saleStatus === TrailerSaleStatus.sold ? new Date() : null;
+    }
 
     // Detect a real series change (workflow → workflow with a different
     // series). Same-series model swaps (e.g. XP_14ET → XP_17K) don't touch
@@ -860,6 +891,10 @@ export class TrailersService {
         id: true,
         customerId: true,
         status: true,
+        // saleStatus is read so we can decide whether this call is a real
+        // sale-flip (transition) that should stamp soldAt, or a no-op
+        // re-save that shouldn't rewrite it.
+        saleStatus: true,
         createdByUserId: true,
         customer: {
           select: { id: true, customerType: true, deliveryAddress: true },
@@ -883,12 +918,20 @@ export class TrailersService {
       );
     }
 
+    const nextSaleStatus = dto.saleStatus as TrailerSaleStatus;
     const data: Prisma.TrailerUpdateInput = {
-      saleStatus: dto.saleStatus as TrailerSaleStatus,
+      saleStatus: nextSaleStatus,
       // A buyer name only belongs on a sold trailer — clear it otherwise.
       soldToName:
         dto.saleStatus === TrailerSaleStatusDto.SOLD ? (soldToName ?? null) : null,
     };
+    // Stamp soldAt on real transitions only. Available → sold sets the
+    // sale timestamp; sold → anything else clears it (a subsequent re-
+    // sale gets a fresh stamp). Same-status no-op is left alone so the
+    // original sale time isn't rewritten by a redundant save.
+    if (nextSaleStatus !== existing.saleStatus) {
+      data.soldAt = nextSaleStatus === TrailerSaleStatus.sold ? new Date() : null;
+    }
 
     // A stock trailer parked at one of our yards (production status
     // "delivered", last delivery landed at a Location) that is now sold needs

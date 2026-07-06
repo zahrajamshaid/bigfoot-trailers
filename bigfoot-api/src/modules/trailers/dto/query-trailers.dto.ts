@@ -127,6 +127,19 @@ export class QueryTrailersDto {
   @Transform(({ value }) => value === 'true' || value === true)
   excludeOpenDeliveries?: boolean;
 
+  @ApiPropertyOptional({
+    description:
+      'Bypass the "hide open Mulberry stock" exclusion applied to ' +
+      '?status=ready_for_delivery lists. Used by the delivery-creation ' +
+      'form so a sales user can book a delivery for a stock trailer ' +
+      'parked at Mulberry (which otherwise looks like open inventory ' +
+      'and is hidden from ready-lists).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  includeOpenStock?: boolean;
+
   @ApiPropertyOptional({ description: 'Search by SO number or customer name' })
   @IsOptional()
   @IsString()

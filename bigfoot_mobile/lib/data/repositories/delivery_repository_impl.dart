@@ -62,6 +62,12 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
         // Drop trailers already committed to an open delivery so they can't
         // be added to another delivery or batch.
         'excludeOpenDeliveries': true,
+        // Bypass the "hide open Mulberry stock" filter the API applies to
+        // ready lists — a stock trailer parked at Mulberry with no buyer
+        // and no destination is exactly what a sales user wants to book
+        // when creating a delivery. Without this flag the ready-picker
+        // hides them (SO 6862 was the reported case).
+        'includeOpenStock': true,
         'limit': 100,
         'page': 1,
       },

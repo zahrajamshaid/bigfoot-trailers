@@ -264,13 +264,20 @@ export class ProductionReportService {
           deliveredAt: { gte: start, lt: end },
         },
       }),
-      // Customer orders: a trailer was created with a customerId attached
-      // inside the window. Mirrors the "new order with a customer name"
-      // sales definition.
+      // Customer orders sold in window — every customer-build trailer
+      // whose sale timestamp lands inside [start, end). soldAt is
+      // populated by the trailers service every time a saleStatus flips
+      // to `sold` (create + update + updateSaleStatus paths), and
+      // backfilled from the audit log for historical rows by
+      // seed-backfill-sold-at. This replaces the older createdAt filter,
+      // which missed customer trailers built earlier but sold in the
+      // window (a customer order taken today for a chassis welded three
+      // weeks ago is still a sale today).
       this.prisma.trailer.findMany({
         where: {
-          customerId: { not: null },
-          createdAt: { gte: start, lt: end },
+          isStockBuild: false,
+          saleStatus: 'sold',
+          soldAt: { gte: start, lt: end },
         },
         select: {
           trailerModelId: true,
@@ -279,16 +286,16 @@ export class ProductionReportService {
           },
         },
       }),
-      // Open-stock sold: trailer was a stock build (created without a
-      // customer) and is now marked sold inside the window. saleStatus has
-      // no dedicated sold-at column, so we approximate with updatedAt. Stock
-      // builds rarely receive other edits after the sale flip, so this is
-      // usually correct; if drift matters we'll move to audit_log later.
+      // Open-stock sold in window — every stock build whose sale
+      // timestamp lands inside [start, end). Replaces the older
+      // updatedAt filter, which drifted on any later edit (delivery
+      // flip, address change) and either double-counted or dropped
+      // trailers depending on when the last touch landed.
       this.prisma.trailer.findMany({
         where: {
           isStockBuild: true,
           saleStatus: 'sold',
-          updatedAt: { gte: start, lt: end },
+          soldAt: { gte: start, lt: end },
         },
         select: {
           trailerModelId: true,

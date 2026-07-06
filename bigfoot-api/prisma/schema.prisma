@@ -314,6 +314,16 @@ model Trailer {
   // owned by the GoHighLevel integration, not this table.
   soldToName String? @map("sold_to_name") @db.VarChar(200)
 
+  /// Timestamp of the most recent saleStatus → `sold` flip. Nullable so
+  /// unsold trailers don't need a bogus value. Populated by the service
+  /// wherever saleStatus flips to `sold` (and cleared when flipped away).
+  /// Sales reporting (Health Check → Sales) uses this instead of
+  /// createdAt / updatedAt — the former misses back-catalog sales, the
+  /// latter drifts on any later edit (delivery flip, address change,
+  /// etc.). Backfilled from the audit_log by seed-backfill-sold-at for
+  /// historical rows.
+  soldAt DateTime? @map("sold_at") @db.Timestamptz
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -336,6 +346,11 @@ model Trailer {
 
   @@index([status, globalPriority, createdAt(sort: Desc)], map: "idx_trailers_status_priority")
   @@index([saleStatus], map: "idx_trailers_sale_status")
+  // Sales-count queries in Health Check filter on soldAt in a period
+  // window and read isStockBuild to split customer-orders from
+  // open-stock. Indexing (soldAt DESC, isStockBuild) keeps the scan
+  // small on a growing table.
+  @@index([soldAt(sort: Desc), isStockBuild], map: "idx_trailers_sold_at")
   @@index([customerId, status], map: "idx_trailers_customer_status")
   @@index([currentLocationId, status], map: "idx_trailers_location_status")
   @@index([isHot, status], map: "idx_trailers_hot_status")
