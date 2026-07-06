@@ -92,12 +92,17 @@ export class WorkflowGeneratorService {
     const forcePaintB =
       lengthFt !== null && lengthFt >= PAINT_A_MAX_FT;
 
-    // gooseneck_dump + gooseneck_yeti both hardcode PAINT_B via the
+    // gooseneck_dump + gooseneck_yeti + cxp all hardcode PAINT_B via the
     // workflow template, so we leave paintBoothDeptId null for them and
-    // let template.departmentId carry through.
+    // let template.departmentId carry through. The `isGooseneck` name is
+    // now really "uses the gooseneck production line" — CXP is not a
+    // gooseneck but its 12 workflow steps are identical (including the
+    // GN_FIN + QC_2 bypass), so every guard downstream that checks
+    // `isGooseneck` applies unchanged.
     const isGooseneck =
       series === TrailerSeries.gooseneck_dump ||
-      series === TrailerSeries.gooseneck_yeti;
+      series === TrailerSeries.gooseneck_yeti ||
+      series === TrailerSeries.cxp;
     let paintBoothDeptId: number | null = null;
     if (!isGooseneck) {
       paintBoothDeptId = forcePaintB

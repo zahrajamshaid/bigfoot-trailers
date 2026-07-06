@@ -23,6 +23,11 @@ export enum TrailerSeriesDto {
   INVENTORY = 'inventory',
   // Gooseneck Yeti — gooseneck_dump workflow with YETI_FIN at step 3.
   GOOSENECK_YETI = 'gooseneck_yeti',
+  // CXP — small pull-behind that runs 1-for-1 through the gooseneck
+  // workflow (including the GN_FIN + QC_2 bypass and PAINT_B default),
+  // but kept as its own series so reporting / filters treat it
+  // distinctly.
+  CXP = 'cxp',
 }
 
 export class QueryTrailersDto {

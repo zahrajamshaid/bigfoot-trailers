@@ -30,6 +30,13 @@ enum TrailerSeries {
   // to PAINT_B like other goosenecks; hydraulics + the rest of the line
   // stay identical to gooseneck_dump.
   gooseneck_yeti
+  // CXP — small pull-behind that shares the gooseneck production line
+  // 1-for-1: same 12 workflow steps including the GN_FIN + QC_2 bypass
+  // and always PAINT_B. Kept as its own series so it doesn't skew
+  // gooseneck reporting and so a customer looking at their trailer
+  // sees "CXP" rather than "Gooseneck". Two models today: 10 CXP and
+  // 14K CXP.
+  cxp
 
   @@map("trailer_series_enum")
 }
