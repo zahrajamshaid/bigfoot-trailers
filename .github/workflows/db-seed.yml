@@ -41,6 +41,7 @@ on:
           - seed-cxp-models # new cxp series + 10 CXP / 14K CXP models (gooseneck workflow 1-for-1, incl. GN_FIN + QC_2 bypass and PAINT_B default)
           - seed-backfill-sold-at # one-shot: fill trailers.sold_at for already-sold trailers from audit_log (falls back to createdAt for born-sold cases). Needed once after the sold_at column ships so Health Check → Sales reads history correctly.
           - seed-fix-va-semi-arrival # one-shot: move 5 trailers (6361, 6417, 6586, 6743, 6777) from MULBERRY → TAPPAHANNOCK to reflect the 2026-06-22 semi shipment that never got marked. Flips status delivered→ready_for_delivery on the four that were prematurely closed.
+          - seed-fix-va-reconcile-2 # one-shot: VA yard reconciliation round 2. 6698 back to ready (BODNER pickup); 6911 → VA + sold to "A and R Septic Brett"; 6658/6783/6784/6785/6866 → delivered (customer picked up).
           - backfill-qb-so-date # one-shot: pull "Date:" off attached PDFs for pending/in-production trailers
           - fix-trailers-to-wood # one-shot: jump SO 6702 + 6704 to WOOD (step 11)
           - seed-wood-install-fenders # add "Install fenders" to the WOOD worker checklist
