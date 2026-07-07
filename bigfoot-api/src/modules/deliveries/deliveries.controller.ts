@@ -152,10 +152,24 @@ export class DeliveriesController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /deliveries/factory-pickup/:id/complete — office, owner
+  // POST /deliveries/factory-pickup/:id/complete — pickup complete
+  //
+  // Anyone who can create a sale can close it out here. When a sales
+  // user marks a trailer sold with fulfilmentType=pickup, the backend
+  // auto-creates a `factory_pickup` delivery in `scheduled`. Without
+  // sales / owner / production_manager on the role list, that
+  // scheduled row was unreachable from any UI besides the trailer-detail
+  // "Mark completed" shortcut — so a lot of pickups sat forever if
+  // someone opened the delivery detail expecting a completion button.
   // ---------------------------------------------------------------------------
   @Post('factory-pickup/:id/complete')
-  @Roles(UserRole.OFFICE, UserRole.TRANSPORT_MANAGER, UserRole.OWNER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.SALES,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.TRANSPORT_MANAGER,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Complete a factory pickup (records who picked up & amount collected)',

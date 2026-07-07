@@ -93,6 +93,21 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     final canDelete =
         role == UserRole.transportManager || role == UserRole.owner;
     final hasPhone = deliveryHasCustomerPhone(d);
+    // Factory-pickup deliveries are auto-created when sales marks a
+    // trailer sold + pickup. They land in `scheduled` and used to have
+    // no completion button for anyone but a driver / transport manager
+    // — so hundreds sat forever. This gate exposes a dedicated
+    // "Complete pickup" button to every role that can legitimately close
+    // one out (owner / office / sales / production_manager / transport
+    // manager) whenever the row is still scheduled.
+    final isFactoryPickup = d.deliveryType == 'factory_pickup';
+    final canCompletePickup = isFactoryPickup &&
+        d.status == 'scheduled' &&
+        (role == UserRole.owner ||
+            role == UserRole.office ||
+            role == UserRole.sales ||
+            role == UserRole.productionManager ||
+            role == UserRole.transportManager);
 
     return Scaffold(
       appBar: AppBar(
@@ -193,6 +208,32 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                 children: [Text(d.failReason!)],
               ),
             const SizedBox(height: 8),
+            // Factory-pickup fast path — dedicated "Complete pickup" for
+            // owner / office / sales / PM / transport. Same terminal
+            // effect (delivery → delivered, trailer → delivered) but
+            // routes through /deliveries/factory-pickup/:id/complete
+            // which the auto-created pickup row expects.
+            if (canCompletePickup)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _actionBusy ? null : () => _completePickup(d),
+                    icon: _actionBusy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.done_all_outlined),
+                    label: const Text('Complete pickup'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.navy,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             if (canAct && isOpen)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -252,6 +293,37 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     try {
       await context.read<DeliveriesViewModel>().completeDelivery(
             widget.deliveryId,
+            paymentCollected: result.paymentCollected,
+          );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .deliveryDetailCompleteFail('$e'))),
+      );
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
+  }
+
+  /// Closes out an auto-created factory-pickup delivery. Uses the same
+  /// complete-dialog as regular deliveries so operators can also record
+  /// who physically picked the trailer up + any payment collected. On
+  /// success the API flips both the delivery and trailer to `delivered`
+  /// atomically — the trailer detail refreshes automatically off the ws
+  /// event, so the "Mark completed" shortcut on the trailer detail
+  /// disappears in the same beat.
+  Future<void> _completePickup(Delivery d) async {
+    final result = await showCompleteDeliveryDialog(context, d);
+    if (result == null || !mounted) return;
+
+    setState(() => _actionBusy = true);
+    try {
+      await context.read<DeliveriesViewModel>().completeFactoryPickup(
+            widget.deliveryId,
+            pickedUpByName: d.customerName,
             paymentCollected: result.paymentCollected,
           );
       await _load();
