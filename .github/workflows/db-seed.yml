@@ -45,6 +45,7 @@ on:
           - seed-fix-va-revert-delivered # one-shot: undo the delivered flip for 6658/6783/6784/6785/6866. Operator clarified they're still at VA waiting on their buyers; keep them ready_for_delivery + sold.
           - seed-fix-delivered-null-destination # one-shot: backfill destinationLocationId on stack-to-yard deliveries that were delivered with NULL destination (they were invisible in yard inventory). Uses trailer.intendedStockLocationId as the fallback.
           - seed-fix-va-unsold # one-shot: revert 6875/6911/6781 back to open stock at VA (clear sale + soldAt + soldToName + customer); move 6875 MULBERRY → TAPPAHANNOCK.
+          - seed-fix-6781-status # one-shot: flip SO 6781 back to ready_for_delivery (its status got flipped to delivered mid-reconciliation).
           - backfill-qb-so-date # one-shot: pull "Date:" off attached PDFs for pending/in-production trailers
           - fix-trailers-to-wood # one-shot: jump SO 6702 + 6704 to WOOD (step 11)
           - seed-wood-install-fenders # add "Install fenders" to the WOOD worker checklist
