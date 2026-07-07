@@ -7,6 +7,7 @@ import {
   DeliveryBatchStatus,
   DeliveryType,
   TrailerStatus,
+  TrailerSaleStatus,
   SmsType,
   SmsStatus,
   NotificationType,
@@ -741,7 +742,17 @@ export class DeliveriesService {
         // delivery is the old stack_to_location that parked them at a yard,
         // but the trailer itself is gone — without this filter we'd keep
         // showing picked-up units under their previous yard forever.
-        trailer: { status: { not: TrailerStatus.delivered } },
+        //
+        // Also skip sold trailers: once a stock trailer at a yard has a
+        // buyer attached, it's a customer-pickup (or a scheduled customer
+        // delivery), not inventory. Inventory should surface only what's
+        // available for sale or movable between yards; anything already
+        // spoken for belongs in the sold-pipeline lists, not the yard
+        // inventory tile.
+        trailer: {
+          status: { not: TrailerStatus.delivered },
+          saleStatus: { not: TrailerSaleStatus.sold },
+        },
       },
       distinct: ['trailerId'],
       orderBy: [{ trailerId: 'asc' }, { deliveredAt: 'desc' }],
@@ -768,18 +779,19 @@ export class DeliveriesService {
       },
     });
 
-    // Leg (2): stock builds born at Mulberry. Mulberry is the factory, so
-    // it's the only yard where a stock build can appear "at a yard" without
-    // ever having a delivery record (other yards always receive trailers
-    // via a stack_to_location delivery, which leg 1 already catches).
-    // Scoping to Mulberry keeps this leg narrow and reversible.
-    // ready_for_delivery only — in-production stock joins later when the
-    // workflow flips them.
+    // Leg (2): stock builds physically at a yard with no delivery record
+    // that would surface them via leg 1. Mulberry is the common case —
+    // the factory births stock builds directly. But a stack-to-yard run
+    // that shipped without being marked in the app leaves a trailer at
+    // a satellite yard with currentLocationId set but no delivered
+    // delivery. SO 6777 was one of those; without broadening this leg it
+    // silently vanishes from the VA inventory tile. Keep saleStatus !=
+    // sold and status = ready_for_delivery so we only surface open stock.
     const yardBornStock = await this.prisma.trailer.findMany({
       where: {
         isStockBuild: true,
         status: TrailerStatus.ready_for_delivery,
-        currentLocation: { code: 'MULBERRY' },
+        saleStatus: { not: TrailerSaleStatus.sold },
         deliveries: { none: { status: DeliveryStatus.delivered } },
       },
       select: {

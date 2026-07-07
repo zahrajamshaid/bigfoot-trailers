@@ -641,25 +641,30 @@ describe('DeliveriesService', () => {
       expect(tappEntry!.trailers[0].deliveryId).toBe('500');
     });
 
-    it('queries trailers scoped to Mulberry + ready_for_delivery + no delivered delivery', async () => {
+    it('queries stock trailers scoped to ready_for_delivery + open (not sold) + no delivered delivery', async () => {
       mockPrisma.delivery.findMany.mockResolvedValue([]);
       mockPrisma.trailer.findMany.mockResolvedValue([]);
 
       await service.getStockInventory();
 
+      // Leg 2 no longer scopes to Mulberry — the currentLocation filter is
+      // dropped so stock trailers physically at any yard with no delivery
+      // record (e.g. SO 6777, moved to VA without a stack_to_location
+      // being logged) still surface in the inventory tile. saleStatus !=
+      // sold keeps customer-owned trailers out of open inventory.
       expect(mockPrisma.trailer.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             isStockBuild: true,
             status: 'ready_for_delivery',
-            currentLocation: { code: 'MULBERRY' },
+            saleStatus: { not: 'sold' },
             deliveries: { none: { status: 'delivered' } },
           }),
         }),
       );
     });
 
-    it('leg 1 excludes trailers that have since been picked up by a customer', async () => {
+    it('leg 1 excludes trailers that have since been picked up OR sold', async () => {
       mockPrisma.delivery.findMany.mockResolvedValue([]);
       mockPrisma.trailer.findMany.mockResolvedValue([]);
 
@@ -667,12 +672,16 @@ describe('DeliveriesService', () => {
 
       // Picked-up trailers carry trailer.status=delivered. Their last
       // delivered delivery (the old stack_to_location to JAX, say) would
-      // otherwise keep them sticky to that yard's inventory tile.
+      // otherwise keep them sticky to that yard's inventory tile. Sold
+      // trailers are also excluded so the tile shows open stock only.
       expect(mockPrisma.delivery.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             status: 'delivered',
-            trailer: { status: { not: 'delivered' } },
+            trailer: {
+              status: { not: 'delivered' },
+              saleStatus: { not: 'sold' },
+            },
           }),
         }),
       );
