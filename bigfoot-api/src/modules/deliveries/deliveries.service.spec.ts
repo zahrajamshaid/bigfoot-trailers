@@ -590,27 +590,31 @@ describe('DeliveriesService', () => {
       state: 'VA',
     };
 
-    it('unions delivered-stock + Mulberry-born stock and groups by yard', async () => {
-      mockPrisma.delivery.findMany.mockResolvedValue([
-        {
-          id: BigInt(500),
-          deliveredAt: new Date('2026-06-01T10:00:00Z'),
-          destinationLocation: tappahannock,
-          trailer: {
-            id: BigInt(20),
-            soNumber: '5500',
-            sizeFt: '20',
-            isHot: false,
-            saleStatus: 'available',
-            soldToName: null,
-            trailerModel: { displayName: 'XP 20', series: 'xp' },
-            customer: null,
-          },
-          driverUser: { id: BigInt(11), fullName: 'Driver Bob' },
-          createdByUser: null,
-        },
-      ]);
+    it('groups every ready trailer under its current yard', async () => {
       mockPrisma.trailer.findMany.mockResolvedValue([
+        // A trailer that arrived at VA via a delivered stack run.
+        {
+          id: BigInt(20),
+          soNumber: '5500',
+          sizeFt: '20',
+          isHot: false,
+          saleStatus: 'available',
+          soldToName: null,
+          createdAt: new Date('2026-05-01T08:00:00Z'),
+          currentLocation: tappahannock,
+          trailerModel: { displayName: 'XP 20', series: 'xp' },
+          customer: null,
+          createdByUser: null,
+          deliveries: [
+            {
+              id: BigInt(500),
+              deliveredAt: new Date('2026-06-01T10:00:00Z'),
+              driverUser: { id: BigInt(11), fullName: 'Driver Bob' },
+              createdByUser: null,
+            },
+          ],
+        },
+        // A Mulberry-born stock build with no delivery record.
         {
           id: BigInt(40),
           soNumber: '6791',
@@ -623,6 +627,7 @@ describe('DeliveriesService', () => {
           trailerModel: { displayName: 'XP 14', series: 'xp' },
           customer: null,
           createdByUser: { id: BigInt(12), fullName: 'Sales Sue' },
+          deliveries: [],
         },
       ]);
 
@@ -639,50 +644,29 @@ describe('DeliveriesService', () => {
 
       const tappEntry = result.find((e) => e.location.code === 'TAPPAHANNOCK');
       expect(tappEntry!.trailers[0].deliveryId).toBe('500');
+      expect(tappEntry!.trailers[0].deliveredBy).toBe('Driver Bob');
     });
 
-    it('queries stock trailers scoped to ready_for_delivery + open (not sold) + no delivered delivery', async () => {
-      mockPrisma.delivery.findMany.mockResolvedValue([]);
+    it('filters to ready_for_delivery + not-sold and does not filter on isStockBuild', async () => {
       mockPrisma.trailer.findMany.mockResolvedValue([]);
 
       await service.getStockInventory();
 
-      // Leg 2 no longer scopes to Mulberry — the currentLocation filter is
-      // dropped so stock trailers physically at any yard with no delivery
-      // record (e.g. SO 6777, moved to VA without a stack_to_location
-      // being logged) still surface in the inventory tile. saleStatus !=
-      // sold keeps customer-owned trailers out of open inventory.
+      // Only one Prisma call now — grouping happens by trailer.currentLocation
+      // instead of delivery.destination, so we no longer need the two-leg
+      // union that previously misfired on trailers moved between yards
+      // without a fresh delivery record (SO 6624 was the reported case).
+      // isStockBuild is intentionally NOT in the where clause: a customer-
+      // order trailer parked at a yard with no buyer attached (e.g. SO 6875
+      // after its sale was cleared) is still valid inventory the sales
+      // team can move.
+      expect(mockPrisma.trailer.findMany).toHaveBeenCalledTimes(1);
       expect(mockPrisma.trailer.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({
-            isStockBuild: true,
+          where: {
             status: 'ready_for_delivery',
             saleStatus: { not: 'sold' },
-            deliveries: { none: { status: 'delivered' } },
-          }),
-        }),
-      );
-    });
-
-    it('leg 1 excludes trailers that have since been picked up OR sold', async () => {
-      mockPrisma.delivery.findMany.mockResolvedValue([]);
-      mockPrisma.trailer.findMany.mockResolvedValue([]);
-
-      await service.getStockInventory();
-
-      // Picked-up trailers carry trailer.status=delivered. Their last
-      // delivered delivery (the old stack_to_location to JAX, say) would
-      // otherwise keep them sticky to that yard's inventory tile. Sold
-      // trailers are also excluded so the tile shows open stock only.
-      expect(mockPrisma.delivery.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            status: 'delivered',
-            trailer: {
-              status: { not: 'delivered' },
-              saleStatus: { not: 'sold' },
-            },
-          }),
+          },
         }),
       );
     });

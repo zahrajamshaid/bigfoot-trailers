@@ -735,64 +735,34 @@ export class DeliveriesService {
   // Both sources skip trailers that are currently in-transit on a customer
   // delivery (those aren't at any yard right now).
   async getStockInventory() {
-    const latestPerTrailer = await this.prisma.delivery.findMany({
+    // Query every ready trailer physically at a yard and group by its
+    // trailer.currentLocation. Simpler than the earlier two-leg design
+    // (delivery-destination + Mulberry-born fallback) and handles the
+    // "trailer moved between yards without a delivery being logged"
+    // case correctly — those trailers were previously invisible
+    // (SO 6624 was one) because their most recent delivered delivery
+    // pointed at their old yard while trailer.currentLocation had
+    // already been updated to the new one. Grouping by
+    // trailer.currentLocation is what the operator actually means when
+    // they ask "what's at this yard right now."
+    //
+    // The most recent delivered delivery (any destination) is still
+    // included to power the tile's "delivered on" + "by whom" columns.
+    // If a trailer has never had a delivery — e.g. Mulberry-born stock
+    // — those fields fall back to createdAt / createdByUser like the
+    // old leg 2 did.
+    //
+    // Exclusion rules:
+    //   - trailer.status = ready_for_delivery (in-production still on
+    //     the floor; delivered means the customer picked up)
+    //   - saleStatus != sold (sold trailers are customer-pickups, not
+    //     inventory available for sale)
+    // trailer.currentLocationId is non-nullable in the schema so every
+    // ready trailer is guaranteed to sit at exactly one location.
+    const trailers = await this.prisma.trailer.findMany({
       where: {
-        status: DeliveryStatus.delivered,
-        // Skip trailers a customer has since picked up. Their last delivered
-        // delivery is the old stack_to_location that parked them at a yard,
-        // but the trailer itself is gone — without this filter we'd keep
-        // showing picked-up units under their previous yard forever.
-        //
-        // Also skip sold trailers: once a stock trailer at a yard has a
-        // buyer attached, it's a customer-pickup (or a scheduled customer
-        // delivery), not inventory. Inventory should surface only what's
-        // available for sale or movable between yards; anything already
-        // spoken for belongs in the sold-pipeline lists, not the yard
-        // inventory tile.
-        trailer: {
-          status: { not: TrailerStatus.delivered },
-          saleStatus: { not: TrailerSaleStatus.sold },
-        },
-      },
-      distinct: ['trailerId'],
-      orderBy: [{ trailerId: 'asc' }, { deliveredAt: 'desc' }],
-      select: {
-        id: true,
-        deliveredAt: true,
-        destinationLocation: {
-          select: { id: true, code: true, name: true, city: true, state: true },
-        },
-        trailer: {
-          select: {
-            id: true,
-            soNumber: true,
-            sizeFt: true,
-            isHot: true,
-            saleStatus: true,
-            soldToName: true,
-            trailerModel: { select: { displayName: true, series: true } },
-            customer: { select: { name: true } },
-          },
-        },
-        driverUser: { select: { id: true, fullName: true } },
-        createdByUser: { select: { id: true, fullName: true } },
-      },
-    });
-
-    // Leg (2): stock builds physically at a yard with no delivery record
-    // that would surface them via leg 1. Mulberry is the common case —
-    // the factory births stock builds directly. But a stack-to-yard run
-    // that shipped without being marked in the app leaves a trailer at
-    // a satellite yard with currentLocationId set but no delivered
-    // delivery. SO 6777 was one of those; without broadening this leg it
-    // silently vanishes from the VA inventory tile. Keep saleStatus !=
-    // sold and status = ready_for_delivery so we only surface open stock.
-    const yardBornStock = await this.prisma.trailer.findMany({
-      where: {
-        isStockBuild: true,
         status: TrailerStatus.ready_for_delivery,
         saleStatus: { not: TrailerSaleStatus.sold },
-        deliveries: { none: { status: DeliveryStatus.delivered } },
       },
       select: {
         id: true,
@@ -803,11 +773,28 @@ export class DeliveriesService {
         soldToName: true,
         createdAt: true,
         currentLocation: {
-          select: { id: true, code: true, name: true, city: true, state: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            city: true,
+            state: true,
+          },
         },
         trailerModel: { select: { displayName: true, series: true } },
         customer: { select: { name: true } },
         createdByUser: { select: { id: true, fullName: true } },
+        deliveries: {
+          where: { status: DeliveryStatus.delivered },
+          orderBy: { deliveredAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            deliveredAt: true,
+            driverUser: { select: { id: true, fullName: true } },
+            createdByUser: { select: { id: true, fullName: true } },
+          },
+        },
       },
     });
 
@@ -833,34 +820,7 @@ export class DeliveriesService {
       }
     >();
 
-    for (const d of latestPerTrailer) {
-      if (!d.destinationLocation) continue; // delivered to a customer address — not stock
-      const loc = d.destinationLocation;
-      let entry = byLocation.get(loc.id);
-      if (!entry) {
-        entry = { location: loc, trailers: [] };
-        byLocation.set(loc.id, entry);
-      }
-      entry.trailers.push({
-        deliveryId: d.id.toString(),
-        trailerId: d.trailer.id.toString(),
-        soNumber: d.trailer.soNumber,
-        model: d.trailer.trailerModel?.displayName ?? null,
-        series: d.trailer.trailerModel?.series ?? null,
-        sizeFt: d.trailer.sizeFt ?? null,
-        isHot: d.trailer.isHot,
-        saleStatus: d.trailer.saleStatus,
-        customerName:
-          d.trailer.customer?.name ?? d.trailer.soldToName ?? null,
-        deliveredAt: d.deliveredAt,
-        deliveredBy: (d.driverUser ?? d.createdByUser)?.fullName ?? null,
-      });
-    }
-
-    // Leg (2) merge: stock builds born at the yard. deliveryId is null and
-    // deliveredAt falls back to createdAt so the "newest arrivals first"
-    // sort still orders them sensibly within each yard.
-    for (const t of yardBornStock) {
+    for (const t of trailers) {
       if (!t.currentLocation) continue;
       const loc = t.currentLocation;
       let entry = byLocation.get(loc.id);
@@ -868,8 +828,13 @@ export class DeliveriesService {
         entry = { location: loc, trailers: [] };
         byLocation.set(loc.id, entry);
       }
+      const lastDelivery = t.deliveries[0];
       entry.trailers.push({
-        deliveryId: null,
+        // Delivery-id + delivered-by are convenience fields the tile UI
+        // uses when the trailer arrived via a stack run. Null for
+        // yard-born stock; falls back to createdBy for that case so the
+        // tile still shows who put the trailer on the floor.
+        deliveryId: lastDelivery?.id.toString() ?? null,
         trailerId: t.id.toString(),
         soNumber: t.soNumber,
         model: t.trailerModel?.displayName ?? null,
@@ -878,8 +843,11 @@ export class DeliveriesService {
         isHot: t.isHot,
         saleStatus: t.saleStatus,
         customerName: t.customer?.name ?? t.soldToName ?? null,
-        deliveredAt: t.createdAt,
-        deliveredBy: t.createdByUser?.fullName ?? null,
+        deliveredAt: lastDelivery?.deliveredAt ?? t.createdAt,
+        deliveredBy:
+          (lastDelivery?.driverUser ?? lastDelivery?.createdByUser)?.fullName ??
+          t.createdByUser?.fullName ??
+          null,
       });
     }
 
