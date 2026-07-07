@@ -47,6 +47,7 @@ on:
           - seed-fix-va-unsold # one-shot: revert 6875/6911/6781 back to open stock at VA (clear sale + soldAt + soldToName + customer); move 6875 MULBERRY → TAPPAHANNOCK.
           - seed-fix-6781-status # one-shot: flip SO 6781 back to ready_for_delivery (its status got flipped to delivered mid-reconciliation).
           - seed-fix-va-batch-2026-07-07 # one-shot: 2026-07-07 VA batch — unstick 6924/6859/6860/6659/6742/6779/6768 (close open steps + ready_for_delivery); reconcile 6862 → VA + turn ghost delivery #284 into a delivered stack-to-VA record; flip 6781 delivered → ready.
+          - seed-fix-mul-openstock # one-shot: 2026-07-07 Mulberry open-stock reconcile — clear phantom "Hi Low" sale on 6770 + unstick 6893 (in_production sale_pending → ready_for_delivery available).
           - backfill-qb-so-date # one-shot: pull "Date:" off attached PDFs for pending/in-production trailers
           - fix-trailers-to-wood # one-shot: jump SO 6702 + 6704 to WOOD (step 11)
           - seed-wood-install-fenders # add "Install fenders" to the WOOD worker checklist
