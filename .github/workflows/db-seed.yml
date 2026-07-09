@@ -50,6 +50,7 @@ on:
           - seed-fix-mul-openstock # one-shot: 2026-07-07 Mulberry open-stock reconcile — clear phantom "Hi Low" sale on 6770 + unstick 6893 (in_production sale_pending → ready_for_delivery available).
           - seed-fix-mul-sold-rtg # one-shot: 2026-07-07 Mulberry SOLD RTG reconcile — mark 6659→Back Acre + 6912→A&R SEPTIC sold; unstick 6881 (in_production → ready_for_delivery, sale already correct as AC SCHULTES).
           - seed-fix-6862-back-to-mul # one-shot: move SO 6862 currentLocation TAPPAHANNOCK → MULBERRY per operator's final confirmation that it's physically at Mulberry.
+          - seed-fix-6588-status # one-shot: flip SO 6588 delivered → ready_for_delivery after the sale-pending→delivered regression. Still at VA, sold to Elevated Ag Solution.
           - backfill-qb-so-date # one-shot: pull "Date:" off attached PDFs for pending/in-production trailers
           - fix-trailers-to-wood # one-shot: jump SO 6702 + 6704 to WOOD (step 11)
           - seed-wood-install-fenders # add "Install fenders" to the WOOD worker checklist

@@ -951,47 +951,25 @@ export class TrailersService {
       }
     }
 
-    // Inverse of the rule above: reverting a stock trailer out of "sold"
-    // (back to available or sale_pending) should restore the "at the yard"
-    // state. Without this the trailer stays in ready_for_delivery forever —
-    // and Stock Inventory grouping looks correct (driven by the latest
-    // delivered Delivery) but the trailer.status column reads wrong, which
-    // shows up in any status-filtered list.
-    //
-    // Guard: only revert when there's no live delivery (scheduled /
-    // in_transit / failed) more recent than the latest delivered one. If a
-    // delivery is already in flight, "available" usually means the order was
-    // cancelled and the trailer is being returned — we let the delivery
-    // completion flow set the final status.
-    if (
-      dto.saleStatus !== TrailerSaleStatusDto.SOLD &&
-      existing.status === TrailerStatus.ready_for_delivery
-    ) {
-      const lastDelivered = await this.prisma.delivery.findFirst({
-        where: { trailerId: id, status: DeliveryStatus.delivered },
-        orderBy: { deliveredAt: 'desc' },
-        select: { id: true, deliveredAt: true, destinationLocationId: true },
-      });
-      if (lastDelivered?.destinationLocationId != null) {
-        const newerLive = await this.prisma.delivery.findFirst({
-          where: {
-            trailerId: id,
-            status: {
-              in: [
-                DeliveryStatus.scheduled,
-                DeliveryStatus.in_transit,
-                DeliveryStatus.failed,
-              ],
-            },
-            createdAt: { gt: lastDelivered.deliveredAt ?? new Date(0) },
-          },
-          select: { id: true },
-        });
-        if (!newerLive) {
-          data.status = TrailerStatus.delivered;
-        }
-      }
-    }
+    // NOTE: there used to be an "inverse" block here that flipped a
+    // ready_for_delivery trailer to `delivered` whenever its sale status
+    // moved off `sold`, on the theory that a reverted stock trailer should
+    // go back to "parked delivered at the yard." That was wrong on two
+    // counts:
+    //   1. It fired on ANY non-sold transition, not just sold → not-sold.
+    //      Marking an open-stock (available) trailer at a yard as
+    //      `sale_pending` tripped it and silently sent the trailer to
+    //      `delivered` — the SO 6588 bug the operator reported (a ready
+    //      trailer marked sale_pending vanished from the yard).
+    //   2. Even for a genuine sold → available revert, `delivered` is the
+    //      wrong status. Per the yard-inventory rule, open stock sitting at
+    //      a yard must be `ready_for_delivery` (that's what makes it show
+    //      on the Stock Inventory tile + be movable between yards). A
+    //      trailer whose sale was cancelled is open stock again, so it
+    //      should STAY ready_for_delivery, not hide as delivered.
+    // So the correct behaviour is simply: leave `status` alone on a sale-
+    // status change. The delivery-completion flow is the only thing that
+    // should ever set `status = delivered`.
 
     // Wrap the trailer update + (optional) auto-Delivery creation in one
     // transaction so we don't leave a trailer flagged sold without its
