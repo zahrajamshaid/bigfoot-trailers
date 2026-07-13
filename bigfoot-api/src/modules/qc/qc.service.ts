@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppError, ErrorCode } from '../../common/errors';
+import { toQcSeriesScope } from '../../common/qc-series-scope';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ReworkRoutingService } from './rework-routing.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -57,7 +58,10 @@ export class QcService {
     if (query.trailerId !== undefined) {
       const trailer = await this.prisma.trailer.findUnique({
         where: { id: BigInt(query.trailerId) },
-        select: { addons: { select: { addonName: true } } },
+        select: {
+          addons: { select: { addonName: true } },
+          trailerModel: { select: { series: true } },
+        },
       });
       if (!trailer) {
         throw new AppError(
@@ -65,6 +69,17 @@ export class QcService {
           `Trailer with id ${query.trailerId} not found`,
         );
       }
+
+      // Derive the scope from the trailer itself — never rely on the caller to
+      // send `series`. Clients drop series they don't recognise (e.g. cxp), and
+      // without a scope filter EVERY series' checks come back, so each item
+      // renders once per scope (the "checklist shown 4×" bug). This wins over
+      // any client-supplied series.
+      const scope = toQcSeriesScope(trailer.trailerModel.series);
+      if (scope) {
+        where.appliesToSeries = { in: [scope, QcSeriesScope.all] };
+      }
+
       const addonKeys = trailer.addons.map((a) => a.addonName);
       const addonClauses: Prisma.QcChecklistItemWhereInput[] = [
         { requiresAddonKey: null },

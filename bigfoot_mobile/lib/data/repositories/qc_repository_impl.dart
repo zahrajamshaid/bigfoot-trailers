@@ -71,12 +71,21 @@ class QcRepositoryImpl implements QcRepository {
     return items;
   }
 
+  /// Map a trailer series onto the QC checklist scope the API understands.
+  ///
+  /// The QC scopes are a smaller set than the trailer series. `cxp` and
+  /// `gooseneck_yeti` run the gooseneck line 1-for-1, so they're inspected with
+  /// the gooseneck checks. Previously they fell off this allow-list and were
+  /// sent as null, which dropped the API's scope filter and returned every
+  /// series' checks — the checklist rendered each item once per scope.
   String? _normalizeSeries(String? raw) {
     if (raw == null) return null;
     final v = raw.trim().toLowerCase();
     if (v.isEmpty) return null;
     const allowed = <String>{'xp', 'yeti', 'deck_over', 'gooseneck_dump', 'all'};
-    return allowed.contains(v) ? v : null;
+    if (allowed.contains(v)) return v;
+    if (v == 'cxp' || v == 'gooseneck_yeti') return 'gooseneck_dump';
+    return null;
   }
 
   Future<List<QcChecklistItem>> _fetchChecklistItems(Map<String, dynamic> params) async {

@@ -6,6 +6,7 @@ import {
   TrailerStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { toQcSeriesScope } from '../../common/qc-series-scope';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AppError } from '../../common/errors/app-error';
 import { ErrorCode } from '../../common/errors/error-codes';
@@ -139,7 +140,9 @@ export class ProductionService {
     // QC steps manage their checklist through /qc/checklist-items.
     if (step.department.isQcStep) return [];
 
-    const series = step.trailer.trailerModel.series as unknown as QcSeriesScope;
+    // Map the series onto its QC scope — series like cxp / gooseneck_yeti have
+    // no scope of their own and must not be cast straight into the enum filter.
+    const scope = toQcSeriesScope(step.trailer.trailerModel.series);
     const addonKeys = step.trailer.addons.map((a) => a.addonName);
 
     const addonClauses: Prisma.QcChecklistItemWhereInput[] = [{ requiresAddonKey: null }];
@@ -152,7 +155,9 @@ export class ProductionService {
       where: {
         departmentId: step.departmentId,
         isActive: true,
-        appliesToSeries: { in: [series, QcSeriesScope.all] },
+        ...(scope
+          ? { appliesToSeries: { in: [scope, QcSeriesScope.all] } }
+          : {}),
         OR: addonClauses,
       },
       select: {
@@ -201,18 +206,16 @@ export class ProductionService {
     // If the step's department has active upstream checklist items for this
     // trailer's series/addons, every one must be answered. Results are stored
     // in production_step_checks and become visible to the QC manager.
+    const expectedScope = toQcSeriesScope(step.trailer.trailerModel.series);
     const expectedItems = step.department.isQcStep
       ? []
       : await this.prisma.qcChecklistItem.findMany({
           where: {
             departmentId: step.departmentId,
             isActive: true,
-            appliesToSeries: {
-              in: [
-                step.trailer.trailerModel.series as unknown as QcSeriesScope,
-                QcSeriesScope.all,
-              ],
-            },
+            ...(expectedScope
+              ? { appliesToSeries: { in: [expectedScope, QcSeriesScope.all] } }
+              : {}),
             OR: (() => {
               const addonKeys = step.trailer.addons.map((a) => a.addonName);
               const clauses: Prisma.QcChecklistItemWhereInput[] = [
