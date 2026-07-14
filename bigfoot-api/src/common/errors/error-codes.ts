@@ -45,6 +45,9 @@ export enum ErrorCode {
 
   // ── 500 Internal ─────────────────────────────────────────────────────────
   INTERNAL_ERROR = 'INTERNAL_ERROR',
+
+  // ── 503 Service Unavailable ──────────────────────────────────────────────
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 }
 
 /** Maps each ErrorCode to its canonical HTTP status. */
@@ -81,6 +84,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   [ErrorCode.TOO_MANY_REQUESTS]: 429,
   // 500
   [ErrorCode.INTERNAL_ERROR]: 500,
+  // 503
+  [ErrorCode.SERVICE_UNAVAILABLE]: 503,
 };
 
 /** Human-readable default messages per error code. */
@@ -119,4 +124,5 @@ export const ERROR_DEFAULT_MESSAGE: Record<ErrorCode, string> = {
     'Acknowledge the options this department fits before continuing',
   [ErrorCode.TOO_MANY_REQUESTS]: 'Too many requests — please try again later',
   [ErrorCode.INTERNAL_ERROR]: 'An unexpected error occurred',
+  [ErrorCode.SERVICE_UNAVAILABLE]: 'This service is currently unavailable',
 };

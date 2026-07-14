@@ -1,13 +1,17 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../options/view/add_option_dialog.dart';
 import '../../../core/utils/est_clock.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/websocket/ws_client.dart';
 import '../../../data/models/trailer.dart';
+import '../../sales_orders/data/sales_order_api.dart';
 import '../../../data/models/user.dart';
 import '../../../domain/repositories/production_repository.dart';
 import '../../../domain/repositories/storage_repository.dart';
@@ -630,6 +634,13 @@ class _InfoTab extends StatelessWidget {
             ),
           ),
         ),
+
+        // Phase 2 — the app-native Sales Order / estimate this trailer was
+        // converted from (only for trailers created by accepting an estimate).
+        if (t.salesOrder != null) ...[
+          const SizedBox(height: 8),
+          _SalesOrderCard(so: t.salesOrder!),
+        ],
 
         // Order date pulled off the QB packing-slip PDF. Sits in the notes
         // band so it's grouped with the other build context. Falls out
@@ -1268,6 +1279,221 @@ class _IconRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The app-native Sales Order / QuickBooks estimate a trailer was converted
+/// from. Shows the SO number, QBO estimate link, sync state, totals and when
+/// the customer accepted — so the shop can trace a build back to its order.
+class _SalesOrderCard extends StatefulWidget {
+  final SalesOrderInfo so;
+  const _SalesOrderCard({required this.so});
+
+  @override
+  State<_SalesOrderCard> createState() => _SalesOrderCardState();
+}
+
+class _SalesOrderCardState extends State<_SalesOrderCard> {
+  bool _busy = false;
+  final Map<bool, Uint8List> _cache = {}; // priced? -> bytes
+
+  /// Phase 2 role gate: admin/office/sales see the priced Sales Order AND the
+  /// work order; production/jig/floor roles see the work order only. The API
+  /// enforces this too (403) — this just hides what they can't have.
+  bool get _canSeePrices {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.office ||
+        auth.user.role == UserRole.sales;
+  }
+
+  /// Fetch (and cache) the document — priced Sales Order or stripped Work Order.
+  Future<Uint8List> _fetch({required bool priced}) async {
+    final hit = _cache[priced];
+    if (hit != null) return hit;
+    final api = SalesOrderApi(context.read<DioClient>());
+    final bytes = priced
+        ? await api.salesOrderPdf(widget.so.id)
+        : await api.packingSlipPdf(widget.so.id);
+    return _cache[priced] = bytes;
+  }
+
+  String get _label => widget.so.soNumber ?? '${widget.so.id}';
+
+  /// View a document inline, in-app.
+  Future<void> _view({required bool priced}) async {
+    setState(() => _busy = true);
+    try {
+      final bytes = await _fetch(priced: priced);
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => _PackingSlipViewer(
+          bytes: bytes,
+          soNumber: priced ? 'Sales Order · $_label' : 'Work Order · $_label',
+        ),
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('PDF unavailable: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Download / share a document, saved as the SO number.
+  Future<void> _download({required bool priced}) async {
+    setState(() => _busy = true);
+    try {
+      final bytes = await _fetch(priced: priced);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: priced ? 'SO-$_label.pdf' : '$_label.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Download failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final so = widget.so;
+    const color = AppColors.navy;
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.picture_as_pdf_outlined, size: 18, color: color),
+                const SizedBox(width: 8),
+                const Text(
+                  'QB PDF',
+                  style: TextStyle(
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (so.acceptedAt != null)
+              _soRow('Accepted', EstClock.dateTime(so.acceptedAt!)),
+
+            // Work Order — no dollar figures. Every role can open this.
+            const SizedBox(height: 12),
+            const Text('WORK ORDER  ·  no prices',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.disabled,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            _docRow(color: color, priced: false),
+
+            // Sales Order — the same document WITH the money. Office/sales only.
+            if (_canSeePrices) ...[
+              const SizedBox(height: 14),
+              const Text('SALES ORDER  ·  priced',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.disabled,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              _docRow(color: AppColors.success, priced: true),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _soRow(String k, String v, {bool bold = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(k, style: const TextStyle(color: AppColors.disabled)),
+            Text(v,
+                style: TextStyle(
+                    fontWeight: bold ? FontWeight.w700 : FontWeight.w600)),
+          ],
+        ),
+      );
+
+  /// View + Download pair for one document (work order or priced sales order).
+  Widget _docRow({required Color color, required bool priced}) => Row(
+        children: [
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _busy ? null : () => _view(priced: priced),
+              icon: _busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.visibility_outlined, size: 18),
+              label: const Text('View'),
+              style: FilledButton.styleFrom(
+                backgroundColor: color,
+                minimumSize: const Size.fromHeight(44),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : () => _download(priced: priced),
+              icon: const Icon(Icons.download_outlined, size: 18),
+              label: const Text('Download'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+              ),
+            ),
+          ),
+        ],
+      );
+}
+
+/// In-app QB PDF viewer — renders the PDF inline with built-in
+/// print / share / save actions (via the printing package's PdfPreview).
+class _PackingSlipViewer extends StatelessWidget {
+  final Uint8List bytes;
+  final String soNumber;
+  const _PackingSlipViewer({required this.bytes, required this.soNumber});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('QB PDF · $soNumber')),
+      body: PdfPreview(
+        build: (_) => bytes,
+        pdfFileName: '$soNumber.pdf',
+        // Fit the page to a sensible width so it isn't rendered zoomed-in.
+        maxPageWidth: 700,
+        canChangePageFormat: false,
+        canChangeOrientation: false,
+        canDebug: false,
+        previewPageMargin: const EdgeInsets.all(12),
+        padding: EdgeInsets.zero,
+      ),
     );
   }
 }

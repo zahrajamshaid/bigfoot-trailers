@@ -57,6 +57,8 @@ abstract final class RouteNames {
   static const String customerList = 'customerList';
   static const String customerDetail = 'customerDetail';
 
+  // ── Sales Orders (Phase 2) ─────────────────────────────────────────────────
+  static const String salesConfigurator = 'salesConfigurator';
 
   // ── Notifications ───────────────────────────────────────────────────────
   static const String notificationsCenter = 'notificationsCenter';

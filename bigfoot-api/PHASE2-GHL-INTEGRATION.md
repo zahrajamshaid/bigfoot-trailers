@@ -1,5 +1,13 @@
-# Phase 2 — GoHighLevel (GHL) CRM Integration Plan
+# Phase 3 — GoHighLevel (GHL) CRM Integration Plan
 
+> ⚠️ **RELABELED (July 2026): this is the PHASE 3 plan, not Phase 2.**
+> Phase 2 is the **QuickBooks-native Sales Orders + Shop BOMs** work —
+> see `BIGFOOT_PHASE2_BUILD_PLAN.md` and `BIGFOOT_PHASE2_PLAN (1).pdf`
+> in the repo root. CRM comes AFTER Phase 2 is piloted, because the
+> Phase 2 configurator IS the Phase 3 quote engine — building CRM first
+> means building the configurator twice. (The filename still says
+> "PHASE2" for git-history continuity; treat the contents as Phase 3.)
+>
 > **Status:** Planning. Nothing in this document is implemented yet.
 > Reviewers: please flag any business assumption that doesn't match
 > reality before engineering starts.

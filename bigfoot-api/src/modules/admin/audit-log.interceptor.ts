@@ -158,6 +158,7 @@ const SNAPSHOTTABLE: Record<string, string> = {
   user: 'user',
   department: 'department',
   customer: 'customer',
+  sales_order: 'salesOrder',
 };
 
 @Injectable()

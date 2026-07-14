@@ -96,13 +96,13 @@ class Customer {
 class CustomerTrailerHistoryItem {
   final int trailerId;
   final String soNumber;
-  final String? vinNumber;
+  final String? model;
   final String status;
 
   const CustomerTrailerHistoryItem({
     required this.trailerId,
     required this.soNumber,
-    this.vinNumber,
+    this.model,
     required this.status,
   });
 
@@ -112,7 +112,7 @@ class CustomerTrailerHistoryItem {
           (json['id'] as num?)?.toInt() ??
           0,
       soNumber: json['soNumber'] as String? ?? '-',
-      vinNumber: json['vinNumber'] as String?,
+      model: json['model'] as String?,
       status: json['status'] as String? ?? 'unknown',
     );
   }

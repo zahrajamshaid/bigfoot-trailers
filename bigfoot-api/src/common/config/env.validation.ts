@@ -28,6 +28,16 @@ interface ValidatedEnv {
   FIREBASE_CLIENT_EMAIL: string;
   THROTTLE_TTL: number;
   THROTTLE_LIMIT: number;
+  // Phase 2 feature flags + QuickBooks (must be returned here — ConfigService
+  // serves only the validated object, so anything omitted reads as undefined).
+  PHASE2_ENABLED: string;
+  QBO_SYNC_ENABLED: string;
+  SALES_ORDERS_ENABLED: string;
+  BOM_ENABLED: string;
+  QBO_CLIENT_ID: string;
+  QBO_CLIENT_SECRET: string;
+  QBO_REDIRECT_URI: string;
+  QBO_ENVIRONMENT: string;
 }
 
 const REQUIRED_VARS = ['DATABASE_URL', 'JWT_SECRET', 'REDIS_HOST'] as const;
@@ -46,6 +56,18 @@ const REQUIRED_IN_PRODUCTION = [
   'CORS_ORIGINS',
 ] as const;
 
+/**
+ * Phase 2 — QuickBooks. These are only required when the feature is turned
+ * ON (QBO_SYNC_ENABLED=true). With the flag off (the default) the whole
+ * integration is inert, so we don't demand the keys — the app boots fine
+ * for the live shop-floor operation without any QBO config.
+ */
+const REQUIRED_WHEN_QBO_ENABLED = [
+  'QBO_CLIENT_ID',
+  'QBO_CLIENT_SECRET',
+  'QBO_REDIRECT_URI',
+] as const;
+
 export function validateEnv(config: Record<string, unknown>): ValidatedEnv {
   const logger = new Logger('EnvValidation');
   const errors: string[] = [];
@@ -54,6 +76,15 @@ export function validateEnv(config: Record<string, unknown>): ValidatedEnv {
   for (const key of REQUIRED_VARS) {
     if (!config[key]) {
       errors.push(`Missing required env var: ${key}`);
+    }
+  }
+
+  // Phase 2 QuickBooks — required only when the flag is on.
+  if (config['QBO_SYNC_ENABLED'] === 'true') {
+    for (const key of REQUIRED_WHEN_QBO_ENABLED) {
+      if (!config[key]) {
+        errors.push(`Missing env var required when QBO_SYNC_ENABLED=true: ${key}`);
+      }
     }
   }
 
@@ -109,5 +140,13 @@ export function validateEnv(config: Record<string, unknown>): ValidatedEnv {
     FIREBASE_CLIENT_EMAIL: (config['FIREBASE_CLIENT_EMAIL'] as string) || '',
     THROTTLE_TTL: parseInt(config['THROTTLE_TTL'] as string, 10) || 60000,
     THROTTLE_LIMIT: parseInt(config['THROTTLE_LIMIT'] as string, 10) || 100,
+    PHASE2_ENABLED: (config['PHASE2_ENABLED'] as string) || 'false',
+    QBO_SYNC_ENABLED: (config['QBO_SYNC_ENABLED'] as string) || 'false',
+    SALES_ORDERS_ENABLED: (config['SALES_ORDERS_ENABLED'] as string) || 'false',
+    BOM_ENABLED: (config['BOM_ENABLED'] as string) || 'false',
+    QBO_CLIENT_ID: (config['QBO_CLIENT_ID'] as string) || '',
+    QBO_CLIENT_SECRET: (config['QBO_CLIENT_SECRET'] as string) || '',
+    QBO_REDIRECT_URI: (config['QBO_REDIRECT_URI'] as string) || '',
+    QBO_ENVIRONMENT: (config['QBO_ENVIRONMENT'] as string) || 'sandbox',
   };
 }

@@ -572,6 +572,22 @@ export class TrailersService {
           },
           orderBy: { stepOrder: 'asc' },
         },
+        // Phase 2 — the app-native Sales Order this trailer was converted from
+        // (present only for trailers created by accepting an estimate).
+        salesOrder: {
+          select: {
+            id: true,
+            soNumber: true,
+            status: true,
+            syncState: true,
+            qboEstimateId: true,
+            qboDocNumber: true,
+            subtotal: true,
+            taxAmount: true,
+            total: true,
+            acceptedAt: true,
+          },
+        },
       },
     });
 

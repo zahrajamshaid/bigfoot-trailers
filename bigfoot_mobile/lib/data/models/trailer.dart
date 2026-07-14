@@ -63,6 +63,9 @@ class Trailer {
   final LocationInfo? intendedStockLocation;
   final List<TrailerAddon>? addons;
   final List<ProductionStepSummary>? productionSteps;
+  /// Phase 2 — the app-native Sales Order this trailer was converted from
+  /// (present only for trailers created by accepting an estimate).
+  final SalesOrderInfo? salesOrder;
 
   const Trailer({
     required this.id,
@@ -96,11 +99,48 @@ class Trailer {
     this.intendedStockLocation,
     this.addons,
     this.productionSteps,
+    this.salesOrder,
   });
 
   factory Trailer.fromJson(Map<String, dynamic> json) =>
       _$TrailerFromJson(json);
   Map<String, dynamic> toJson() => _$TrailerToJson(this);
+}
+
+/// Summary of the Sales Order a trailer was converted from — enough to show
+/// the estimate/order link on the trailer detail screen.
+@JsonSerializable()
+class SalesOrderInfo {
+  final int id;
+  final String? soNumber;
+  final String status;
+  final String syncState;
+  final String? qboEstimateId;
+  final String? qboDocNumber;
+  @JsonKey(fromJson: _parseDecimalField)
+  final double? subtotal;
+  @JsonKey(fromJson: _parseDecimalField)
+  final double? taxAmount;
+  @JsonKey(fromJson: _parseDecimalField)
+  final double? total;
+  final DateTime? acceptedAt;
+
+  const SalesOrderInfo({
+    required this.id,
+    this.soNumber,
+    required this.status,
+    required this.syncState,
+    this.qboEstimateId,
+    this.qboDocNumber,
+    this.subtotal,
+    this.taxAmount,
+    this.total,
+    this.acceptedAt,
+  });
+
+  factory SalesOrderInfo.fromJson(Map<String, dynamic> json) =>
+      _$SalesOrderInfoFromJson(json);
+  Map<String, dynamic> toJson() => _$SalesOrderInfoToJson(this);
 }
 
 @JsonSerializable()

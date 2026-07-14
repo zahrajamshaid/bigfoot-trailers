@@ -336,7 +336,7 @@ class _TrailerHistoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     if (items.isEmpty) {
-      return Center(child: Text(l.customerDetailNoTrailerHistory));
+      return Center(child: Text(l.customerDetailNoTrailerHistory, style: _emptyStyle));
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -345,11 +345,14 @@ class _TrailerHistoryList extends StatelessWidget {
       itemBuilder: (_, i) {
         final t = items[i];
         return Card(
+          color: AppColors.white,
           child: ListTile(
-            title: Text(t.soNumber),
+            title: Text('SO #${t.soNumber}', style: _titleStyle),
             subtitle: Text(
-                '${l.customerDetailVin(t.vinNumber ?? '-')}\n'
-                '${l.customerDetailStatusValue(t.status)}'),
+              '${t.model ?? '-'}\n'
+              '${l.customerDetailStatusValue(t.status)}',
+              style: _subtitleStyle,
+            ),
             trailing: OutlinedButton(
               onPressed: () {
                 if (t.trailerId > 0) {
@@ -368,6 +371,15 @@ class _TrailerHistoryList extends StatelessWidget {
   }
 }
 
+// Shared, high-contrast text styles for the customer history lists so the
+// content reads clearly against the white cards (the M3 defaults were faint).
+const TextStyle _titleStyle =
+    TextStyle(color: AppColors.navy, fontWeight: FontWeight.w700, fontSize: 15);
+const TextStyle _subtitleStyle =
+    TextStyle(color: AppColors.navy, height: 1.4);
+const TextStyle _emptyStyle =
+    TextStyle(color: AppColors.navy, fontSize: 14, fontWeight: FontWeight.w500);
+
 class _DeliveryHistoryList extends StatelessWidget {
   final List<CustomerDeliveryHistoryItem> items;
 
@@ -377,7 +389,7 @@ class _DeliveryHistoryList extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     if (items.isEmpty) {
-      return Center(child: Text(l.customerDetailNoDeliveryHistory));
+      return Center(child: Text(l.customerDetailNoDeliveryHistory, style: _emptyStyle));
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -386,11 +398,13 @@ class _DeliveryHistoryList extends StatelessWidget {
       itemBuilder: (_, i) {
         final d = items[i];
         return Card(
+          color: AppColors.white,
           child: ListTile(
-            title: Text(l.customerDetailDeliveryHash(d.deliveryId)),
+            title: Text(l.customerDetailDeliveryHash(d.deliveryId), style: _titleStyle),
             subtitle: Text(
               '${l.customerDetailTrailerValue('${d.trailerId ?? '-'}')}\n'
               '${l.customerDetailTypeStatus(d.deliveryType ?? '-', d.status)}',
+              style: _subtitleStyle,
             ),
             trailing: OutlinedButton(
               onPressed: () {

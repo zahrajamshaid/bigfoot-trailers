@@ -29,6 +29,9 @@ import { StorageModule } from './modules/storage/storage.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { QuickBooksModule } from './modules/quickbooks/quickbooks.module';
+import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
+import { FeatureFlagsModule } from './common/config/feature-flags.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -65,6 +68,9 @@ import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
     // ---- Infrastructure ----
     PrismaModule,
 
+    // ---- Phase 2 feature flags (global; default OFF) ----
+    FeatureFlagsModule,
+
     // ---- Health Check ----
     HealthModule,
 
@@ -83,6 +89,11 @@ import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
     AdminModule,
     JobsModule,
     AnnouncementsModule,
+
+    // ---- Phase 2 — QuickBooks (inert until QBO_SYNC_ENABLED=true) ----
+    QuickBooksModule,
+    // ---- Phase 2 — Sales Orders (inert until SALES_ORDERS_ENABLED=true) ----
+    SalesOrdersModule,
   ],
   providers: [
     // Global guards — execution order: Throttler → JWT → Roles

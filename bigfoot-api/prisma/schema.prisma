@@ -235,6 +235,14 @@ model TrailerModel {
   series       TrailerSeries
   weightRating String?       @map("weight_rating") @db.VarChar(20)
   isActive     Boolean       @default(true) @map("is_active")
+  // Phase 2 — QuickBooks + configurator. qboItemId links this model to its
+  // QBO Product/Service; basePrice mirrors the QBO price; spec holds the
+  // structured SpecAttributes the configurator renders into the line-1
+  // description; baseBomId points at the model's base BOM.
+  qboItemId    String?       @map("qbo_item_id") @db.VarChar(50)
+  basePrice    Decimal?      @map("base_price") @db.Decimal(12, 2)
+  spec         Json?
+  baseBomId    BigInt?       @map("base_bom_id")
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
@@ -261,12 +269,21 @@ model Customer {
   // customer represents. Lets the trailer-create flow auto-fill the stock
   // destination when this customer is picked.
   stockLocationId Int?         @map("stock_location_id")
+  // Phase 2 — QuickBooks. taxExempt/resaleCertNo drive the estimate's tax
+  // handling; the qbSync* fields track the customer↔QBO sync + surface the
+  // nightly reconciliation status.
+  taxExempt       Boolean      @default(false) @map("tax_exempt")
+  resaleCertNo    String?      @map("resale_cert_no") @db.VarChar(60)
+  qbSyncState     QbSyncState  @default(pending) @map("qb_sync_state")
+  qbLastSyncedAt  DateTime?    @map("qb_last_synced_at") @db.Timestamptz
+  qbSyncError     String?      @map("qb_sync_error")
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   // Relations
   trailers      Trailer[]
-  stockLocation Location? @relation("CustomerStockLocation", fields: [stockLocationId], references: [id])
+  stockLocation Location?    @relation("CustomerStockLocation", fields: [stockLocationId], references: [id])
+  salesOrders   SalesOrder[]
 
   @@map("customers")
 }
@@ -341,6 +358,9 @@ model Trailer {
   deliveries        Delivery[]
   locationReceipts  LocationReceipt[]
   smsLogs           SmsLog[]
+  // Phase 2 — the app-native Sales Order this trailer was converted from
+  // (one SO → one trailer on estimate accept). Null for legacy/manual builds.
+  salesOrder        SalesOrder?        @relation("TrailerSalesOrder")
   pushNotifications PushNotification[]
   stallAlerts       StallAlert[]
 
@@ -1019,6 +1039,171 @@ model SystemAnnouncementAck {
   @@unique([announcementId, userId], map: "uq_announcement_ack_per_user")
   @@index([userId, ackedAt(sort: Desc)], map: "idx_announcement_acks_user")
   @@map("system_announcement_acks")
+}
+
+// =============================================================================
+// PHASE 2 — QUICKBOOKS INTEGRATION (feature-flagged; inert until enabled)
+// =============================================================================
+
+/// OAuth2 token store for the QuickBooks Online realm (single company).
+/// Backend-only — the Flutter app never sees these. The access token is
+/// short-lived (~1h) and auto-refreshed by QboAuthService before expiry;
+/// the refresh token rotates on every refresh. Persisted so the
+/// connection survives an API restart without re-doing the OAuth dance.
+model QboAuthToken {
+  id               Int      @id @default(autoincrement())
+  realmId          String   @unique @map("realm_id") @db.VarChar(50)
+  accessToken      String   @map("access_token")
+  refreshToken     String   @map("refresh_token")
+  accessExpiresAt  DateTime @map("access_expires_at") @db.Timestamptz
+  refreshExpiresAt DateTime @map("refresh_expires_at") @db.Timestamptz
+  environment      String   @default("sandbox") @map("environment") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("qbo_auth_tokens")
+}
+
+enum SalesOrderStatus {
+  draft
+  approved
+  in_production
+  ready
+  delivered
+  cancelled
+
+  @@map("sales_order_status_enum")
+}
+
+enum SalesOrderLineKind {
+  model
+  option
+  fee
+  discount
+
+  @@map("sales_order_line_kind_enum")
+}
+
+enum QbSyncState {
+  pending
+  synced
+  error
+
+  @@map("qb_sync_state_enum")
+}
+
+/// A configurable option (QBO Product/Service) that can be added to a model:
+/// spare tire, hydraulic jack, extra fees are separate (FeeSchedule). Price
+/// mirrors the QBO item price; `defaultForModelIds` auto-checks the option in
+/// Quick Estimate (e.g. spare tire on the models where it's standard).
+model Option {
+  id                 Int      @id @default(autoincrement())
+  qboItemId          String?  @map("qbo_item_id") @db.VarChar(50)
+  name               String   @db.VarChar(150)
+  description        String?
+  price              Decimal  @default(0) @db.Decimal(12, 2)
+  taxable            Boolean  @default(true)
+  applicableModelIds Int[]    @default([]) @map("applicable_model_ids")
+  defaultForModelIds Int[]    @default([]) @map("default_for_model_ids")
+  specOverrides      Json?    @map("spec_overrides")
+  bomDeltaId         BigInt?  @map("bom_delta_id")
+  displayGroup       String?  @map("display_group") @db.VarChar(60)
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("options")
+}
+
+/// Standard fees auto-added on estimates (Est. Registration, Battery/Tire
+/// Disposal, Tag & Title, Dealer Fee...). `autoAdd` = auto-included on every
+/// Quick Estimate; scope=model narrows it to one model via modelId.
+model FeeSchedule {
+  id        Int      @id @default(autoincrement())
+  qboItemId String?  @map("qbo_item_id") @db.VarChar(50)
+  name      String   @db.VarChar(150)
+  amount    Decimal  @default(0) @db.Decimal(12, 2)
+  taxable   Boolean  @default(false)
+  autoAdd   Boolean  @default(true) @map("auto_add")
+  scope     String   @default("global") @db.VarChar(20) // global | model
+  modelId   Int?     @map("model_id")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("fee_schedules")
+}
+
+/// App-native Sales Order. Owns the SO number sequence (== trailer number),
+/// allocated at APPROVE. Draft → approved pushes a QBO Estimate; the sync
+/// chip is driven by syncState. Totals shown in-app come from QBO once synced.
+model SalesOrder {
+  id              BigInt           @id @default(autoincrement())
+  soNumber        String?          @unique @map("so_number") @db.VarChar(30)
+  customerId      BigInt           @map("customer_id")
+  status          SalesOrderStatus @default(draft)
+  salesRepUserId  BigInt?          @map("sales_rep_user_id")
+  terms           String?          @db.VarChar(100)
+  isQuickEstimate Boolean          @default(false) @map("is_quick_estimate")
+  // Build spec captured on the estimate — these are what the old trailer-create
+  // form asked for, and they flow straight into the trailer on convert. The
+  // estimate replaces the QuickBooks PDF as the source of build intent.
+  color           String?          @db.VarChar(60)
+  sizeFt          String?          @map("size_ft") @db.VarChar(10)
+  optionsNotes    String?          @map("options_notes")
+  specialNote     String?          @map("special_note") @db.VarChar(500)
+  isStockBuild    Boolean          @default(false) @map("is_stock_build")
+  stockLocationId Int?             @map("stock_location_id")
+  subtotal        Decimal          @default(0) @db.Decimal(12, 2)
+  taxAmount       Decimal          @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  total           Decimal          @default(0) @db.Decimal(12, 2)
+  depositRequired Decimal?         @map("deposit_required") @db.Decimal(12, 2)
+  // QBO linkage + sync
+  qboEstimateId   String?          @map("qbo_estimate_id") @db.VarChar(50)
+  qboInvoiceId    String?          @map("qbo_invoice_id") @db.VarChar(50)
+  qboDocNumber    String?          @map("qbo_doc_number") @db.VarChar(30)
+  syncState       QbSyncState      @default(pending) @map("sync_state")
+  syncError       String?          @map("sync_error")
+  // Link to the trailer created on approval (one SO = one trailer)
+  trailerId       BigInt?          @unique @map("trailer_id")
+  createdByUserId BigInt           @map("created_by_user_id")
+  approvedAt      DateTime?        @map("approved_at") @db.Timestamptz
+  // Estimate lifecycle (QBO estimate menu parity): emailed to customer +
+  // accepted (which converts the SO into a production trailer / work order).
+  sentAt          DateTime?        @map("sent_at") @db.Timestamptz
+  emailStatus     String?          @map("email_status") @db.VarChar(30)
+  acceptedAt      DateTime?        @map("accepted_at") @db.Timestamptz
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  customer Customer          @relation(fields: [customerId], references: [id])
+  lines    SalesOrderLine[]
+  trailer  Trailer?          @relation("TrailerSalesOrder", fields: [trailerId], references: [id])
+
+  @@index([status, createdAt(sort: Desc)], map: "idx_sales_orders_status")
+  @@index([customerId], map: "idx_sales_orders_customer")
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id           BigInt             @id @default(autoincrement())
+  salesOrderId BigInt             @map("sales_order_id")
+  kind         SalesOrderLineKind
+  // refId points at the model / option / fee this line came from (nullable
+  // for free-text discount lines).
+  refId        Int?               @map("ref_id")
+  qboItemId    String?            @map("qbo_item_id") @db.VarChar(50)
+  // The short "SERVICE" name (QBO item name). Populated for estimates imported
+  // FROM QuickBooks where there is no local refId to resolve a name from.
+  itemName     String?            @map("item_name") @db.VarChar(200)
+  description  String
+  qty          Decimal            @default(1) @db.Decimal(10, 2)
+  rate         Decimal            @default(0) @db.Decimal(12, 2)
+  taxable      Boolean            @default(true)
+  sortOrder    Int                @default(0) @map("sort_order")
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@index([salesOrderId, sortOrder], map: "idx_sales_order_lines_order")
+  @@map("sales_order_lines")
 }
 
 // =============================================================================

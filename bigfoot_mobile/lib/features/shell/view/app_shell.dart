@@ -476,6 +476,12 @@ class _AppShellState extends State<AppShell> {
             Icons.delivery_dining,
           ),
           _NavTab(
+            '/sales',
+            'Sales',
+            Icons.receipt_long_outlined,
+            Icons.receipt_long,
+          ),
+          _NavTab(
             '/customers',
             'Customers',
             Icons.people_outline,
@@ -608,6 +614,12 @@ class _AppShellState extends State<AppShell> {
             Icons.delivery_dining,
           ),
           _NavTab(
+            '/sales',
+            'Sales',
+            Icons.receipt_long_outlined,
+            Icons.receipt_long,
+          ),
+          _NavTab(
             '/customers',
             'Customers',
             Icons.people_outline,
@@ -638,6 +650,12 @@ class _AppShellState extends State<AppShell> {
             l.navTrailers,
             Icons.local_shipping_outlined,
             Icons.local_shipping,
+          ),
+          _NavTab(
+            '/sales',
+            'Sales',
+            Icons.receipt_long_outlined,
+            Icons.receipt_long,
           ),
           _NavTab(
             '/customers',

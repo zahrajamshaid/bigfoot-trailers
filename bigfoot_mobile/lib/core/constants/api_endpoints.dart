@@ -108,7 +108,21 @@ abstract final class ApiEndpoints {
   // ── Customers ────────────────────────────────────────────────────────────
   static const String customers = '/customers';
   static String customer(int id) => '/customers/$id';
+  static const String customersImportFromQbo = '/customers/import-from-qbo';
 
+  // ── Sales Orders (Phase 2) ────────────────────────────────────────────────
+  static const String salesOrders = '/sales-orders';
+  static const String salesOrderCatalog = '/sales-orders/catalog';
+  static const String salesOrderPreview = '/sales-orders/preview';
+  static String salesOrder(int id) => '/sales-orders/$id';
+  static String salesOrderApprove(int id) => '/sales-orders/$id/approve';
+  static String salesOrderRetrySync(int id) => '/sales-orders/$id/retry-sync';
+  static String salesOrderEstimatePdf(int id) => '/sales-orders/$id/estimate-pdf';
+  static String salesOrderPackingSlip(int id) => '/sales-orders/$id/packing-slip';
+  static String salesOrderPricedPdf(int id) => '/sales-orders/$id/sales-order-pdf';
+  static const String qboImportCatalog = '/quickbooks/import-catalog';
+  static String salesOrderSend(int id) => '/sales-orders/$id/send';
+  static String salesOrderAccept(int id) => '/sales-orders/$id/accept';
 
   // ── Locations ────────────────────────────────────────────────────────────
   static const String locations = '/locations';

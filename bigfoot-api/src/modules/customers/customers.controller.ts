@@ -61,10 +61,19 @@ export class CustomersController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.SALES, UserRole.OFFICE)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a customer' })
+  @ApiOperation({ summary: 'Create a customer (syncs to QuickBooks)' })
   @ApiResponse({ status: 201, description: 'Customer created' })
   async create(@Body() dto: CreateCustomerDto) {
     return this.customersService.create(dto);
+  }
+
+  @Post('import-from-qbo')
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Import every QuickBooks customer into the app' })
+  @ApiResponse({ status: 200, description: 'Import summary (created/updated)' })
+  async importFromQbo() {
+    return this.customersService.importFromQbo();
   }
 
   @Patch(':id')

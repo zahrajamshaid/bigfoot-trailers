@@ -1,8 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CustomerType, Prisma, TrailerStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { AppError, ErrorCode } from '../../common/errors';
+import {
+  FeatureFlag,
+  FeatureFlagsService,
+} from '../../common/config/feature-flags.service';
+import { QboSyncService } from '../quickbooks/qbo-sync.service';
 import { CreateCustomerDto, UpdateCustomerDto, QueryCustomersDto } from './dto';
 
 const CUSTOMER_SELECT = {
@@ -16,6 +21,11 @@ const CUSTOMER_SELECT = {
   customerType: true,
   smsOptOut: true,
   qbCustomerId: true,
+  taxExempt: true,
+  resaleCertNo: true,
+  qbSyncState: true,
+  qbLastSyncedAt: true,
+  qbSyncError: true,
   notes: true,
   stockLocationId: true,
   createdAt: true,
@@ -34,10 +44,19 @@ const CUSTOMER_SELECT = {
 
 @Injectable()
 export class CustomersService {
+  private readonly logger = new Logger('Customers');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly flags: FeatureFlagsService,
+    private readonly qboSync: QboSyncService,
   ) {}
+
+  /** Pull every QuickBooks customer into the app (upsert by qbCustomerId). */
+  importFromQbo() {
+    return this.qboSync.importCustomersFromQbo();
+  }
 
   private stockCityFromCustomerName(name: string): string | null {
     const match = name.trim().match(/^(.*)\s+stock$/i);
@@ -219,9 +238,16 @@ export class CustomersService {
       select: {
         ...CUSTOMER_SELECT,
         trailers: {
-          select: { id: true, soNumber: true, status: true, createdAt: true },
+          select: {
+            id: true,
+            soNumber: true,
+            vinNumber: true,
+            status: true,
+            createdAt: true,
+            trailerModel: { select: { code: true, displayName: true } },
+          },
           orderBy: { createdAt: 'desc' },
-          take: 20,
+          take: 50,
         },
       },
     });
@@ -235,18 +261,74 @@ export class CustomersService {
       customerType: customer.customerType,
     });
 
+    // Trailer history — the customer's trailers (newest first). Maps to the
+    // mobile CustomerTrailerHistoryItem contract (trailerId/soNumber/vin/status).
+    const trailerHistory = customer.trailers.map((t) => ({
+      trailerId: t.id,
+      soNumber: t.soNumber,
+      vinNumber: t.vinNumber,
+      model: t.trailerModel?.displayName ?? t.trailerModel?.code ?? null,
+      status: t.status,
+      createdAt: t.createdAt,
+    }));
+
+    // Delivery history — every delivery for this customer's trailers.
+    const deliveries = await this.prisma.delivery.findMany({
+      where: { trailer: { customerId: id } },
+      select: {
+        id: true,
+        trailerId: true,
+        deliveryType: true,
+        status: true,
+        deliveredAt: true,
+        scheduledDate: true,
+      },
+      orderBy: [{ deliveredAt: 'desc' }, { id: 'desc' }],
+      take: 50,
+    });
+    const deliveryHistory = deliveries.map((d) => ({
+      deliveryId: d.id,
+      trailerId: d.trailerId,
+      deliveryType: d.deliveryType,
+      status: d.status,
+      deliveredAt: d.deliveredAt,
+    }));
+
     return {
       ...customer,
       activeTrailerCount,
+      trailerHistory,
+      deliveryHistory,
     };
   }
 
   async create(dto: CreateCustomerDto) {
     await this.validateStockLocation(dto.customerType, dto.stockLocationId);
-    return this.prisma.customer.create({
+    const customer = await this.prisma.customer.create({
       data: dto,
       select: CUSTOMER_SELECT,
     });
+    // Sync to QuickBooks on create — "created through the app just like in
+    // QBO". Non-blocking: a QBO failure leaves the local customer intact with
+    // qbSyncState=error (surfaced in the UI + retryable), never fails create.
+    if (this.flags.isEnabled(FeatureFlag.QBO_SYNC)) {
+      try {
+        await this.qboSync.ensureCustomer(customer.id);
+      } catch (e) {
+        this.logger.error(
+          `QBO customer sync failed for ${customer.id}: ${e instanceof Error ? e.message : e}`,
+        );
+        await this.prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            qbSyncState: 'error',
+            qbSyncError: (e instanceof Error ? e.message : 'sync failed').slice(0, 500),
+          },
+        });
+      }
+      return this.findOne(customer.id); // re-fetch to include qbCustomerId + state
+    }
+    return customer;
   }
 
   async update(id: bigint, dto: UpdateCustomerDto) {

@@ -14,6 +14,7 @@ import '../../features/auth/view/login_screen.dart';
 import '../../features/auth/view/splash_screen.dart';
 import '../../features/customers/view/customer_list_screen.dart';
 import '../../features/customers/view/customer_detail_screen.dart';
+import '../../features/sales_orders/view/estimates_list_screen.dart';
 import '../../features/options/view/options_review_screen.dart';
 import '../../features/auth/viewmodel/auth_viewmodel.dart';
 import '../../features/dashboard/view/dashboard_screen.dart';
@@ -296,6 +297,11 @@ class AppRouter {
                         const SecureScreen(child: DollarRatesScreen()),
                 ),
               ],
+            ),
+            GoRoute(
+              path: '/sales',
+              name: RouteNames.salesConfigurator,
+              builder: (context, state) => const EstimatesListScreen(),
             ),
             GoRoute(
               path: '/customers',
