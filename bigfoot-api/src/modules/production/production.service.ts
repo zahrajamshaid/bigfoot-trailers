@@ -204,6 +204,19 @@ export class ProductionService {
       throw new AppError(ErrorCode.STEP_NOT_ACTIVE);
     }
 
+    // A QC step can ONLY be signed off through a QC inspection, which requires
+    // a photo of the stage. Completing it here would skip both the checklist
+    // and the photo, so a stage could be passed with no evidence it was ever
+    // looked at. `submitInspection` completes the step itself once the photos
+    // and checks are in. (QcService throws the mirror image of this error when
+    // a NON-QC step is sent to /qc/inspections.)
+    if (step.department.isQcStep) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Step ${stepId} is a QC step — submit a QC inspection (with photos) instead of completing it directly`,
+      );
+    }
+
     // OPTIONS GUARD — any option THIS department is responsible for fitting
     // (jig fits the D-rings) must be acknowledged before the worker can answer
     // their checks and send the trailer on. Departments that don't fit the
@@ -219,29 +232,27 @@ export class ProductionService {
     // trailer's series/addons, every one must be answered. Results are stored
     // in production_step_checks and become visible to the QC manager.
     const expectedScope = toQcSeriesScope(step.trailer.trailerModel.series);
-    const expectedItems = step.department.isQcStep
-      ? []
-      : await this.prisma.qcChecklistItem.findMany({
-          where: {
-            departmentId: step.departmentId,
-            isActive: true,
-            ...(expectedScope
-              ? { appliesToSeries: { in: [expectedScope, QcSeriesScope.all] } }
-              : {}),
-            OR: (() => {
-              const addonKeys = step.trailer.addons.map((a) => a.addonName);
-              const clauses: Prisma.QcChecklistItemWhereInput[] = [
-                { requiresAddonKey: null },
-              ];
-              if (addonKeys.length > 0) {
-                clauses.push({ requiresAddonKey: '*' });
-                clauses.push({ requiresAddonKey: { in: addonKeys } });
-              }
-              return clauses;
-            })(),
-          },
-          select: { id: true },
-        });
+    const expectedItems = await this.prisma.qcChecklistItem.findMany({
+      where: {
+        departmentId: step.departmentId,
+        isActive: true,
+        ...(expectedScope
+          ? { appliesToSeries: { in: [expectedScope, QcSeriesScope.all] } }
+          : {}),
+        OR: (() => {
+          const addonKeys = step.trailer.addons.map((a) => a.addonName);
+          const clauses: Prisma.QcChecklistItemWhereInput[] = [
+            { requiresAddonKey: null },
+          ];
+          if (addonKeys.length > 0) {
+            clauses.push({ requiresAddonKey: '*' });
+            clauses.push({ requiresAddonKey: { in: addonKeys } });
+          }
+          return clauses;
+        })(),
+      },
+      select: { id: true },
+    });
 
     const answered = new Set((checklistResults ?? []).map((r) => r.checklistItemId));
     const missing = expectedItems.filter((i) => !answered.has(i.id));
