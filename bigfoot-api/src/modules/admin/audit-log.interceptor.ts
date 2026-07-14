@@ -9,6 +9,7 @@ import { Observable, tap } from 'rxjs';
 import { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { AuditLogService } from './audit-log.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 
 /**
@@ -141,11 +142,54 @@ function tryParseBigInt(value: unknown): bigint | null {
   return null;
 }
 
+/**
+ * Entity types we can snapshot before a write, so an UPDATE records what the
+ * row looked like BEFORE as well as after. Without a `before` every update
+ * logged the whole entity as if it had been set from nothing — which is why
+ * the history read as a wall of meaningless "Updated" rows.
+ *
+ * A bare findUnique (no `include`) returns scalar columns only, so relation
+ * objects never leak into the diff.
+ */
+const SNAPSHOTTABLE: Record<string, string> = {
+  trailer: 'trailer',
+  delivery: 'delivery',
+  delivery_batch: 'deliveryBatch',
+  user: 'user',
+  department: 'department',
+  customer: 'customer',
+};
+
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditLogInterceptor.name);
 
-  constructor(private readonly auditLogService: AuditLogService) {}
+  constructor(
+    private readonly auditLogService: AuditLogService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /** Scalar snapshot of a row, or null if we can't take one. */
+  private async snapshot(
+    entityType: string,
+    entityId: bigint | null,
+  ): Promise<Record<string, unknown> | null> {
+    const model = SNAPSHOTTABLE[entityType];
+    if (!model || !entityId) return null;
+    try {
+      const delegate = (
+        this.prisma as unknown as Record<
+          string,
+          { findUnique: (a: unknown) => Promise<Record<string, unknown> | null> }
+        >
+      )[model];
+      if (!delegate?.findUnique) return null;
+      return await delegate.findUnique({ where: { id: entityId } });
+    } catch {
+      // Auditing must never break the request it is observing.
+      return null;
+    }
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -163,6 +207,13 @@ export class AuditLogInterceptor implements NestInterceptor {
       (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
       request.ip ??
       null;
+
+    // Snapshot BEFORE the handler runs. Kicked off now, awaited in the tap —
+    // it must not add latency to the response path.
+    const beforePromise: Promise<Record<string, unknown> | null> =
+      action === 'UPDATE' || action === 'DELETE'
+        ? this.snapshot(entityType, entityId)
+        : Promise.resolve(null);
 
     return next.handle().pipe(
       tap({
@@ -206,25 +257,40 @@ export class AuditLogInterceptor implements NestInterceptor {
 
           if (!resolvedEntityId) return; // Can't log without an entity ID
 
-          // Sanitise BigInts (and nested objects' BigInts) before handing
-          // to Prisma. Without this the Json column write throws a
-          // TypeError on inspectionId / trailerId fields, which the
-          // catch below would silently swallow.
-          const newValues = rawNewValues
-            ? (sanitiseForJson(rawNewValues) as Prisma.InputJsonValue)
-            : null;
+          // Resolve the before-snapshot, then take a matching AFTER snapshot so
+          // the two sides are the same shape (scalar columns only). A symmetric
+          // pair is what lets the humanizer report just the fields that really
+          // changed, instead of dumping the whole entity as "set from nothing".
+          void (async () => {
+            const before = await beforePromise;
+            const after =
+              before !== null
+                ? await this.snapshot(entityType, resolvedEntityId)
+                : null;
 
-          this.auditLogService
-            .create({
+            // Sanitise BigInts (and nested objects' BigInts) before handing
+            // to Prisma. Without this the Json column write throws a
+            // TypeError on inspectionId / trailerId fields, which the
+            // catch below would silently swallow.
+            const oldValues = before
+              ? (sanitiseForJson(before) as Prisma.InputJsonValue)
+              : null;
+            const newValues = after
+              ? (sanitiseForJson(after) as Prisma.InputJsonValue)
+              : rawNewValues
+                ? (sanitiseForJson(rawNewValues) as Prisma.InputJsonValue)
+                : null;
+
+            await this.auditLogService.create({
               userId: user?.sub ?? null,
               entityType,
               entityId: resolvedEntityId,
               action,
-              oldValues: null, // Interceptor doesn't have pre-update state
+              oldValues,
               newValues,
               ipAddress,
-            })
-            .catch((err) => {
+            });
+          })().catch((err) => {
               // Never block business logic on an audit-log write — but
               // surface the failure to the app logs so a recurring miss
               // doesn't go invisible for weeks like the BigInt issue did.

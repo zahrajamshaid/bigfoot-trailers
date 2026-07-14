@@ -3,11 +3,12 @@ import {
   IsInt,
   IsOptional,
   IsBoolean,
+  Matches,
   MaxLength,
   IsNotEmpty,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateTrailerDto {
   @ApiProperty({ description: 'Unique Sales Order number from QuickBooks' })
@@ -20,6 +21,24 @@ export class CreateTrailerDto {
   @IsInt()
   @Type(() => Number)
   trailerModelId!: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Vehicle Identification Number — exactly 17 characters. The letters ' +
+      'I, O and Q are not valid in a VIN (they are excluded to avoid being ' +
+      'confused with 1 and 0). Stored uppercase and unique across trailers.',
+    example: '1BF12345XYZ678901',
+  })
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @Matches(/^[A-HJ-NPR-Z0-9]{17}$/, {
+    message:
+      'VIN must be exactly 17 characters (letters and digits, excluding I, O and Q)',
+  })
+  vinNumber?: string;
 
   @ApiPropertyOptional({ description: 'Paint color' })
   @IsOptional()

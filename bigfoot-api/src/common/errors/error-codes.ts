@@ -37,6 +37,8 @@ export enum ErrorCode {
 
   // ── 409 Conflict ─────────────────────────────────────────────────────────
   SO_NUMBER_EXISTS = 'SO_NUMBER_EXISTS',
+  VIN_EXISTS = 'VIN_EXISTS',
+  OPTIONS_NOT_ACKNOWLEDGED = 'OPTIONS_NOT_ACKNOWLEDGED',
 
   // ── 429 Too Many Requests ────────────────────────────────────────────────
   TOO_MANY_REQUESTS = 'TOO_MANY_REQUESTS',
@@ -73,6 +75,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   [ErrorCode.NOT_FOUND]: 404,
   // 409
   [ErrorCode.SO_NUMBER_EXISTS]: 409,
+  [ErrorCode.VIN_EXISTS]: 409,
+  [ErrorCode.OPTIONS_NOT_ACKNOWLEDGED]: 422,
   // 429
   [ErrorCode.TOO_MANY_REQUESTS]: 429,
   // 500
@@ -110,6 +114,9 @@ export const ERROR_DEFAULT_MESSAGE: Record<ErrorCode, string> = {
     'Only the completing worker or a production manager can reverse a step',
   [ErrorCode.NOT_FOUND]: 'The requested resource was not found',
   [ErrorCode.SO_NUMBER_EXISTS]: 'A trailer with this SO number already exists',
+  [ErrorCode.VIN_EXISTS]: 'A trailer with this VIN already exists',
+  [ErrorCode.OPTIONS_NOT_ACKNOWLEDGED]:
+    'Acknowledge the options this department fits before continuing',
   [ErrorCode.TOO_MANY_REQUESTS]: 'Too many requests — please try again later',
   [ErrorCode.INTERNAL_ERROR]: 'An unexpected error occurred',
 };

@@ -358,6 +358,18 @@ model Trailer {
   @@map("trailers")
 }
 
+/// An option/add-on line item on a trailer (extra D-rings, winch plate, …).
+///
+/// Options are the #1 source of rebuilds: one gets added after the trailer is
+/// already past weld, nobody sees it, and the trailer is finished wrong. The
+/// fields below exist to close that hole:
+///
+///   • installDepartmentId — WHO fits it. That department must acknowledge the
+///     option before it can answer its QC questions. Other departments see it
+///     but can skip it (they don't fit it).
+///   • addedDuringProduction — the option arrived AFTER the build started, so
+///     it surfaces on the admin / production-manager dashboard until the PM
+///     acknowledges it (and can roll the trailer back a stage to fit it).
 model TrailerAddon {
   id        BigInt   @id @default(autoincrement())
   trailerId BigInt   @map("trailer_id")
@@ -365,10 +377,55 @@ model TrailerAddon {
   notes     String?
   addedAt   DateTime @default(now()) @map("added_at") @db.Timestamptz
 
-  // Relations
-  trailer Trailer @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+  addedByUserId       BigInt? @map("added_by_user_id")
 
+  /// Added after the trailer entered production. Drives the dashboard alert.
+  addedDuringProduction  Boolean   @default(false) @map("added_during_production")
+  /// Which step the build was on when it was added — "added past WELD".
+  addedAtStepOrder       Int?      @map("added_at_step_order")
+  addedAtDepartmentId    Int?      @map("added_at_department_id")
+  /// Cleared off the dashboard once the production manager has seen it.
+  pmAcknowledgedAt       DateTime? @map("pm_acknowledged_at") @db.Timestamptz
+  pmAcknowledgedByUserId BigInt?   @map("pm_acknowledged_by_user_id")
+
+  // Relations
+  trailer            Trailer     @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+  addedAtDepartment  Department? @relation("AddonAddedAtDept", fields: [addedAtDepartmentId], references: [id])
+  addedByUser        User?       @relation("AddonAddedBy", fields: [addedByUserId], references: [id])
+
+  /// Every department that has to fit some part of this option. An option can
+  /// need more than one (D-rings might be welded at JIG and touched up at
+  /// PAINT), and EACH of them has to acknowledge its own part — which is why
+  /// the acknowledgement lives on the join row, not on the option.
+  departments TrailerAddonDept[]
+
+  @@index([trailerId], map: "idx_trailer_addons_trailer")
+  @@index([addedDuringProduction, pmAcknowledgedAt], map: "idx_trailer_addons_pending_ack")
   @@map("trailer_addons")
+}
+
+/// One department's responsibility for one option — and its acknowledgement.
+///
+/// An option with no rows here is visible to everyone and blocks nobody, so a
+/// missing assignment can never stall the line.
+model TrailerAddonDept {
+  id           BigInt @id @default(autoincrement())
+  addonId      BigInt @map("addon_id")
+  departmentId Int    @map("department_id")
+
+  /// This department has fitted its part. Required before it can complete its
+  /// step. Each department acknowledges independently.
+  acknowledgedAt       DateTime? @map("acknowledged_at") @db.Timestamptz
+  acknowledgedByUserId BigInt?   @map("acknowledged_by_user_id")
+
+  addon              TrailerAddon @relation(fields: [addonId], references: [id], onDelete: Cascade)
+  department         Department   @relation("AddonInstallDept", fields: [departmentId], references: [id])
+  acknowledgedByUser User?        @relation("AddonAckBy", fields: [acknowledgedByUserId], references: [id])
+
+  // One row per (option, department) — acknowledging twice is a no-op.
+  @@unique([addonId, departmentId], map: "uq_addon_department")
+  @@index([departmentId, acknowledgedAt], map: "idx_addon_dept_pending")
+  @@map("trailer_addon_departments")
 }
 
 // =============================================================================
@@ -390,6 +447,9 @@ model Department {
   users             User[]
   qcChecklistItems  QcChecklistItem[]
   qcReworkTargets   QcInspection[]     @relation("ReworkTargetDept")
+  // Options this department is responsible for fitting (and must acknowledge).
+  installedAddons   TrailerAddonDept[] @relation("AddonInstallDept")
+  addonsAddedHere   TrailerAddon[]     @relation("AddonAddedAtDept")
   pointValues       PointValue[]
   deptDollarRates   DeptDollarRate[]
   payrollRecords    PayrollRecord[]
@@ -437,6 +497,9 @@ model User {
   primaryLocation   Location?          @relation(fields: [primaryLocationId], references: [id])
   createdTrailers   Trailer[]          @relation("TrailerCreatedBy")
   completedSteps    ProductionStep[]   @relation("StepCompletedBy")
+  // Option accountability — who added an option, and who acknowledged fitting it.
+  addedAddons       TrailerAddon[]     @relation("AddonAddedBy")
+  acknowledgedAddons TrailerAddonDept[] @relation("AddonAckBy")
   stepReversals     StepReversal[]
   sentMessages      WorkerMessage[]    @relation("MessageFrom")
   receivedMessages  WorkerMessage[]    @relation("MessageTo")

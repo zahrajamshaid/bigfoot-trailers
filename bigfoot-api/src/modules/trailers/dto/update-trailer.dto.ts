@@ -4,10 +4,11 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export enum TrailerStatusDto {
   PENDING_PRODUCTION = 'pending_production',
@@ -30,6 +31,23 @@ export class UpdateTrailerDto {
   @IsInt()
   @Type(() => Number)
   trailerModelId?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Vehicle Identification Number — exactly 17 characters, excluding the ' +
+      'letters I, O and Q. Unique across trailers. Send "" to clear it.',
+    example: '1BF12345XYZ678901',
+  })
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @Matches(/^([A-HJ-NPR-Z0-9]{17})?$/, {
+    message:
+      'VIN must be exactly 17 characters (letters and digits, excluding I, O and Q)',
+  })
+  vinNumber?: string;
 
   @ApiPropertyOptional({ description: 'FK to customers (null clears the link)' })
   @IsOptional()

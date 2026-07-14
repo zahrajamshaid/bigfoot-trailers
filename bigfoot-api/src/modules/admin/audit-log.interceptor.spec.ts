@@ -5,10 +5,20 @@ import { of } from 'rxjs';
 describe('AuditLogInterceptor', () => {
   let interceptor: AuditLogInterceptor;
   let mockAuditLogService: { create: jest.Mock };
+  // The interceptor now snapshots the row before/after a write so the audit
+  // entry carries a real before→after diff. Trailer is snapshottable, so the
+  // mock returns a scalar row for it.
+  let mockPrisma: { trailer: { findUnique: jest.Mock } };
 
   beforeEach(() => {
     mockAuditLogService = { create: jest.fn().mockResolvedValue(undefined) };
-    interceptor = new AuditLogInterceptor(mockAuditLogService as any);
+    mockPrisma = {
+      trailer: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    interceptor = new AuditLogInterceptor(
+      mockAuditLogService as any,
+      mockPrisma as any,
+    );
   });
 
   function createMockContext(

@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  diffFields,
+  humanAction,
+  summarize,
+  Lookups,
+} from '../../common/audit/audit-humanizer';
 import { StorageService } from '../storage/storage.service';
 import { WorkflowGeneratorService } from './workflow-generator.service';
 import { AppError, ErrorCode } from '../../common/errors';
@@ -89,6 +95,8 @@ const TRAILER_DETAIL_SELECT = {
 const TRAILER_LIST_SELECT = {
   id: true,
   soNumber: true,
+  // VIN is searchable, so the list has to be able to show what it matched.
+  vinNumber: true,
   color: true,
   sizeFt: true,
   optionsNotes: true,
@@ -194,6 +202,13 @@ export class TrailersService {
       where.isStockBuild = query.isStockBuild;
     }
     if (query.saleStatus) where.saleStatus = query.saleStatus as TrailerSaleStatus;
+
+    // The dashboard tile's set, defined in exactly one place. Pushed as an AND
+    // clause so it is authoritative — nothing the caller sends can widen or
+    // narrow it, which is what let the tile and its list disagree before.
+    if (query.readyForPickupAtMulberry) {
+      andClauses.push(TrailersService.mulberryCustomerPickupWhere());
+    }
     // Delivered trailers are history — they belong in Completed Deliveries,
     // not the active inventory list. Hide them by default so location /
     // status chips show only what's still in play. The caller can opt back
@@ -221,6 +236,8 @@ export class TrailersService {
       const term = query.search;
       where.OR = [
         { soNumber: { contains: term, mode: 'insensitive' } },
+        // VIN is searchable — that's the point of storing it in its own column.
+        { vinNumber: { contains: term, mode: 'insensitive' } },
         { soldToName: { contains: term, mode: 'insensitive' } },
         { customer: { name: { contains: term, mode: 'insensitive' } } },
         { customer: { company: { contains: term, mode: 'insensitive' } } },
@@ -318,6 +335,28 @@ export class TrailersService {
   // in stockByYard. Anything intended for Mulberry itself (or unset) falls
   // into the customer-pickup bucket.
   // ---------------------------------------------------------------------------
+  /**
+   * THE canonical definition of "customer pickup waiting at Mulberry".
+   *
+   * The dashboard tile's count and the list you get when you tap it MUST be
+   * the same set. They used to be two hand-written filter sets — the tile
+   * counted server-side while the client re-sent four separate query params
+   * (status + location + isStockBuild + saleStatus) to rebuild the same query.
+   * Any drift between them (an older app build, a typo'd param) silently
+   * produced a tile that disagreed with its own list. Both now call this.
+   *
+   * saleStatus must be `sold`: a customer-order build that isn't formally sold
+   * is in limbo, not a pickup.
+   */
+  static mulberryCustomerPickupWhere(): Prisma.TrailerWhereInput {
+    return {
+      status: TrailerStatus.ready_for_delivery,
+      isStockBuild: false,
+      saleStatus: TrailerSaleStatus.sold,
+      currentLocation: { code: 'MULBERRY' },
+    };
+  }
+
   async getMulberryReadyShipping() {
     const YARD_CODES = ['JACKSONVILLE', 'TAPPAHANNOCK', 'TALLAHASSEE', 'ATLANTA'];
 
@@ -332,17 +371,10 @@ export class TrailersService {
         },
         select: { intendedStockLocation: { select: { code: true } } },
       }),
-      // Customer-order pickups at Mulberry. saleStatus must be `sold` —
-      // a customer-order build that isn't formally sold yet is in limbo,
-      // not a pickup. The mobile tile's deep link applies the same
-      // saleStatus filter so the count and the list always agree.
+      // Customer-order pickups at Mulberry — counted through the SAME filter
+      // the list uses, so the tile can never disagree with what it opens.
       this.prisma.trailer.count({
-        where: {
-          status: TrailerStatus.ready_for_delivery,
-          isStockBuild: false,
-          saleStatus: TrailerSaleStatus.sold,
-          currentLocation: { code: 'MULBERRY' },
-        },
+        where: TrailersService.mulberryCustomerPickupWhere(),
       }),
     ]);
 
@@ -376,6 +408,21 @@ export class TrailersService {
         ErrorCode.SO_NUMBER_EXISTS,
         `A trailer with SO number "${dto.soNumber}" already exists`,
       );
+    }
+
+    // VIN must be unique across trailers. Check up-front so the operator gets
+    // a clear 409 instead of a raw Postgres unique-constraint 500.
+    if (dto.vinNumber) {
+      const vinClash = await this.prisma.trailer.findUnique({
+        where: { vinNumber: dto.vinNumber },
+        select: { soNumber: true },
+      });
+      if (vinClash) {
+        throw new AppError(
+          ErrorCode.VIN_EXISTS,
+          `VIN ${dto.vinNumber} is already on trailer SO ${vinClash.soNumber}`,
+        );
+      }
     }
 
     // Validate trailer model exists
@@ -558,6 +605,29 @@ export class TrailersService {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
     }
 
+    // VIN — unique across trailers. An empty string clears it (back to null)
+    // rather than storing '', which would collide on the second one. Resolved
+    // here; written onto `data` once that's declared below.
+    let nextVin: string | null | undefined;
+    if (dto.vinNumber !== undefined) {
+      const vin = dto.vinNumber.trim();
+      if (vin === '') {
+        nextVin = null;
+      } else {
+        const vinClash = await this.prisma.trailer.findUnique({
+          where: { vinNumber: vin },
+          select: { id: true, soNumber: true },
+        });
+        if (vinClash && vinClash.id !== id) {
+          throw new AppError(
+            ErrorCode.VIN_EXISTS,
+            `VIN ${vin} is already on trailer SO ${vinClash.soNumber}`,
+          );
+        }
+        nextVin = vin;
+      }
+    }
+
     // SO number — must remain unique
     if (dto.soNumber !== undefined && dto.soNumber !== existing.soNumber) {
       const clash = await this.prisma.trailer.findUnique({
@@ -610,6 +680,7 @@ export class TrailersService {
     // the trailer stays at the factory until a stack_to_location delivery
     // physically moves it.
     const data: Prisma.TrailerUpdateInput = {};
+    if (nextVin !== undefined) data.vinNumber = nextVin;
     const nextIsStockBuild = dto.isStockBuild ?? existing.isStockBuild;
 
     if (dto.isStockBuild !== undefined) {
@@ -1381,6 +1452,89 @@ export class TrailersService {
       }),
     ]);
 
-    return { steps, qcInspections, deliveries, auditLogs };
+    // Plain English: every audit row gets a human verb, a one-line summary and
+    // the full field-by-field diff, with ids resolved to names. Without this
+    // the History tab is a wall of "Updated" that tells nobody anything.
+    const lookups = await this.buildAuditLookups(auditLogs);
+    const enrichedAuditLogs = auditLogs.map((row) => {
+      const changes = diffFields(row.oldValues, row.newValues, lookups);
+      return {
+        ...row,
+        actionLabel: humanAction(row.action),
+        summary: summarize(row.action, 'trailer', row.oldValues, row.newValues, changes),
+        changes,
+        userName: row.user?.fullName ?? 'System',
+      };
+    });
+
+    return { steps, qcInspections, deliveries, auditLogs: enrichedAuditLogs };
+  }
+
+  /**
+   * Resolve the ids referenced by a batch of audit rows to names, in one pass
+   * per table (no N+1), so the history can say "Mulberry" instead of "3".
+   */
+  private async buildAuditLookups(
+    rows: { oldValues: unknown; newValues: unknown }[],
+  ): Promise<Lookups> {
+    const collect = (keys: string[]): Set<string> => {
+      const out = new Set<string>();
+      for (const r of rows) {
+        for (const bag of [r.oldValues, r.newValues]) {
+          const v = (bag ?? null) as Record<string, unknown> | null;
+          if (!v) continue;
+          for (const k of keys) {
+            const val = v[k];
+            if (val !== null && val !== undefined) out.add(String(val));
+          }
+        }
+      }
+      return out;
+    };
+
+    const locIds = [...collect([
+      'currentLocationId',
+      'intendedStockLocationId',
+      'stockLocationId',
+    ])].map(Number).filter((n) => Number.isFinite(n));
+    const deptIds = [...collect(['departmentId'])].map(Number).filter((n) => Number.isFinite(n));
+    const modelIds = [...collect(['trailerModelId'])].map(Number).filter((n) => Number.isFinite(n));
+    const custIds = [...collect(['customerId'])].filter((s) => /^\d+$/.test(s));
+
+    const [locs, depts, models, customers] = await Promise.all([
+      locIds.length
+        ? this.prisma.location.findMany({
+            where: { id: { in: locIds } },
+            select: { id: true, name: true, code: true },
+          })
+        : [],
+      deptIds.length
+        ? this.prisma.department.findMany({
+            where: { id: { in: deptIds } },
+            select: { id: true, code: true, displayName: true },
+          })
+        : [],
+      modelIds.length
+        ? this.prisma.trailerModel.findMany({
+            where: { id: { in: modelIds } },
+            select: { id: true, code: true },
+          })
+        : [],
+      custIds.length
+        ? this.prisma.customer.findMany({
+            where: { id: { in: custIds.map((s) => BigInt(s)) } },
+            select: { id: true, name: true, company: true },
+          })
+        : [],
+    ]);
+
+    return {
+      locations: new Map(locs.map((l) => [l.id, l.name || l.code])),
+      departments: new Map(depts.map((d) => [d.id, d.displayName || d.code])),
+      models: new Map(models.map((m) => [m.id, m.code])),
+      customers: new Map(
+        customers.map((c) => [String(c.id), c.company || c.name]),
+      ),
+    };
   }
 }

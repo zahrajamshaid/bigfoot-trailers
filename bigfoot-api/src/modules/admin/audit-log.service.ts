@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  diffFields,
+  humanAction,
+  summarize,
+} from '../../common/audit/audit-humanizer';
 import { Prisma } from '@prisma/client';
 
 export interface CreateAuditLogEntry {
@@ -407,9 +412,19 @@ export class AuditLogService {
         userDesc,
         announcementTitle,
       }, idKey);
+      // One shared humanizer for the admin log AND the trailer history, so a
+      // change reads the same wherever you look at it. `changes` carries the
+      // full field-by-field diff the UI can expand.
       const actionLabel = humanAction(it.action);
-      const summary = buildSummary(it, actionLabel);
-      return { ...it, entityLabel, summary, actionLabel };
+      const changes = diffFields(it.oldValues, it.newValues);
+      const summary = summarize(
+        it.action,
+        it.entityType,
+        it.oldValues,
+        it.newValues,
+        changes,
+      );
+      return { ...it, entityLabel, summary, actionLabel, changes };
     });
   }
 }
@@ -482,75 +497,5 @@ function buildEntityLabel(
   }
 }
 
-function humanAction(action: string): string {
-  // Custom verbs the API emits directly.
-  if (action === 'trailer.jumped_to_step') return 'Jumped to step';
-  if (action === 'trailer.priority_set') return 'Priority set';
-  if (action === 'trailer.hot_toggled') return 'Hot toggled';
-  if (action === 'qc.passed') return 'QC passed';
-  if (action === 'qc.failed') return 'QC failed';
 
-  // HTTP verbs from the audit-log interceptor.
-  const upper = action.toUpperCase();
-  if (upper === 'CREATE') return 'Created';
-  if (upper === 'UPDATE') return 'Updated';
-  if (upper === 'DELETE') return 'Deleted';
 
-  // Anything else: split on dots/underscores and Title-Case it so a custom
-  // `delivery.dispatched` reads as "Delivery dispatched" instead of raw.
-  return action
-    .replace(/[._]+/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function buildSummary(
-  it: { entityType: string; action: string; oldValues: unknown; newValues: unknown },
-  actionLabel: string,
-): string {
-  const oldV = (it.oldValues ?? null) as Record<string, unknown> | null;
-  const newV = (it.newValues ?? null) as Record<string, unknown> | null;
-
-  // QC inspection rows are noisy — they always create, so the verb adds nothing.
-  // Use the result + attempt + rework target if present instead.
-  if (it.entityType === 'qc_inspection' && newV) {
-    const result = String(newV.result ?? '').toLowerCase();
-    const attempt = newV.attemptNumber ?? newV.attempt_number;
-    const reworkDept =
-      newV.reworkTargetDeptCode ??
-      newV.reworkTargetDept ??
-      newV.reworkSentToDeptCode;
-    if (result === 'pass') {
-      return attempt ? `Passed (attempt ${attempt})` : 'Passed';
-    }
-    if (result === 'fail') {
-      const base = attempt ? `Failed (attempt ${attempt})` : 'Failed';
-      return reworkDept ? `${base} → sent to ${reworkDept}` : base;
-    }
-  }
-
-  // Trailer status / sale-status / priority changes are the highest-signal
-  // updates — surface the diff directly.
-  if (oldV && newV) {
-    const diffs: string[] = [];
-    for (const key of ['status', 'saleStatus', 'globalPriority', 'isHot', 'isStockBuild']) {
-      const ov = oldV[key];
-      const nv = newV[key];
-      if (ov !== undefined && nv !== undefined && ov !== nv) {
-        diffs.push(`${prettyKey(key)}: ${ov} → ${nv}`);
-      }
-    }
-    if (diffs.length > 0) return diffs.join(', ');
-  }
-
-  // Generic fallback: just the action verb.
-  return actionLabel;
-}
-
-function prettyKey(key: string): string {
-  if (key === 'status') return 'Status';
-  if (key === 'saleStatus') return 'Sale';
-  if (key === 'globalPriority') return 'Priority';
-  if (key === 'isHot') return 'Hot';
-  if (key === 'isStockBuild') return 'Stock build';
-  return key;
-}

@@ -231,6 +231,15 @@ export class QcService {
       );
     }
 
+    // 1a. A photo is REQUIRED on every QC step — you can't sign off a stage you
+    //     didn't photograph. (The error code existed but was never enforced.)
+    if (!dto.photoStorageKeys || dto.photoStorageKeys.length === 0) {
+      throw new AppError(
+        ErrorCode.QC_PHOTO_REQUIRED,
+        'Take at least one photo of this stage before submitting the inspection',
+      );
+    }
+
     // 2. Validate checklist completeness — all active items for this dept/series must be answered
     const trailer = await this.prisma.trailer.findUnique({
       where: { id: step.trailerId },

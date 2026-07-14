@@ -233,7 +233,7 @@ describe('AuditLogService', () => {
       const row = result.items[0] as any;
       expect(row.entityLabel).toBe('SO 6715');
       expect(row.actionLabel).toBe('Updated');
-      expect(row.summary).toBe('Status: in_production → ready_for_delivery');
+      expect(row.summary).toBe('Status: In production → Ready for delivery');
     });
 
     it('labels a QC inspection CREATE with the SO + dept + pass result', async () => {
@@ -264,7 +264,7 @@ describe('AuditLogService', () => {
 
       const row = result.items[0] as any;
       expect(row.entityLabel).toBe('SO 6912 — QC_3 QC');
-      expect(row.summary).toBe('Passed (attempt 1)');
+      expect(row.summary).toBe('QC passed (attempt 1)');
     });
 
     it('labels a QC fail with the rework target', async () => {
@@ -294,7 +294,7 @@ describe('AuditLogService', () => {
       const result = await service.findAll({});
 
       const row = result.items[0] as any;
-      expect(row.summary).toBe('Failed (attempt 2) → sent to WIRE');
+      expect(row.summary).toBe('QC failed (attempt 2) — sent back to WIRE');
     });
 
     it('falls back to entityType #id when the entity has been deleted', async () => {

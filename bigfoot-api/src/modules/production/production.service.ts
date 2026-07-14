@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { toQcSeriesScope } from '../../common/qc-series-scope';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrailerOptionsService } from '../trailers/trailer-options.service';
 import { AppError } from '../../common/errors/app-error';
 import { ErrorCode } from '../../common/errors/error-codes';
 import { StepCheckResultDto } from './dto/complete-step.dto';
@@ -17,6 +18,7 @@ export class ProductionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly options: TrailerOptionsService,
   ) {}
 
   // =========================================================================
@@ -201,6 +203,16 @@ export class ProductionService {
     if (step.status !== ProductionStepStatus.active) {
       throw new AppError(ErrorCode.STEP_NOT_ACTIVE);
     }
+
+    // OPTIONS GUARD — any option THIS department is responsible for fitting
+    // (jig fits the D-rings) must be acknowledged before the worker can answer
+    // their checks and send the trailer on. Departments that don't fit the
+    // option simply see it and move on: `assertOptionsAcknowledged` only looks
+    // at options whose installDepartmentId is this department.
+    //
+    // This is the mechanism that stops a trailer sailing past the stage that
+    // should have fitted an option and only being caught once it's built.
+    await this.options.assertOptionsAcknowledged(step.trailerId, step.departmentId);
 
     // ── Worker self-check validation ────────────────────────────────────────
     // If the step's department has active upstream checklist items for this
@@ -831,6 +843,18 @@ export class ProductionService {
           include: {
             trailerModel: true,
             customer: true,
+            // Options this trailer carries. The queue card shows how many THIS
+            // department still has to fit, so a worker sees it while scanning
+            // the queue instead of only after opening the trailer.
+            addons: {
+              select: {
+                id: true,
+                addonName: true,
+                departments: {
+                  select: { departmentId: true, acknowledgedAt: true },
+                },
+              },
+            },
           },
         },
         // stallThresholdHours travels with each queue item so the mobile
@@ -937,6 +961,15 @@ export class ProductionService {
           step.trailer.soldToName ??
           null,
         optionsNotes: step.trailer.optionsNotes,
+        // How many options THIS department still has to fit + acknowledge on
+        // this trailer. Non-zero blocks step completion, so the queue card can
+        // warn the worker before they even open it.
+        optionsToFit: step.trailer.addons.filter((a) =>
+          a.departments.some(
+            (d) =>
+              d.departmentId === step.departmentId && d.acknowledgedAt === null,
+          ),
+        ).length,
         qbSoPdfUrl: step.trailer.qbSoPdfStorageUrl,
         qbSoPdfStorageKey: step.trailer.qbSoPdfStorageKey,
         isHot: step.trailer.isHot,

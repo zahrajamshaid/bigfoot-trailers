@@ -120,6 +120,18 @@ export class QueryTrailersDto {
 
   @ApiPropertyOptional({
     description:
+      'Customer pickups waiting at Mulberry — the exact set behind the ' +
+      'dashboard "Customer Pickups @ Mulberry" tile. One flag instead of ' +
+      'four separate params (status + location + isStockBuild + saleStatus), ' +
+      'so the tile and the list it opens can never drift apart.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  readyForPickupAtMulberry?: boolean;
+
+  @ApiPropertyOptional({
+    description:
       'Exclude trailers that already have an open (scheduled / in-transit) delivery',
   })
   @IsOptional()
