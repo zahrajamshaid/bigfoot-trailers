@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../options/view/add_option_dialog.dart';
 import '../../../core/utils/est_clock.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/websocket/ws_client.dart';
@@ -240,7 +241,7 @@ class _TrailerDetailBody extends StatelessWidget {
         _showPriorityDialog(context, cubit);
         return;
       case 'addon':
-        _showAddonDialog(context, cubit);
+        _showAddonDialog(context, cubit, trailer);
         return;
       case 'pdf':
         final storageKey = trailer.qbSoPdfStorageKey as String?;
@@ -301,7 +302,7 @@ class _TrailerDetailBody extends StatelessWidget {
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
         auth.user.role == UserRole.productionManager ||
-        // Sales/office show customers build progress from these photos.
+        // Sales show customers build progress from these photos.
         auth.user.role == UserRole.sales ||
         auth.user.role == UserRole.office;
   }
@@ -396,52 +397,28 @@ class _TrailerDetailBody extends StatelessWidget {
     );
   }
 
-  void _showAddonDialog(BuildContext context, TrailerDetailViewModel cubit) {
-    final l = AppLocalizations.of(context);
-    final nameController = TextEditingController();
-    final notesController = TextEditingController();
-    showDialog(
+  /// Add an option to the trailer.
+  ///
+  /// This goes through AddOptionDialog, which REQUIRES the department that
+  /// fits the option. That department then has to acknowledge it before it can
+  /// complete its step — which is the whole mechanism that stops an option
+  /// (e.g. extra D-rings) being added and silently missed. The old dialog
+  /// captured only a name + notes, so nothing could enforce anything.
+  Future<void> _showAddonDialog(
+    BuildContext context,
+    TrailerDetailViewModel cubit,
+    dynamic trailer,
+  ) async {
+    final status = trailer.status as String?;
+    final added = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.trailerDetailAddonTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration:
-                  InputDecoration(labelText: l.trailerDetailAddonName),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: notesController,
-              decoration:
-                  InputDecoration(labelText: l.trailerDetailAddonNotes),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l.commonCancel),
-          ),
-          TextButton(
-            onPressed: () {
-              if (nameController.text.trim().isNotEmpty) {
-                cubit.addAddon(
-                  nameController.text.trim(),
-                  notesController.text.trim().isNotEmpty
-                      ? notesController.text.trim()
-                      : null,
-                );
-                Navigator.pop(ctx);
-              }
-            },
-            child: Text(l.trailerDetailAddonAdd),
-          ),
-        ],
+      builder: (_) => AddOptionDialog(
+        trailerId: trailer.id as int,
+        inProduction:
+            status != 'pending_production' && status != 'delivered',
       ),
     );
+    if (added == true) cubit.load();
   }
 }
 
@@ -623,6 +600,7 @@ class _InfoTab extends StatelessWidget {
                         (t.intendedStockLocation!.code as String?) ??
                         '-',
                   ),
+                _DetailRow(l.trailerVinLabel, t.vinNumber ?? '-'),
                 _DetailRow(l.trailerDetailFieldColor, t.color ?? '-'),
                 _DetailRow(l.trailerDetailFieldSize, t.size ?? '-'),
                 _DetailRow(
@@ -1732,40 +1710,79 @@ class _HistoryTab extends StatelessWidget {
             ),
             child: Icon(icon, size: 16, color: color),
           ),
-          title: Text(entry.action,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+          // WHAT happened, in plain English — "Status: In production → Ready
+          // for delivery" rather than a bare "Updated".
+          title: Text(entry.headline,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Which account performed the action — shown prominently so
-              // it is always clear who completed each stage of the queue.
-              if (entry.userName != null && entry.userName!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person_outline,
-                          size: 13, color: AppColors.navy),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          entry.userName!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.navy,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+              // WHO + WHEN, on one line.
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_outline,
+                        size: 13, color: AppColors.navy),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        (entry.userName?.isNotEmpty ?? false)
+                            ? entry.userName!
+                            : 'System',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.navy,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    if (entry.timestamp != null) ...[
+                      const Text(' · ',
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.disabled)),
+                      Text(
+                        DateFormat.yMMMd().add_jm().format(entry.timestamp!),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.disabled),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // WHAT CHANGED — every field, from → to. Only rendered when the
+              // summary didn't already spell them all out.
+              if (entry.changes.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final c in entry.changes)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('• ',
+                                  style: TextStyle(
+                                      fontSize: 12, color: AppColors.disabled)),
+                              Expanded(
+                                child: Text(
+                                  c.sentence,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: AppColors.navy),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
-              if (entry.timestamp != null)
-                Text(
-                  DateFormat.yMMMd().add_jm().format(entry.timestamp!),
-                  style: const TextStyle(fontSize: 11, color: AppColors.disabled),
-                ),
+
               if (entry.details != null && entry.details!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),

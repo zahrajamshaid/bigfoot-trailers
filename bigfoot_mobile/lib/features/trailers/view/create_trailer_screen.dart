@@ -26,6 +26,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
   final _sizeController = TextEditingController();
   final _notesController = TextEditingController();
   final _specialNoteController = TextEditingController();
+  final _vinController = TextEditingController();
   final _customerController = TextEditingController();
   int? _selectedModelId;
   bool _isStockBuild = false;
@@ -163,6 +164,9 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
             'optionsNotes': _notesController.text.trim(),
           if (_specialNoteController.text.trim().isNotEmpty)
             'specialNote': _specialNoteController.text.trim(),
+          // Real VIN column — unique + searchable. Uppercased server-side too.
+          if (_vinController.text.trim().isNotEmpty)
+            'vinNumber': _vinController.text.trim().toUpperCase(),
           // Customer name attaches regardless of stock-build flag — a sold
           // trailer can still sit at a yard until pickup.
           if (_customerController.text.trim().isNotEmpty)
@@ -261,6 +265,7 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
     _sizeController.dispose();
     _notesController.dispose();
     _specialNoteController.dispose();
+    _vinController.dispose();
     _customerController.dispose();
     super.dispose();
   }
@@ -412,6 +417,28 @@ class _CreateTrailerScreenState extends State<CreateTrailerScreen> {
                         prefixIcon: const Icon(Icons.sticky_note_2_outlined),
                         counterText: '',
                       ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // VIN — its own column: unique across trailers and
+                    // searchable. Validated to the real VIN alphabet (17 chars,
+                    // no I/O/Q, which are excluded to avoid 1/0 confusion).
+                    TextFormField(
+                      controller: _vinController,
+                      maxLength: 17,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: l.trailerVinLabel,
+                        hintText: l.trailerVinHint,
+                        prefixIcon: const Icon(Icons.pin_outlined),
+                        counterText: '',
+                      ),
+                      validator: (v) {
+                        final s = (v ?? '').trim().toUpperCase();
+                        if (s.isEmpty) return null; // VIN is optional
+                        final ok = RegExp(r'^[A-HJ-NPR-Z0-9]{17}$').hasMatch(s);
+                        return ok ? null : l.trailerVinInvalid;
+                      },
                     ),
                     const SizedBox(height: 16),
 

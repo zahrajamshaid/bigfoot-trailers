@@ -25,6 +25,26 @@ class AppShell extends StatefulWidget {
 
   const AppShell({super.key, required this.child});
 
+  /// Where a role lands after logging in: its OWN first nav tab.
+  ///
+  /// Everyone used to be dropped on /dashboard, but /dashboard isn't a tab for
+  /// a worker or a driver — a welder logging in got the points-heavy dashboard
+  /// instead of the queue they actually came to work from. Landing on the first
+  /// tab means the screen you get is always the tab that's highlighted.
+  ///
+  /// Keep in step with [_AppShellState._tabsForRole] — the landing path must be
+  /// that role's first tab. `app_shell_landing_test.dart` fails if they drift.
+  static String landingPathForRole(String role) {
+    switch (role) {
+      case UserRole.worker:
+        return '/production'; // the welder's queue
+      case UserRole.driver:
+        return '/deliveries'; // the driver's runs
+      default:
+        return '/dashboard';
+    }
+  }
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -456,6 +476,12 @@ class _AppShellState extends State<AppShell> {
             Icons.delivery_dining,
           ),
           _NavTab(
+            '/customers',
+            'Customers',
+            Icons.people_outline,
+            Icons.people,
+          ),
+          _NavTab(
             '/admin',
             l.navAdmin,
             Icons.admin_panel_settings_outlined,
@@ -582,6 +608,12 @@ class _AppShellState extends State<AppShell> {
             Icons.delivery_dining,
           ),
           _NavTab(
+            '/customers',
+            'Customers',
+            Icons.people_outline,
+            Icons.people,
+          ),
+          _NavTab(
             '/admin',
             l.navAdmin,
             Icons.admin_panel_settings_outlined,
@@ -606,6 +638,12 @@ class _AppShellState extends State<AppShell> {
             l.navTrailers,
             Icons.local_shipping_outlined,
             Icons.local_shipping,
+          ),
+          _NavTab(
+            '/customers',
+            'Customers',
+            Icons.people_outline,
+            Icons.people,
           ),
           _NavTab(
             '/deliveries',

@@ -33,6 +33,10 @@ class TrailerListScreen extends StatefulWidget {
   /// True/false/null. Used by the "Customer pickups @ Mulberry" tile to
   /// limit the deep-link to customer trailers (isStockBuild=false).
   final bool? initialIsStockBuild;
+
+  /// Canonical dashboard set: customer pickups waiting at Mulberry. One flag
+  /// the server defines, so this list always matches the tile's count.
+  final bool? initialReadyForPickupAtMulberry;
   /// Optional sale-status filter applied on first load. The Customer
   /// Pickups tile passes 'sold' so the list excludes customer-order
   /// builds that aren't formally sold yet.
@@ -46,6 +50,7 @@ class TrailerListScreen extends StatefulWidget {
     this.initialCurrentLocationCode,
     this.initialIntendedStockLocationCode,
     this.initialIsStockBuild,
+    this.initialReadyForPickupAtMulberry,
     this.initialSaleStatus,
   });
 
@@ -82,6 +87,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
         widget.initialCompletedSince != null ||
         widget.initialCurrentLocationCode != null ||
         widget.initialIntendedStockLocationCode != null ||
+        widget.initialReadyForPickupAtMulberry != null ||
         widget.initialIsStockBuild != null ||
         widget.initialSaleStatus != null;
     final alreadyLoaded = state is TrailersLoaded;
@@ -93,6 +99,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
         currentLocationCode: widget.initialCurrentLocationCode,
         intendedStockLocationCode: widget.initialIntendedStockLocationCode,
         isStockBuild: widget.initialIsStockBuild,
+        readyForPickupAtMulberry: widget.initialReadyForPickupAtMulberry,
         saleStatus: widget.initialSaleStatus,
       );
     } else if (state.search != null && state.search!.isNotEmpty) {

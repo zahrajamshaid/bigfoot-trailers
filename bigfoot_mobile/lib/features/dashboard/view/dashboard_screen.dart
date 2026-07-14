@@ -321,18 +321,14 @@ class _ManagerDashboard extends StatelessWidget {
         value: '${data.mulberryCustomerPickups}',
         icon: Icons.directions_car_outlined,
         color: AppColors.amber,
+        // ONE canonical flag. The server owns the definition of this set, so
+        // the count on this tile and the list it opens are the same query and
+        // cannot drift. (Previously this re-sent four separate params to
+        // hand-rebuild the count's filter — any mismatch, or an older app
+        // build, silently produced a tile that disagreed with its own list.)
         onTap: () => context.goNamed(
           RouteNames.trailerList,
-          queryParameters: {
-            'status': 'ready_for_delivery',
-            'currentLocationCode': 'MULBERRY',
-            'isStockBuild': 'false',
-            // Restrict to formally-sold customer orders so we
-            // don't surface limbo trailers (built for a customer
-            // but saleStatus still 'available' / 'sale_pending').
-            // Matches the count query.
-            'saleStatus': 'sold',
-          },
+          queryParameters: {'readyForPickupAtMulberry': 'true'},
         ),
       ),
     ];
@@ -349,6 +345,19 @@ class _ManagerDashboard extends StatelessWidget {
           icon: Icons.monitor_heart_outlined,
           color: AppColors.statusInProduction,
           onTap: () => context.pushNamed(RouteNames.productionReport),
+        ),
+      // Options added AFTER the build started. Amber when there's anything to
+      // review — these are the trailers that get built wrong if nobody looks.
+      // Admin + production manager only.
+      if (canSeeProductionReport)
+        StatCard(
+          title: 'Options Added Mid-Build',
+          value: '${data.optionsPendingReview}',
+          icon: Icons.warning_amber_rounded,
+          color: data.optionsPendingReview > 0
+              ? AppColors.error
+              : AppColors.navy,
+          onTap: () => context.pushNamed(RouteNames.optionsReview),
         ),
     ];
 
@@ -676,14 +685,11 @@ class _TransportDashboard extends StatelessWidget {
         value: '${data.mulberryCustomerPickups}',
         icon: Icons.directions_car_outlined,
         color: AppColors.amber,
+        // Same canonical flag as the other copy of this tile — the server owns
+        // the definition, so count and list can never disagree.
         onTap: () => context.goNamed(
           RouteNames.trailerList,
-          queryParameters: {
-            'status': 'ready_for_delivery',
-            'currentLocationCode': 'MULBERRY',
-            'isStockBuild': 'false',
-            'saleStatus': 'sold',
-          },
+          queryParameters: {'readyForPickupAtMulberry': 'true'},
         ),
       ),
     ];

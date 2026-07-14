@@ -37,6 +37,10 @@ class DashboardData extends Equatable {
   /// Customer-order trailers at Mulberry waiting on a factory pickup.
   /// Powers the matched "Customer pickups @ Mulberry" tile.
   final int mulberryCustomerPickups;
+
+  /// Options added AFTER a build started, still unreviewed by the production
+  /// manager. Non-zero means trailers are on course to be built wrong.
+  final int optionsPendingReview;
   final int myQueueCount;
   final double myPointsToday;
   final double myPointsWeek;
@@ -72,6 +76,7 @@ class DashboardData extends Equatable {
     this.mulberryStockByYard = const <String, int>{},
     this.mulberryStockTotal = 0,
     this.mulberryCustomerPickups = 0,
+    this.optionsPendingReview = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,
@@ -106,6 +111,7 @@ class DashboardData extends Equatable {
     Map<String, int>? mulberryStockByYard,
     int? mulberryStockTotal,
     int? mulberryCustomerPickups,
+    int? optionsPendingReview,
     int? myQueueCount,
     double? myPointsToday,
     double? myPointsWeek,
@@ -141,6 +147,7 @@ class DashboardData extends Equatable {
       mulberryStockTotal: mulberryStockTotal ?? this.mulberryStockTotal,
       mulberryCustomerPickups:
           mulberryCustomerPickups ?? this.mulberryCustomerPickups,
+      optionsPendingReview: optionsPendingReview ?? this.optionsPendingReview,
       myQueueCount: myQueueCount ?? this.myQueueCount,
       myPointsToday: myPointsToday ?? this.myPointsToday,
       myPointsWeek: myPointsWeek ?? this.myPointsWeek,
@@ -166,7 +173,7 @@ class DashboardData extends Equatable {
         activeTrailers, readyForDelivery, hotTrailers, stalledSteps,
         weeklyCompleted, archivedTotal, qcFailRate, qcFailRateInspections,
         qcFailRateFails, totalTrailers, pendingProduction, mulberryStockByYard,
-        mulberryStockTotal, mulberryCustomerPickups,
+        mulberryStockTotal, mulberryCustomerPickups, optionsPendingReview,
         myQueueCount, myPointsToday,
         myPointsWeek, nextTrailerSo, nextTrailerColor,
         readyForInspection, inspectionsToday, failRateToday, failsToday,
@@ -316,6 +323,7 @@ class DashboardViewModel extends Cubit<DashboardState> {
       mulberryStockByYard: stats.mulberryStockByYard,
       mulberryStockTotal: stats.mulberryStockTotal,
       mulberryCustomerPickups: stats.mulberryCustomerPickups,
+      optionsPendingReview: stats.optionsPendingReview,
       myQueueCount: stats.myQueueCount,
       myPointsToday: stats.myPointsToday,
       myPointsWeek: stats.myPointsWeek,

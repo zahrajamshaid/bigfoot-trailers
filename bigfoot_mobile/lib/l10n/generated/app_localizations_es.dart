@@ -469,10 +469,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get createTrailerNotesLabel => 'Opciones / Notas';
 
   @override
+  String get trailerVinLabel => 'Número VIN';
+
+  @override
+  String get trailerVinHint => '17 caracteres';
+
+  @override
+  String get trailerVinInvalid =>
+      'El VIN debe tener 17 caracteres (sin I, O ni Q)';
+
+  @override
   String get createTrailerSpecialLabel => 'Nota especial';
 
   @override
-  String get createTrailerSpecialHint => 'ej. enviar vacío, retener por VIN';
+  String get createTrailerSpecialHint =>
+      'ej. enviar vacío, retener para inspección';
 
   @override
   String get createTrailerStockBuild => 'Construcción de stock';

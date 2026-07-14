@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../options/view/step_options_panel.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/queue_item.dart';
@@ -230,6 +231,16 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                     letterSpacing: 0.5,
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+
+              // Options on this trailer. Anything THIS department fits must be
+              // acknowledged before the step can be completed — the API
+              // enforces it, so this panel is how the worker satisfies it.
+              // Options other departments fit are shown greyed and skippable.
+              StepOptionsPanel(
+                stepId: item.stepId,
+                onChanged: () => setState(() {}),
               ),
               const SizedBox(height: 12),
 

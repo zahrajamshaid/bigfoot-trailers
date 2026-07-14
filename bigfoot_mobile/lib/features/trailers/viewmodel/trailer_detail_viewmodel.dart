@@ -49,6 +49,29 @@ class TrailerDetailError extends TrailerDetailState {
   List<Object?> get props => [message];
 }
 
+/// One field that changed, already rendered for a human by the API
+/// (e.g. "Sale status: Available → Sold").
+class HistoryChange extends Equatable {
+  final String field;
+  final String? from;
+  final String? to;
+
+  const HistoryChange({required this.field, this.from, this.to});
+
+  factory HistoryChange.fromJson(Map<String, dynamic> j) => HistoryChange(
+        field: j['field'] as String? ?? '',
+        from: j['from'] as String?,
+        to: j['to'] as String?,
+      );
+
+  /// "Sale status: Available → Sold" / "Color set to White".
+  String get sentence =>
+      from == null ? '$field set to ${to ?? 'none'}' : '$field: $from → ${to ?? 'none'}';
+
+  @override
+  List<Object?> get props => [field, from, to];
+}
+
 class HistoryEntry extends Equatable {
   final String action;
   final String? userName;
@@ -56,13 +79,30 @@ class HistoryEntry extends Equatable {
   final String? details;
   final String? eventType;
 
+  /// Plain-English one-liner from the API ("Status: In production → Ready for
+  /// delivery"). Falls back to the raw action only if the API didn't send one.
+  final String? summary;
+
+  /// The action as a verb ("Updated", "QC failed").
+  final String? actionLabel;
+
+  /// Full field-by-field diff — what the row expands to show.
+  final List<HistoryChange> changes;
+
   const HistoryEntry({
     required this.action,
     this.userName,
     this.timestamp,
     this.details,
     this.eventType,
+    this.summary,
+    this.actionLabel,
+    this.changes = const [],
   });
+
+  /// What the row actually shows: the human summary when we have one.
+  String get headline =>
+      (summary?.isNotEmpty ?? false) ? summary! : (actionLabel ?? action);
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>?;
@@ -74,11 +114,18 @@ class HistoryEntry extends Equatable {
           : null,
       details: json['details'] as String?,
       eventType: json['eventType'] as String?,
+      summary: json['summary'] as String?,
+      actionLabel: json['actionLabel'] as String?,
+      changes: ((json['changes'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(HistoryChange.fromJson)
+          .toList(),
     );
   }
 
   @override
-  List<Object?> get props => [action, userName, timestamp, details, eventType];
+  List<Object?> get props =>
+      [action, userName, timestamp, details, eventType, summary, actionLabel, changes];
 }
 
 class StagePhotoGroup extends Equatable {

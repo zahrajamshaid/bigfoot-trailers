@@ -956,6 +956,24 @@ abstract class AppLocalizations {
   /// **'Options / Notes'**
   String get createTrailerNotesLabel;
 
+  /// No description provided for @trailerVinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'VIN Number'**
+  String get trailerVinLabel;
+
+  /// No description provided for @trailerVinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'17 characters'**
+  String get trailerVinHint;
+
+  /// No description provided for @trailerVinInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'VIN must be 17 characters (no I, O or Q)'**
+  String get trailerVinInvalid;
+
   /// No description provided for @createTrailerSpecialLabel.
   ///
   /// In en, this message translates to:
@@ -965,7 +983,7 @@ abstract class AppLocalizations {
   /// No description provided for @createTrailerSpecialHint.
   ///
   /// In en, this message translates to:
-  /// **'e.g. ship empty, hold for VIN check'**
+  /// **'e.g. ship empty, hold for inspection'**
   String get createTrailerSpecialHint;
 
   /// No description provided for @createTrailerStockBuild.

@@ -27,6 +27,19 @@ abstract final class ApiEndpoints {
   static String trailerMarkCompleted(int id) => '/trailers/$id/mark-completed';
   static String trailerPaintBooth(int id) => '/trailers/$id/paint-booth';
   static String trailerAddons(int id) => '/trailers/$id/addons';
+
+  // ── Options / add-on accountability ──────────────────────────────────────
+  /// Options on a trailer + who fits them + acknowledgement state.
+  static String trailerOptions(int id) => '/trailers/$id/options';
+  /// Options at a step, flagged with what THIS department must acknowledge.
+  static String stepOptions(int stepId) => '/production/steps/$stepId/options';
+  /// "I fitted it" — required before this department can complete its step.
+  static String optionAcknowledge(int addonId) =>
+      '/trailers/options/$addonId/acknowledge';
+  /// Dashboard box: options added mid-build awaiting production-manager review.
+  static const String optionsPendingReview = '/trailers/options/pending-review';
+  /// Production manager clears an option off the dashboard.
+  static String optionReview(int addonId) => '/trailers/options/$addonId/review';
   static String trailerAddon(int trailerId, int addonId) =>
       '/trailers/$trailerId/addons/$addonId';
   static String trailerQbPdf(int id) => '/trailers/$id/qb-pdf';
@@ -95,6 +108,7 @@ abstract final class ApiEndpoints {
   // ── Customers ────────────────────────────────────────────────────────────
   static const String customers = '/customers';
   static String customer(int id) => '/customers/$id';
+
 
   // ── Locations ────────────────────────────────────────────────────────────
   static const String locations = '/locations';

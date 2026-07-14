@@ -31,6 +31,7 @@ class TrailerRepositoryImpl implements TrailerRepository {
     String? currentLocationCode,
     String? intendedStockLocationCode,
     bool? isStockBuild,
+    bool? readyForPickupAtMulberry,
   }) async {
     final params = <String, dynamic>{
       'page': page,
@@ -50,6 +51,11 @@ class TrailerRepositoryImpl implements TrailerRepository {
       params['intendedStockLocationCode'] = intendedStockLocationCode;
     }
     if (isStockBuild != null) params['isStockBuild'] = isStockBuild;
+    // One canonical flag — the server owns the definition of this set,
+    // so the tile's count and this list can never disagree.
+    if (readyForPickupAtMulberry == true) {
+      params['readyForPickupAtMulberry'] = true;
+    }
 
     final cacheKey = _listCacheKey(params);
     try {

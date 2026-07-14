@@ -169,7 +169,21 @@ class DashboardRepositoryImpl implements DashboardRepository {
       mulberryCustomerPickups = 0;
     }
 
+    // Options added mid-build, still unreviewed by the production manager.
+    // Fail-soft: role-gated to owner/PM, so anyone else just sees zero.
+    int optionsPendingReview = 0;
+    try {
+      final o = await _api.get<List<dynamic>>(
+        ApiEndpoints.optionsPendingReview,
+        fromJson: (d) => d as List<dynamic>,
+      );
+      optionsPendingReview = (o.data ?? const []).length;
+    } catch (_) {
+      optionsPendingReview = 0;
+    }
+
     return DashboardStats(
+      optionsPendingReview: optionsPendingReview,
       activeTrailers: active,
       readyForDelivery: ready,
       hotTrailers: hot,

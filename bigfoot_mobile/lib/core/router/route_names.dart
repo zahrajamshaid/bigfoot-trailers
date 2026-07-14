@@ -24,6 +24,8 @@ abstract final class RouteNames {
   static const String qcQueue = 'qcQueue';
   static const String qcFailed = 'qcFailed';
   static const String qcRework = 'qcRework';
+  /// Production-manager box: options added mid-build.
+  static const String optionsReview = 'optionsReview';
   static const String qcInspectionForm = 'qcInspectionForm';
   static const String qcInspectionDetail = 'qcInspectionDetail';
 
@@ -54,6 +56,7 @@ abstract final class RouteNames {
   // ── Customers ────────────────────────────────────────────────────────────
   static const String customerList = 'customerList';
   static const String customerDetail = 'customerDetail';
+
 
   // ── Notifications ───────────────────────────────────────────────────────
   static const String notificationsCenter = 'notificationsCenter';

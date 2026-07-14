@@ -12,6 +12,9 @@ import '../../features/admin/view/user_management_screen.dart';
 import '../../features/admin/view/workflow_viewer_screen.dart';
 import '../../features/auth/view/login_screen.dart';
 import '../../features/auth/view/splash_screen.dart';
+import '../../features/customers/view/customer_list_screen.dart';
+import '../../features/customers/view/customer_detail_screen.dart';
+import '../../features/options/view/options_review_screen.dart';
 import '../../features/auth/viewmodel/auth_viewmodel.dart';
 import '../../features/dashboard/view/dashboard_screen.dart';
 import '../../features/help/view/sales_guide_screen.dart';
@@ -101,6 +104,8 @@ class AppRouter {
                   initialCurrentLocationCode: q['currentLocationCode'],
                   initialIntendedStockLocationCode:
                       q['intendedStockLocationCode'],
+                  initialReadyForPickupAtMulberry:
+                      q['readyForPickupAtMulberry'] == 'true' ? true : null,
                   initialIsStockBuild: q['isStockBuild'] == 'true'
                       ? true
                       : q['isStockBuild'] == 'false'
@@ -293,6 +298,21 @@ class AppRouter {
               ],
             ),
             GoRoute(
+              path: '/customers',
+              name: RouteNames.customerList,
+              builder: (context, state) => const CustomerListScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  name: RouteNames.customerDetail,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (context, state) => CustomerDetailScreen(
+                    customerId: int.parse(state.pathParameters['id']!),
+                  ),
+                ),
+              ],
+            ),
+            GoRoute(
               path: '/admin',
               name: RouteNames.adminDashboard,
               redirect: _adminOnly,
@@ -354,6 +374,11 @@ class AppRouter {
               builder: (context, state) => const SettingsScreen(),
             ),
             GoRoute(
+              path: '/options-review',
+              name: RouteNames.optionsReview,
+              builder: (context, state) => const OptionsReviewScreen(),
+            ),
+            GoRoute(
               path: '/sales-guide',
               name: RouteNames.salesGuide,
               builder: (context, state) => const SalesGuideScreen(),
@@ -397,7 +422,19 @@ class AppRouter {
 
     if (!isAuthenticated && !isOnLogin) return '/login';
 
-    if (isAuthenticated && isOnLogin) return '/dashboard';
+    if (isAuthenticated && isOnLogin) {
+      // Land on the role's OWN first tab, not a blanket /dashboard. A worker's
+      // tabs are [My Queue, My Points] — /dashboard isn't one of them, so a
+      // welder was being dropped on the points screen instead of the queue.
+      return AppShell.landingPathForRole(authState.user.role);
+    }
+
+    // Same for anyone who lands on /dashboard without it being one of their
+    // tabs (deep link, back-stack, post-logout bounce).
+    if (isAuthenticated && state.matchedLocation == '/dashboard') {
+      final landing = AppShell.landingPathForRole(authState.user.role);
+      if (landing != '/dashboard') return landing;
+    }
 
     return null;
   }

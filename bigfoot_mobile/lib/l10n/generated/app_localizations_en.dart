@@ -464,10 +464,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createTrailerNotesLabel => 'Options / Notes';
 
   @override
+  String get trailerVinLabel => 'VIN Number';
+
+  @override
+  String get trailerVinHint => '17 characters';
+
+  @override
+  String get trailerVinInvalid => 'VIN must be 17 characters (no I, O or Q)';
+
+  @override
   String get createTrailerSpecialLabel => 'Special Note';
 
   @override
-  String get createTrailerSpecialHint => 'e.g. ship empty, hold for VIN check';
+  String get createTrailerSpecialHint => 'e.g. ship empty, hold for inspection';
 
   @override
   String get createTrailerStockBuild => 'Stock Build';

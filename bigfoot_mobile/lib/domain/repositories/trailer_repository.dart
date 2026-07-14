@@ -20,6 +20,7 @@ abstract class TrailerRepository {
     String? intendedStockLocationCode,
     /// true → stock builds only, false → customer orders only, null → both.
     bool? isStockBuild,
+    bool? readyForPickupAtMulberry,
   });
 
   Future<Trailer> getTrailer(int id);

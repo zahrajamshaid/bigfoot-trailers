@@ -52,6 +52,10 @@ class TrailersLoaded extends TrailersState {
   final String? intendedStockLocationCode;
   final bool? isStockBuild;
 
+  /// Canonical dashboard set: customer pickups waiting at Mulberry. The
+  /// server owns the definition, so the tile count and this list always match.
+  final bool? readyForPickupAtMulberry;
+
   const TrailersLoaded({
     required this.trailers,
     this.hasMore = true,
@@ -69,6 +73,7 @@ class TrailersLoaded extends TrailersState {
     this.currentLocationCode,
     this.intendedStockLocationCode,
     this.isStockBuild,
+    this.readyForPickupAtMulberry,
   });
 
   TrailersLoaded copyWith({
@@ -88,6 +93,7 @@ class TrailersLoaded extends TrailersState {
     String? currentLocationCode,
     String? intendedStockLocationCode,
     bool? isStockBuild,
+    bool? readyForPickupAtMulberry,
   }) {
     return TrailersLoaded(
       trailers: trailers ?? this.trailers,
@@ -107,6 +113,8 @@ class TrailersLoaded extends TrailersState {
       intendedStockLocationCode:
           intendedStockLocationCode ?? this.intendedStockLocationCode,
       isStockBuild: isStockBuild ?? this.isStockBuild,
+      readyForPickupAtMulberry:
+          readyForPickupAtMulberry ?? this.readyForPickupAtMulberry,
     );
   }
 
@@ -129,6 +137,7 @@ class TrailersLoaded extends TrailersState {
         currentLocationCode,
         intendedStockLocationCode,
         isStockBuild,
+        readyForPickupAtMulberry,
       ];
 }
 
@@ -165,6 +174,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
     String? currentLocationCode,
     String? intendedStockLocationCode,
     bool? isStockBuild,
+    bool? readyForPickupAtMulberry,
   }) async {
     emit(const TrailersLoading());
     try {
@@ -180,6 +190,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
         currentLocationCode: currentLocationCode,
         intendedStockLocationCode: intendedStockLocationCode,
         isStockBuild: isStockBuild,
+        readyForPickupAtMulberry: readyForPickupAtMulberry,
       );
       emit(TrailersLoaded(
         trailers: _sortTrailers(result.items),
@@ -197,6 +208,7 @@ class TrailersViewModel extends Cubit<TrailersState> {
         currentLocationCode: currentLocationCode,
         intendedStockLocationCode: intendedStockLocationCode,
         isStockBuild: isStockBuild,
+        readyForPickupAtMulberry: readyForPickupAtMulberry,
       ));
     } on ApiException catch (e) {
       emit(TrailersError(e.displayMessage));

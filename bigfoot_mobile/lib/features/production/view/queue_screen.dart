@@ -489,6 +489,38 @@ class _QueueCard extends StatelessWidget {
                                   hoursInQueue:
                                       item.calculatedHoursInQueue,
                                 ),
+                              // Options THIS department has to fit. Blocks step
+                              // completion until acknowledged, so flag it on the
+                              // card — the worker shouldn't have to open the
+                              // trailer to find out.
+                              if (item.optionsToFit > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.build_circle_outlined,
+                                          size: 13, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        item.optionsToFit == 1
+                                            ? '1 OPTION TO FIT'
+                                            : '${item.optionsToFit} OPTIONS TO FIT',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                           const SizedBox(height: 8),

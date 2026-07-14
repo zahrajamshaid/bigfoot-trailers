@@ -41,6 +41,10 @@ class QueueItem {
   final String? qbSoPdfUrl;
   final String? qbSoPdfStorageKey;
   final bool isHot;
+
+  /// Options THIS department still has to fit + acknowledge on this trailer.
+  /// Non-zero blocks step completion, so the queue card warns up-front.
+  final int optionsToFit;
   final bool isRework;
   final int reworkCount;
   final String? reworkFailNotes;
@@ -72,6 +76,7 @@ class QueueItem {
     this.qbSoPdfUrl,
     this.qbSoPdfStorageKey,
     this.isHot = false,
+    this.optionsToFit = 0,
     this.isRework = false,
     this.reworkCount = 0,
     this.reworkFailNotes,

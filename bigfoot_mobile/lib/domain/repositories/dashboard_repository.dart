@@ -38,6 +38,9 @@ class DashboardStats {
   /// waiting on a factory pickup. Backs the second new tile.
   final int mulberryCustomerPickups;
 
+  /// Options added AFTER a build started, awaiting production-manager review.
+  final int optionsPendingReview;
+
   // Worker
   final int myQueueCount;
   final double myPointsToday;
@@ -84,6 +87,7 @@ class DashboardStats {
     this.mulberryStockByYard = const <String, int>{},
     this.mulberryStockTotal = 0,
     this.mulberryCustomerPickups = 0,
+    this.optionsPendingReview = 0,
     this.myQueueCount = 0,
     this.myPointsToday = 0,
     this.myPointsWeek = 0,
