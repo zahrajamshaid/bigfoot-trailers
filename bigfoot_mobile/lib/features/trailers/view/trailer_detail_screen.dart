@@ -300,7 +300,10 @@ class _TrailerDetailBody extends StatelessWidget {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
-        auth.user.role == UserRole.productionManager;
+        auth.user.role == UserRole.productionManager ||
+        // Sales/office show customers build progress from these photos.
+        auth.user.role == UserRole.sales ||
+        auth.user.role == UserRole.office;
   }
 
   Future<void> _confirmAndDelete(BuildContext context, dynamic trailer) async {

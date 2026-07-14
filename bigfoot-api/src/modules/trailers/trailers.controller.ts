@@ -328,7 +328,15 @@ export class TrailersController {
   // GET /trailers/:id/history
   // ---------------------------------------------------------------------------
   @Get(':id/history')
-  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER, UserRole.QC_INSPECTOR)
+  // Sales included: the stage photos on the trailer detail are built from this
+  // payload, and sales need to show customers build progress.
+  @Roles(
+    UserRole.OWNER,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.QC_INSPECTOR,
+    UserRole.OFFICE,
+    UserRole.SALES,
+  )
   @ApiOperation({ summary: 'Full audit + QC + step history for a trailer' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer history' })
