@@ -36,6 +36,16 @@ import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.de
 @Controller('payroll')
 // Payroll data is sensitive; tighten from 100/min global to 30/min per IP
 @Throttle({ default: { ttl: 60_000, limit: 30 } })
+//
+// EVERY payroll route is owner / office / production_manager only.
+//
+// RolesGuard allows access when a handler carries no @Roles() decorator, so
+// three routes here — point-values, dollar-rates (the actual pay rates) and
+// the per-worker summary — were readable by ANY logged-in account, including
+// workers, drivers and QC. Declaring the roles on the CONTROLLER closes that
+// and makes it the default: a new route added below is locked down unless
+// someone deliberately widens it.
+@Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
