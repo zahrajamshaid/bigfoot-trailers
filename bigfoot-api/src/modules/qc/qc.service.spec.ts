@@ -357,6 +357,46 @@ describe('QcService', () => {
       ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
 
+    it('scopes a CXP trailer by gooseneck_dump, never the raw cxp enum', async () => {
+      // Regression: submitInspection used to cast the series straight into the
+      // filter (`in: ['cxp', 'all']`). `cxp` is not a QcSeriesScope value, so
+      // the query threw and QC could not be passed on any CXP trailer (SO 7009)
+      // even with a photo. It must map cxp → gooseneck_dump, exactly like the
+      // render path, so the checks the inspector answered are the checks we
+      // validate against.
+      mockPrisma.productionStep.findUnique.mockResolvedValue(mockQcStep);
+      mockPrisma.trailer.findUnique.mockResolvedValue({
+        ...mockTrailer,
+        trailerModel: { series: 'cxp' },
+      });
+      mockPrisma.qcChecklistItem.findMany.mockResolvedValue(mockChecklistItems);
+      mockPrisma.qcInspection.count.mockResolvedValue(0);
+      mockPrisma.$transaction.mockImplementation(async (fn: any) =>
+        fn({
+          qcInspection: { create: jest.fn().mockResolvedValue({ id: BigInt(500) }), update: jest.fn() },
+          qcChecklistResult: { createMany: jest.fn() },
+          qcPhoto: { createMany: jest.fn() },
+          productionStep: {
+            update: jest.fn(),
+            findFirst: jest.fn().mockResolvedValue(nextStep),
+            aggregate: jest.fn().mockResolvedValue({ _max: { queuePosition: 2 } }),
+          },
+          trailer: { update: jest.fn() },
+          smsLog: { create: jest.fn() },
+          user: { findMany: jest.fn() },
+          pushNotification: { createMany: jest.fn() },
+        }),
+      );
+
+      const result = await service.submitInspection(baseInspectionDto, BigInt(10));
+      expect(result.result).toBe('pass');
+
+      const where = mockPrisma.qcChecklistItem.findMany.mock.calls[0][0].where;
+      expect(where.appliesToSeries).toEqual({ in: ['gooseneck_dump', 'all'] });
+      // The bad value must never reach the query.
+      expect(JSON.stringify(where)).not.toContain('cxp');
+    });
+
     it('should throw QC_CHECKLIST_INCOMPLETE if not all items answered', async () => {
       mockPrisma.productionStep.findUnique.mockResolvedValue(mockQcStep);
       mockPrisma.trailer.findUnique.mockResolvedValue(mockTrailer);
