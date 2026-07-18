@@ -264,11 +264,20 @@ export class QcService {
     const checklistWhere: Prisma.QcChecklistItemWhereInput = {
       departmentId: step.departmentId,
       isActive: true,
-      appliesToSeries: {
-        in: [trailer.trailerModel.series as unknown as QcSeriesScope, QcSeriesScope.all],
-      },
       OR: [{ requiresAddonKey: null }],
     };
+
+    // Scope the checks by the trailer's series through toQcSeriesScope — the
+    // SAME mapping findChecklistItems uses to RENDER the list — never a raw
+    // cast. A CXP trailer's series (`cxp`) is not a QcSeriesScope value, so
+    // casting it straight into the filter put an invalid enum into the query
+    // and the whole submission threw. Meanwhile the render path maps
+    // cxp → gooseneck_dump, so the inspector answered the gooseneck checks and
+    // then couldn't submit them. Both paths must agree, or QC can't be passed.
+    const scope = toQcSeriesScope(trailer.trailerModel.series);
+    if (scope) {
+      checklistWhere.appliesToSeries = { in: [scope, QcSeriesScope.all] };
+    }
 
     if (addonKeys.length > 0) {
       checklistWhere.OR = [
