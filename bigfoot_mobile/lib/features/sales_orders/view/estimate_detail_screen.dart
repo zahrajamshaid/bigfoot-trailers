@@ -378,8 +378,8 @@ class _EstimateDetailScreenState extends State<EstimateDetailScreen> {
 
     if (!so.isSynced) {
       children.add(const Text(
-        'Not yet in QuickBooks. Approve this estimate to push it and unlock '
-        'PDF / send / accept.',
+        'Not yet in QuickBooks. Finalizing this estimate (marking it Quoted) '
+        'pushes it to QuickBooks and unlocks PDF / send / accept.',
         style: TextStyle(color: AppColors.disabled),
       ));
     }
