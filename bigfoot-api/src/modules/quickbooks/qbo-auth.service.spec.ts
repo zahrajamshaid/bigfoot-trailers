@@ -106,6 +106,84 @@ describe('QboAuthService', () => {
     expect(prisma.qboAuthToken.upsert).toHaveBeenCalledTimes(1);
   });
 
+  it('shares ONE refresh across concurrent callers (kills the rotation race)', async () => {
+    prisma.qboAuthToken.findFirst.mockResolvedValue({
+      realmId: 'realm-1',
+      accessToken: 'expired',
+      refreshToken: 'refresh-1',
+      accessExpiresAt: new Date(Date.now() - 1000), // already expired
+      refreshExpiresAt: new Date(Date.now() + 100 * 24 * 3600 * 1000),
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: 'fresh',
+        refresh_token: 'refresh-2',
+        expires_in: 3600,
+        x_refresh_token_expires_in: 8640000,
+        token_type: 'bearer',
+      }),
+    });
+    prisma.qboAuthToken.upsert.mockImplementation(({ create }: never) => create);
+
+    // Three callers need a token at once — the shape of a sync firing many
+    // QBO calls. Without serialization each would refresh, and the 2nd/3rd
+    // would reuse a rotated (dead) refresh token and break the connection.
+    const [a, b, c] = await Promise.all([
+      service.getValidAccessToken(),
+      service.getValidAccessToken(),
+      service.getValidAccessToken(),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1); // exactly ONE refresh
+    expect(a.accessToken).toBe('fresh');
+    expect(b.accessToken).toBe('fresh');
+    expect(c.accessToken).toBe('fresh');
+  });
+
+  it('forceRefresh refreshes even when the stored token still looks valid (401 recovery)', async () => {
+    prisma.qboAuthToken.findFirst.mockResolvedValue({
+      realmId: 'realm-1',
+      accessToken: 'looks-valid-but-rejected',
+      refreshToken: 'refresh-1',
+      accessExpiresAt: new Date(Date.now() + 60 * 60 * 1000), // clock says fine
+      refreshExpiresAt: new Date(Date.now() + 100 * 24 * 3600 * 1000),
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: 'fresh-after-401',
+        refresh_token: 'refresh-2',
+        expires_in: 3600,
+        x_refresh_token_expires_in: 8640000,
+        token_type: 'bearer',
+      }),
+    });
+    prisma.qboAuthToken.upsert.mockImplementation(({ create }: never) => create);
+
+    const { accessToken } = await service.getValidAccessToken({ forceRefresh: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(accessToken).toBe('fresh-after-401');
+  });
+
+  it('asks for a reconnect (not a bare error) when the refresh token is dead', async () => {
+    prisma.qboAuthToken.findFirst.mockResolvedValue({
+      realmId: 'realm-1',
+      accessToken: 'expired',
+      refreshToken: 'dead-refresh',
+      accessExpiresAt: new Date(Date.now() - 1000),
+      refreshExpiresAt: new Date(Date.now() + 100 * 24 * 3600 * 1000),
+    });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => 'invalid_grant',
+    });
+
+    await expect(service.getValidAccessToken()).rejects.toThrow(/reconnect/i);
+  });
+
   it('exchanges an auth code and persists the token pair on callback', async () => {
     fetchMock.mockResolvedValue({
       ok: true,

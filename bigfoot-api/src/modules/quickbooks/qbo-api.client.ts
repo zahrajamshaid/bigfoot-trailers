@@ -53,9 +53,11 @@ export class QboApiClient {
     });
 
     if (res.status === 401 && retryOn401) {
-      // Force a refresh by asking for a token again (auth service refreshes
-      // when near expiry; a hard 401 means it rotated remotely) and retry once.
-      this.logger.warn('QBO returned 401 — refreshing token and retrying once');
+      // A 401 means the token Intuit gave us was rejected even though our clock
+      // thought it was valid. FORCE a refresh (not the passive expiry check),
+      // then retry once with the fresh token now in the DB.
+      this.logger.warn('QBO returned 401 — forcing a token refresh and retrying once');
+      await this.auth.getValidAccessToken({ forceRefresh: true });
       return this.request<T>(method, path, body, false);
     }
 

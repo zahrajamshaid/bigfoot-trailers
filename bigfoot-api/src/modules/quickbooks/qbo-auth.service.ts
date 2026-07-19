@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { AppError, ErrorCode } from '../../common/errors';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -34,6 +35,19 @@ export class QboAuthService {
   private static readonly REFRESH_SKEW_MS = 5 * 60 * 1000;
   /** The accounting scope is all Phase 2 needs. */
   private static readonly SCOPE = 'com.intuit.quickbooks.accounting';
+
+  /**
+   * A single in-flight refresh, shared by all callers. Intuit ROTATES the
+   * refresh token on every refresh (the old one dies), so two concurrent
+   * refreshes would race: the second reuses a now-dead token and fails,
+   * breaking the whole connection. A sync fires many QBO calls at once, so this
+   * race is the real cause of the "401 / token expired" failures. Sharing one
+   * refresh makes it impossible.
+   */
+  private refreshInFlight: Promise<{
+    accessToken: string;
+    realmId: string;
+  }> | null = null;
 
   constructor(
     private readonly config: ConfigService,
@@ -108,13 +122,70 @@ export class QboAuthService {
    * it's within the skew window of expiry. Throws SERVICE_UNAVAILABLE if no
    * realm is connected yet.
    */
-  async getValidAccessToken(): Promise<{ accessToken: string; realmId: string }> {
+  async getValidAccessToken(opts?: {
+    forceRefresh?: boolean;
+  }): Promise<{ accessToken: string; realmId: string }> {
     const row = await this.currentToken();
-    if (Date.now() >= row.accessExpiresAt.getTime() - QboAuthService.REFRESH_SKEW_MS) {
-      const refreshed = await this.refresh(row.realmId, row.refreshToken);
-      return { accessToken: refreshed.accessToken, realmId: row.realmId };
+    const expiringSoon =
+      Date.now() >= row.accessExpiresAt.getTime() - QboAuthService.REFRESH_SKEW_MS;
+
+    // forceRefresh comes from a 401: the stored token our clock thinks is still
+    // valid was rejected by Intuit, so refresh regardless of the recorded expiry.
+    if (!opts?.forceRefresh && !expiringSoon) {
+      return { accessToken: row.accessToken, realmId: row.realmId };
     }
-    return { accessToken: row.accessToken, realmId: row.realmId };
+
+    // Serialize: ride the in-flight refresh if one is already running.
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = this.refreshNow(row.realmId).finally(() => {
+        this.refreshInFlight = null;
+      });
+    }
+    return this.refreshInFlight;
+  }
+
+  /** Do one refresh using the LATEST stored refresh token (re-read to avoid a
+   *  stale one), and hand back the new access token. */
+  private async refreshNow(
+    realmId: string,
+  ): Promise<{ accessToken: string; realmId: string }> {
+    // Re-read immediately before use: another path may have just rotated it.
+    const row = await this.currentToken();
+    try {
+      const refreshed = await this.refresh(realmId, row.refreshToken);
+      return { accessToken: refreshed.accessToken, realmId };
+    } catch (e) {
+      // A refresh failure means the refresh token is dead/expired — the only
+      // fix is a fresh OAuth connect. Surface that clearly rather than a bare
+      // 401 the caller can't act on.
+      this.logger.error(
+        `QBO token refresh failed (${e instanceof Error ? e.message : e}) — reconnect required`,
+      );
+      throw new AppError(
+        ErrorCode.SERVICE_UNAVAILABLE,
+        'QuickBooks needs to be reconnected — open Settings → Connect QuickBooks.',
+      );
+    }
+  }
+
+  /**
+   * Keep-alive. Intuit refresh tokens rotate on every use and lapse only after
+   * ~100 days UNUSED; refreshing on a schedule keeps the connection alive
+   * indefinitely, so the token is always warm before anyone needs it. Runs
+   * every 6 hours; a failure just logs (the next real call / next tick retries).
+   */
+  @Cron(CronExpression.EVERY_6_HOURS, { name: 'qbo-token-keepalive' })
+  async keepTokenFresh(): Promise<void> {
+    const row = await this.prisma.qboAuthToken.findFirst({
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!row) return; // not connected — nothing to keep alive
+    try {
+      await this.getValidAccessToken({ forceRefresh: true });
+      this.logger.log('QBO token keep-alive refresh OK');
+    } catch {
+      this.logger.warn('QBO token keep-alive refresh failed — reconnect may be needed');
+    }
   }
 
   /** The connected realm's token row, or a typed 503 if not connected. */
