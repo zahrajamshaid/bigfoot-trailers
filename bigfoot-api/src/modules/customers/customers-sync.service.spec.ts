@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { FeatureFlagsService } from '../../common/config/feature-flags.service';
 import { QboSyncService } from '../quickbooks/qbo-sync.service';
+import { ErrorCode } from '../../common/errors';
 
 describe('CustomersService — two-way QuickBooks sync', () => {
   let service: CustomersService;
@@ -11,19 +12,21 @@ describe('CustomersService — two-way QuickBooks sync', () => {
     importCustomersFromQbo: jest.Mock;
     exportCustomersToQbo: jest.Mock;
   };
+  let flags: { isEnabled: jest.Mock };
 
   beforeEach(async () => {
     qboSync = {
       importCustomersFromQbo: jest.fn().mockResolvedValue({ total: 5, created: 2, updated: 3 }),
       exportCustomersToQbo: jest.fn().mockResolvedValue({ total: 4, exported: 4, failed: 0 }),
     };
+    flags = { isEnabled: jest.fn().mockReturnValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CustomersService,
         { provide: PrismaService, useValue: {} },
         { provide: StorageService, useValue: {} },
-        { provide: FeatureFlagsService, useValue: {} },
+        { provide: FeatureFlagsService, useValue: flags },
         { provide: QboSyncService, useValue: qboSync },
       ],
     }).compile();
@@ -63,5 +66,20 @@ describe('CustomersService — two-way QuickBooks sync', () => {
     const result = await service.importFromQbo();
     expect(qboSync.importCustomersFromQbo).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ total: 5, created: 2, updated: 3 });
+  });
+
+  describe('when QuickBooks sync is disabled', () => {
+    beforeEach(() => flags.isEnabled.mockReturnValue(false));
+
+    it.each(['syncAll', 'importFromQbo', 'exportToQbo'] as const)(
+      '%s returns a clean 503, never touching the QBO client',
+      async (method) => {
+        await expect(service[method]()).rejects.toMatchObject({
+          errorCode: ErrorCode.SERVICE_UNAVAILABLE,
+        });
+        expect(qboSync.importCustomersFromQbo).not.toHaveBeenCalled();
+        expect(qboSync.exportCustomersToQbo).not.toHaveBeenCalled();
+      },
+    );
   });
 });

@@ -53,13 +53,29 @@ export class CustomersService {
     private readonly qboSync: QboSyncService,
   ) {}
 
+  /**
+   * QuickBooks sync must be enabled. Off (the default until the pilot) means
+   * there's no QBO connection, so a sync call returns a clean 503 instead of a
+   * 500 out of the QBO client. Mirrors the estimate-sync guard.
+   */
+  private assertQboEnabled(): void {
+    if (!this.flags.isEnabled(FeatureFlag.QBO_SYNC)) {
+      throw new AppError(
+        ErrorCode.SERVICE_UNAVAILABLE,
+        'QuickBooks sync is disabled (QBO_SYNC_ENABLED is off)',
+      );
+    }
+  }
+
   /** Pull every QuickBooks customer into the app (upsert by qbCustomerId). */
-  importFromQbo() {
+  async importFromQbo() {
+    this.assertQboEnabled();
     return this.qboSync.importCustomersFromQbo();
   }
 
   /** Push every app customer not yet in QuickBooks up to QBO. */
-  exportToQbo() {
+  async exportToQbo() {
+    this.assertQboEnabled();
     return this.qboSync.exportCustomersToQbo();
   }
 
@@ -69,6 +85,7 @@ export class CustomersService {
    * so a customer that already lives in QBO is linked rather than re-created.
    */
   async syncAll() {
+    this.assertQboEnabled();
     const imported = await this.qboSync.importCustomersFromQbo();
     const exported = await this.qboSync.exportCustomersToQbo();
     return { imported, exported };

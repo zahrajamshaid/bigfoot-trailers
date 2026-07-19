@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsEmail,
   IsInt,
   IsOptional,
   IsString,
@@ -28,9 +29,16 @@ export class QuickCustomerDto {
   @MaxLength(20)
   phone?: string;
 
+  // Validated as a real email — a malformed one (e.g. "not-an-email") is not
+  // just cosmetic: QBO rejects the customer with "Invalid Email Address format"
+  // (breaking the sync) and can't send the estimate. Empty/whitespace is
+  // normalised to undefined so an optional blank still passes.
   @ApiPropertyOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+  )
   @IsOptional()
-  @IsString()
+  @IsEmail()
   @MaxLength(200)
   email?: string;
 }

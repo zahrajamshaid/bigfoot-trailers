@@ -9,11 +9,15 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { CustomerType } from '@prisma/client';
 
 export class CreateCustomerDto {
+  // Trim BEFORE validating so a whitespace-only name ("   ") is rejected —
+  // @IsNotEmpty alone treats spaces as non-empty and would store a blank
+  // customer (and push a blank DisplayName to QBO).
   @ApiProperty({ description: 'Customer contact / entity name' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
@@ -31,7 +35,12 @@ export class CreateCustomerDto {
   @MaxLength(20)
   smsPhone?: string;
 
+  // Normalise empty/whitespace → undefined so an optional blank passes, but a
+  // non-empty value must be a real email (QBO rejects a malformed one).
   @ApiPropertyOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined,
+  )
   @IsOptional()
   @IsEmail()
   @MaxLength(200)

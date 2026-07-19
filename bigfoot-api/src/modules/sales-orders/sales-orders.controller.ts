@@ -230,6 +230,7 @@ export class SalesOrdersController {
   // summary { checked, converted, stillPending, failed }.
   @Post('reconcile-acceptance')
   @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reconcile estimate acceptance from QuickBooks now' })
   reconcileAcceptance() {
     this.assertEnabled();
