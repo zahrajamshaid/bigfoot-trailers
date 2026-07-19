@@ -27,6 +27,7 @@ export const WsEvent = {
   DELIVERY_COMPLETE: 'DELIVERY_COMPLETE',
   POINTS_UPDATED: 'POINTS_UPDATED',
   WORKER_MESSAGE: 'WORKER_MESSAGE',
+  ESTIMATE_ACCEPTED: 'ESTIMATE_ACCEPTED',
 } as const;
 
 export type WsEventType = (typeof WsEvent)[keyof typeof WsEvent];

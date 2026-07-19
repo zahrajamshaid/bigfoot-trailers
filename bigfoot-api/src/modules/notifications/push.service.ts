@@ -302,4 +302,39 @@ export class PushService implements OnModuleInit {
       data: { trailerId: trailerId.toString(), soNumber },
     });
   }
+
+  /**
+   * A customer accepted their estimate in QuickBooks and the nightly
+   * reconciliation converted it into a production trailer. Tell the office +
+   * owner so they know a new build just landed without anyone touching the app.
+   *
+   * trailerId is optional: on the rare estimate whose model didn't resolve to a
+   * local model, the SO is marked accepted but no trailer is created — the
+   * office still needs to hear about it (and finish it by hand).
+   */
+  async sendEstimateAccepted(
+    soNumber: string,
+    customerName: string,
+    trailerId?: bigint,
+  ) {
+    const recipients = await this.prisma.user.findMany({
+      where: { role: { in: ['office', 'owner'] }, isActive: true },
+      select: { id: true },
+    });
+
+    await this.send({
+      recipientUserIds: recipients.map((r) => r.id),
+      trailerId,
+      notificationType: NotificationType.estimate_accepted,
+      title: `Estimate accepted — ${soNumber}`,
+      body: trailerId
+        ? `${customerName} accepted their estimate. It's been converted to a build.`
+        : `${customerName} accepted their estimate — no matching model, needs a manual build.`,
+      data: {
+        soNumber,
+        customerName,
+        ...(trailerId ? { trailerId: trailerId.toString() } : {}),
+      },
+    });
+  }
 }

@@ -164,6 +164,10 @@ enum NotificationType {
   // the line starves. Self-applies via ALTER TYPE in the notification
   // path so prod can pick it up without a separate db push.
   jig_queue_low
+  // A customer accepted their estimate in QuickBooks (e.g. via the email
+  // link). The nightly reconciliation detects it, auto-converts the SO into
+  // a production trailer, and notifies the office with this type.
+  estimate_accepted
 
   @@map("notification_type_enum")
 }

@@ -103,6 +103,14 @@ export interface PriorityChangedPayload {
   isHot: boolean;
 }
 
+export interface EstimateAcceptedPayload {
+  soId: bigint;
+  soNumber: string;
+  customerName: string;
+  /** The converted build. Absent if the estimate's model didn't resolve. */
+  trailerId?: bigint;
+}
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -469,6 +477,29 @@ export class NotificationsService {
       soNumber,
       fromUserName,
       messageText,
+    );
+  }
+
+  // =========================================================================
+  // ESTIMATE_ACCEPTED — a customer accepted their estimate in QuickBooks and
+  // the nightly reconciliation converted it. Ping the office/owner live and
+  // persist a notification so it's waiting for them in the morning.
+  // =========================================================================
+  async onEstimateAccepted(payload: EstimateAcceptedPayload) {
+    const data = {
+      soId: payload.soId.toString(),
+      soNumber: payload.soNumber,
+      customerName: payload.customerName,
+      trailerId: payload.trailerId?.toString() ?? null,
+    };
+
+    this.gateway.emitToRole('office', WsEvent.ESTIMATE_ACCEPTED, data);
+    this.gateway.emitToRole('owner', WsEvent.ESTIMATE_ACCEPTED, data);
+
+    await this.pushService.sendEstimateAccepted(
+      payload.soNumber,
+      payload.customerName,
+      payload.trailerId,
     );
   }
 }

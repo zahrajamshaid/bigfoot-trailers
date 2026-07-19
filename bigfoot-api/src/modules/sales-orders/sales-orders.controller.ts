@@ -19,6 +19,7 @@ import {
 } from '../../common/config/feature-flags.service';
 import { SalesOrdersService } from './sales-orders.service';
 import { PackingSlipService } from './packing-slip.service';
+import { EstimateReconciliationService } from './estimate-reconciliation.service';
 import {
   CreateSalesOrderDto,
   PreviewSalesOrderDto,
@@ -32,6 +33,7 @@ export class SalesOrdersController {
     private readonly service: SalesOrdersService,
     private readonly packingSlip: PackingSlipService,
     private readonly flags: FeatureFlagsService,
+    private readonly reconciliation: EstimateReconciliationService,
   ) {}
 
   private assertEnabled(): void {
@@ -206,5 +208,17 @@ export class SalesOrdersController {
   accept(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
     this.assertEnabled();
     return this.service.accept(BigInt(id), BigInt(user.sub));
+  }
+
+  // Run the estimate-acceptance reconciliation now instead of waiting for the
+  // nightly job: ask QBO which of our open estimates the customer has accepted
+  // (e.g. via the email link), convert those, and notify the office. Returns a
+  // summary { checked, converted, stillPending, failed }.
+  @Post('reconcile-acceptance')
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @ApiOperation({ summary: 'Reconcile estimate acceptance from QuickBooks now' })
+  reconcileAcceptance() {
+    this.assertEnabled();
+    return this.reconciliation.reconcileOnce();
   }
 }

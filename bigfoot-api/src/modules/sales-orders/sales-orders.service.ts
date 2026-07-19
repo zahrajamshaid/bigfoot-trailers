@@ -385,7 +385,7 @@ export class SalesOrdersService {
    *      action never fails with a 400.
    * Idempotent: a second convert is rejected once accepted/converted.
    */
-  async accept(id: bigint, userId: bigint) {
+  async accept(id: bigint, userId: bigint, opts: { skipQboAccept?: boolean } = {}) {
     const so = await this.prisma.salesOrder.findUnique({
       where: { id },
       include: { lines: true, customer: true },
@@ -420,7 +420,14 @@ export class SalesOrdersService {
     }
 
     // 1) Mark accepted in QBO (best-effort — never blocks the conversion).
-    if (this.flags.isEnabled(FeatureFlag.QBO_SYNC) && so.qboEstimateId) {
+    //    Skipped when the caller already learned the acceptance FROM QBO (the
+    //    nightly reconciliation) — the estimate is already Accepted there, so
+    //    re-pushing would be a wasted call that QBO rejects as a no-op.
+    if (
+      !opts.skipQboAccept &&
+      this.flags.isEnabled(FeatureFlag.QBO_SYNC) &&
+      so.qboEstimateId
+    ) {
       try {
         await this.qboClient.acceptEstimate(
           so.qboEstimateId,
