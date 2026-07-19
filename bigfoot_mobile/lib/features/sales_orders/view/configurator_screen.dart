@@ -168,11 +168,11 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
       ),
     );
     if (created != null && mounted) {
+      // Select the new customer directly — the searchable picker keys off
+      // _customer, so it shows immediately without needing the (capped)
+      // preloaded list to contain it.
       setState(() {
-        if (!_customers.any((c) => c.id == created!.id)) {
-          _customers = [created!, ..._customers];
-        }
-        _customer = _customers.firstWhere((c) => c.id == created!.id);
+        _customer = created;
         _result = null;
       });
     }
@@ -410,32 +410,95 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
               ),
             ],
           ),
-          _customerDropdown(),
+          _customerPicker(),
         ],
         _buildRest(catalog, canSubmit),
       ],
     );
   }
 
-  Widget _customerDropdown() {
-    return DropdownButtonFormField<Customer>(
-          value: _customer,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            hintText: 'Pick a customer',
+  String _customerLabel(Customer c) =>
+      c.company?.isNotEmpty == true ? c.company! : c.name;
+
+  /// Searchable customer picker. A plain dropdown only held the first 100
+  /// customers (sorted A→Z), so a new one like "TEST101" — or anyone past the
+  /// alphabetical cut-off — could never be selected. This queries the server as
+  /// you type, so every customer (including one just created) is findable.
+  Widget _customerPicker() {
+    return Autocomplete<Customer>(
+      // Rebuild when the selection changes elsewhere (e.g. after "New"), so the
+      // field shows the newly-picked customer.
+      key: ValueKey(_customer?.id ?? 'none'),
+      initialValue: TextEditingValue(
+        text: _customer == null ? '' : _customerLabel(_customer!),
+      ),
+      displayStringForOption: _customerLabel,
+      optionsBuilder: (tev) async {
+        final q = tev.text.trim();
+        try {
+          final res = await context.read<CustomersViewModel>().getCustomers(
+                query: q.isEmpty ? null : q,
+                limit: 25,
+                excludeStockLocations: true,
+              );
+          return res.items;
+        } catch (_) {
+          // Fall back to whatever was preloaded if the search call fails.
+          return _customers.where((c) =>
+              q.isEmpty || _customerLabel(c).toLowerCase().contains(q.toLowerCase()));
+        }
+      },
+      onSelected: (c) => setState(() {
+        _customer = c;
+        _result = null;
+      }),
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            hintText: 'Search customer by name…',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _customer != null
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'Clear',
+                    onPressed: () {
+                      controller.clear();
+                      setState(() {
+                        _customer = null;
+                        _result = null;
+                      });
+                    },
+                  )
+                : null,
           ),
-          items: _customers
-              .map((c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(c.company?.isNotEmpty == true ? c.company! : c.name,
-                        overflow: TextOverflow.ellipsis),
-                  ))
-              .toList(),
-          onChanged: (c) => setState(() {
-            _customer = c;
-            _result = null;
-          }),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280, maxWidth: 460),
+              child: ListView(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                children: options
+                    .map((c) => ListTile(
+                          dense: true,
+                          title: Text(_customerLabel(c),
+                              overflow: TextOverflow.ellipsis),
+                          onTap: () => onSelected(c),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
