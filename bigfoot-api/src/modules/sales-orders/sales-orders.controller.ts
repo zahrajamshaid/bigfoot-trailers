@@ -218,8 +218,10 @@ export class SalesOrdersController {
   }
 
   // Accept the estimate → mark QBO Accepted + convert to a production trailer.
+  // Sales can convert too — they close the deal with the customer, and they
+  // already own the rest of the estimate lifecycle (create/approve/send/delete).
   @Post(':id/accept')
-  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @ApiOperation({ summary: 'Accept the estimate and convert it to a production trailer' })
   accept(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
     this.assertEnabled();

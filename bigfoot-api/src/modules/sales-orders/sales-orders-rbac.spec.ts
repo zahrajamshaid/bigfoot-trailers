@@ -39,15 +39,9 @@ describe('Sales Orders RBAC', () => {
     'syncEstimates',
     'remove',
     'recordDeposit',
-  ])('lets SALES drive the estimate quote lifecycle: %s', (method) => {
+    'accept',
+  ])('lets SALES drive the estimate lifecycle end to end: %s', (method) => {
     expect(rolesFor(method)).toContain(UserRole.SALES);
-  });
-
-  it('does NOT let SALES accept — converting to a production trailer is committed', () => {
-    const roles = rolesFor('accept');
-    expect(roles).toBeDefined();
-    expect(roles).not.toContain(UserRole.SALES);
-    expect([...roles!].sort()).toEqual([UserRole.OFFICE, UserRole.OWNER].sort());
   });
 
   it('keeps PRICED documents off the shop floor', () => {
