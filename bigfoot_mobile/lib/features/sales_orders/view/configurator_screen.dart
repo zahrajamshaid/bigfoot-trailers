@@ -39,6 +39,9 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
   bool _quickMode = false;
   final _quickNameController = TextEditingController();
   final _quickPhoneController = TextEditingController();
+  // Optional for now, but the customer's email is what lets us email the
+  // estimate straight to them (QuickBooks needs a BillEmail to send).
+  final _quickEmailController = TextEditingController();
 
   // Build spec — the same fields the trailer-create form captured. They ride
   // on the estimate and are applied to the trailer when it's converted.
@@ -72,6 +75,7 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
     _specialNoteController.dispose();
     _quickNameController.dispose();
     _quickPhoneController.dispose();
+    _quickEmailController.dispose();
     super.dispose();
   }
 
@@ -209,6 +213,7 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
         customerId: _quickMode ? null : c!.id.toString(),
         quickName: _quickMode ? quickName : null,
         quickPhone: _quickMode ? _quickPhoneController.text.trim() : null,
+        quickEmail: _quickMode ? _quickEmailController.text.trim() : null,
         modelId: m.id,
         optionIds: _optionIds.toList(),
         autoAddFees: true,
@@ -374,10 +379,23 @@ class _ConfiguratorScreenState extends State<ConfiguratorScreen> {
               isDense: true,
             ),
           ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _quickEmailController,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Email (optional)',
+              hintText: 'So you can email them the estimate',
+              isDense: true,
+            ),
+          ),
           const SizedBox(height: 6),
           const Text(
             'Creates the customer for you — fill in the full record later. '
-            'The quote is not re-entered.',
+            'The quote is not re-entered. Add an email if you want to send the '
+            'estimate straight to the customer.',
             style: TextStyle(fontSize: 12, color: AppColors.disabled),
           ),
           const SizedBox(height: 16),

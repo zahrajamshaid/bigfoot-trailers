@@ -183,9 +183,22 @@ export class SalesOrdersService {
     // Reuse an exact name match instead of creating a near-duplicate.
     const match = await this.prisma.customer.findFirst({
       where: { name },
-      select: { id: true },
+      select: { id: true, email: true },
     });
-    if (match) return match;
+    if (match) {
+      // Backfill a blank email if the rep supplied one — the whole point of
+      // collecting it is to be able to send the estimate, which QBO can't do
+      // without a BillEmail. Only fills a gap; never overwrites an existing
+      // address, and never wipes one when left blank.
+      const newEmail = quick.email?.trim();
+      if (newEmail && !match.email) {
+        await this.prisma.customer.update({
+          where: { id: match.id },
+          data: { email: newEmail },
+        });
+      }
+      return { id: match.id };
+    }
 
     const created = await this.prisma.customer.create({
       data: {

@@ -49,9 +49,11 @@ class SalesOrderApi {
   /// stock-build) rides along and is applied to the trailer on convert.
   Future<SalesOrder> createDraft({
     String? customerId,
-    // Quick Estimate: create the customer inline from just a name (+ phone).
+    // Quick Estimate: create the customer inline from just a name (+ phone
+    // + email). Email is optional but lets us email the estimate to them.
     String? quickName,
     String? quickPhone,
+    String? quickEmail,
     required int modelId,
     required List<int> optionIds,
     bool autoAddFees = true,
@@ -70,6 +72,7 @@ class SalesOrderApi {
           'quickCustomer': {
             'name': quickName,
             if (quickPhone != null && quickPhone.isNotEmpty) 'phone': quickPhone,
+            if (quickEmail != null && quickEmail.isNotEmpty) 'email': quickEmail,
           },
           'isQuickEstimate': true,
         },
