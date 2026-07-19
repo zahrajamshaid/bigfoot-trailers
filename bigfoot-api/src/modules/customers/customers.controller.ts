@@ -29,13 +29,10 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Get()
-  @Roles(
-    UserRole.OWNER,
-    UserRole.SALES,
-    UserRole.OFFICE,
-    UserRole.PRODUCTION_MANAGER,
-    UserRole.TRANSPORT_MANAGER,
-  )
+  // Customers (and their contact details) are commercial data — owner, office
+  // and sales only. Production/transport managers run the floor and the yard;
+  // they don't need the customer book, so they no longer see it.
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @ApiOperation({ summary: 'List customers with search + pagination' })
   @ApiResponse({ status: 200, description: 'Paginated customers envelope' })
   async findAll(@Query() query: QueryCustomersDto) {
@@ -43,13 +40,10 @@ export class CustomersController {
   }
 
   @Get(':id')
-  @Roles(
-    UserRole.OWNER,
-    UserRole.SALES,
-    UserRole.OFFICE,
-    UserRole.PRODUCTION_MANAGER,
-    UserRole.TRANSPORT_MANAGER,
-  )
+  // Customers (and their contact details) are commercial data — owner, office
+  // and sales only. Production/transport managers run the floor and the yard;
+  // they don't need the customer book, so they no longer see it.
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @ApiOperation({ summary: 'Get customer detail with recent trailers' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Customer detail' })
@@ -70,10 +64,28 @@ export class CustomersController {
   @Post('import-from-qbo')
   @Roles(UserRole.OWNER, UserRole.OFFICE)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Import every QuickBooks customer into the app' })
+  @ApiOperation({ summary: 'Import every QuickBooks customer into the app (QBO → app)' })
   @ApiResponse({ status: 200, description: 'Import summary (created/updated)' })
   async importFromQbo() {
     return this.customersService.importFromQbo();
+  }
+
+  @Post('export-to-qbo')
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Push every app customer not yet in QuickBooks (app → QBO)' })
+  @ApiResponse({ status: 200, description: 'Export summary (exported/failed)' })
+  async exportToQbo() {
+    return this.customersService.exportToQbo();
+  }
+
+  @Post('sync')
+  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Two-way customer sync with QuickBooks (import then export)' })
+  @ApiResponse({ status: 200, description: 'Combined { imported, exported } summary' })
+  async sync() {
+    return this.customersService.syncAll();
   }
 
   @Patch(':id')

@@ -34,4 +34,8 @@ abstract class CustomerRepository {
   /// trailer that references this customer (and their full history).
   /// If false and trailers exist, the backend returns a 400.
   Future<void> deleteCustomer(int customerId, {bool cascadeTrailers = false});
+
+  /// Two-way customer sync with QuickBooks: pull QBO customers into the app and
+  /// push app customers up to QBO. Returns a short human summary of what moved.
+  Future<String> syncWithQuickBooks();
 }

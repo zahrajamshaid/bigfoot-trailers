@@ -86,4 +86,21 @@ class CustomerRepositoryImpl implements CustomerRepository {
       fromJson: (d) => d as Map<String, dynamic>,
     );
   }
+
+  @override
+  Future<String> syncWithQuickBooks() async {
+    final res = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.customersSync,
+      data: const {},
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    final data = res.data ?? const {};
+    final imported = (data['imported'] as Map?) ?? const {};
+    final exported = (data['exported'] as Map?) ?? const {};
+    final pulled = imported['total'] ?? 0;
+    final pushed = exported['exported'] ?? 0;
+    final failed = exported['failed'] ?? 0;
+    final base = 'Synced with QuickBooks — pulled $pulled, pushed $pushed';
+    return failed == 0 ? base : '$base ($failed failed to push)';
+  }
 }

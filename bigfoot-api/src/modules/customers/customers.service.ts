@@ -58,6 +58,22 @@ export class CustomersService {
     return this.qboSync.importCustomersFromQbo();
   }
 
+  /** Push every app customer not yet in QuickBooks up to QBO. */
+  exportToQbo() {
+    return this.qboSync.exportCustomersToQbo();
+  }
+
+  /**
+   * Full two-way customer sync. Import first (pull QBO → app, linking existing
+   * records by qbCustomerId), THEN export (push app-only customers up to QBO),
+   * so a customer that already lives in QBO is linked rather than re-created.
+   */
+  async syncAll() {
+    const imported = await this.qboSync.importCustomersFromQbo();
+    const exported = await this.qboSync.exportCustomersToQbo();
+    return { imported, exported };
+  }
+
   private stockCityFromCustomerName(name: string): string | null {
     const match = name.trim().match(/^(.*)\s+stock$/i);
     if (!match) return null;

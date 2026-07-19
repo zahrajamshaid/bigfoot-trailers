@@ -109,6 +109,8 @@ abstract final class ApiEndpoints {
   static const String customers = '/customers';
   static String customer(int id) => '/customers/$id';
   static const String customersImportFromQbo = '/customers/import-from-qbo';
+  /// Two-way customer sync with QuickBooks (import from QBO + export to QBO).
+  static const String customersSync = '/customers/sync';
 
   // ── Sales Orders (Phase 2) ────────────────────────────────────────────────
   static const String salesOrders = '/sales-orders';

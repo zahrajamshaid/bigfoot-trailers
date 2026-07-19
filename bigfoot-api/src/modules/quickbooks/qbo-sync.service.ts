@@ -198,6 +198,51 @@ export class QboSyncService {
   }
 
   /**
+   * Export customers FROM the app TO QuickBooks — the other half of the
+   * two-way sync. Pushes every app customer not yet linked to QBO (no
+   * qbCustomerId). ensureCustomer dedupes by DisplayName, so a customer that
+   * already exists in QBO under the same name is linked, not duplicated.
+   *
+   * Each customer is pushed independently: one failure (a QBO validation
+   * error, a blip) is recorded on that customer (qbSyncState=error) and the
+   * batch continues, so a single bad row can't stop the rest.
+   */
+  async exportCustomersToQbo(): Promise<{
+    total: number;
+    exported: number;
+    failed: number;
+  }> {
+    const pending = await this.prisma.customer.findMany({
+      where: { qbCustomerId: null },
+      select: { id: true, name: true },
+    });
+
+    let exported = 0;
+    let failed = 0;
+    for (const c of pending) {
+      try {
+        await this.ensureCustomer(c.id); // creates/links in QBO + marks synced
+        exported++;
+      } catch (e) {
+        failed++;
+        const message = e instanceof Error ? e.message : String(e);
+        await this.prisma.customer
+          .update({
+            where: { id: c.id },
+            data: { qbSyncState: 'error', qbSyncError: message.slice(0, 500) },
+          })
+          .catch(() => undefined);
+        this.logger.warn(`Export customer ${c.id} (${c.name}) to QBO failed: ${message}`);
+      }
+    }
+
+    this.logger.log(
+      `Exported ${exported}/${pending.length} app customers to QBO (${failed} failed)`,
+    );
+    return { total: pending.length, exported, failed };
+  }
+
+  /**
    * Import the CATALOG from QuickBooks — Slice 1. Pulls every active QBO
    * Product/Service and folds it into the app's catalog:
    *

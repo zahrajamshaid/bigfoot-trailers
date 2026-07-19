@@ -38,4 +38,6 @@ class CustomersViewModel extends Cubit<int> {
 
   Future<void> deleteCustomer(int customerId, {bool cascadeTrailers = false}) =>
       _repository.deleteCustomer(customerId, cascadeTrailers: cascadeTrailers);
+
+  Future<String> syncWithQuickBooks() => _repository.syncWithQuickBooks();
 }

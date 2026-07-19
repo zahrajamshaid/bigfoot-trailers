@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/customer.dart';
+import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/customers_viewmodel.dart';
 import 'customer_form_screen.dart';
 
@@ -38,6 +40,33 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  bool _syncing = false;
+
+  /// Only owner/office run the QuickBooks sync (matches the backend @Roles on
+  /// POST /customers/sync). Sales can see and edit customers but not bulk-sync.
+  bool get _canSync {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    return auth.user.role == UserRole.owner || auth.user.role == UserRole.office;
+  }
+
+  Future<void> _syncWithQuickBooks() async {
+    setState(() => _syncing = true);
+    try {
+      final summary = await context.read<CustomersViewModel>().syncWithQuickBooks();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(summary)));
+      await _load(); // refresh the list with anything pulled in
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
   }
 
   Future<void> _load() async {
@@ -76,7 +105,28 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l.customersTitle)),
+      appBar: AppBar(
+        title: Text(l.customersTitle),
+        actions: [
+          if (_canSync)
+            _syncing
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.sync),
+                    tooltip: 'Sync with QuickBooks',
+                    onPressed: _syncWithQuickBooks,
+                  ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
