@@ -1160,6 +1160,14 @@ model SalesOrder {
   taxAmount       Decimal          @default(0) @map("tax_amount") @db.Decimal(12, 2)
   total           Decimal          @default(0) @db.Decimal(12, 2)
   depositRequired Decimal?         @map("deposit_required") @db.Decimal(12, 2)
+  // Initial deposit actually RECEIVED on the trailer (distinct from the quoted
+  // depositRequired). Recorded by office/owner/sales and posted to QuickBooks
+  // as a customer Payment (qboPaymentId links it). Visible to those roles on
+  // the estimate + the trailer.
+  depositAmount   Decimal?         @map("deposit_amount") @db.Decimal(12, 2)
+  depositPaidAt   DateTime?        @map("deposit_paid_at") @db.Timestamptz
+  depositMethod   String?          @map("deposit_method") @db.VarChar(40)
+  qboPaymentId    String?          @map("qbo_payment_id") @db.VarChar(50)
   // QBO linkage + sync
   qboEstimateId   String?          @map("qbo_estimate_id") @db.VarChar(50)
   qboInvoiceId    String?          @map("qbo_invoice_id") @db.VarChar(50)

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -26,6 +27,7 @@ import {
   CreateSalesOrderDto,
   PreviewSalesOrderDto,
 } from './dto/create-sales-order.dto';
+import { RecordDepositDto } from './dto/record-deposit.dto';
 
 @ApiTags('Sales Orders')
 @ApiBearerAuth('JWT')
@@ -222,6 +224,32 @@ export class SalesOrdersController {
   accept(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
     this.assertEnabled();
     return this.service.accept(BigInt(id), BigInt(user.sub));
+  }
+
+  // Delete an estimate (accidental one) — removes it from QuickBooks too. A
+  // converted estimate (already a production trailer) is refused with a message
+  // to edit that trailer into a stock build instead.
+  @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
+  @ApiOperation({ summary: 'Delete an estimate (also deletes it from QuickBooks)' })
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
+    this.assertEnabled();
+    return this.service.remove(BigInt(id), BigInt(user.sub));
+  }
+
+  // Record an initial deposit received on the trailer + post it to QuickBooks
+  // as a customer Payment. Owner/office/sales.
+  @Post(':id/deposit')
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Record an initial deposit (posts a QuickBooks Payment)' })
+  recordDeposit(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RecordDepositDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.assertEnabled();
+    return this.service.recordDeposit(BigInt(id), dto, BigInt(user.sub));
   }
 
   // Run the estimate-acceptance reconciliation now instead of waiting for the

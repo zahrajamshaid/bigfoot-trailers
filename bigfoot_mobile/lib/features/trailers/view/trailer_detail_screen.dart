@@ -1416,6 +1416,18 @@ class _SalesOrderCardState extends State<_SalesOrderCard> {
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               _docRow(color: AppColors.success, priced: true),
+
+              // Deposit received (money → same gate as prices).
+              if (so.hasDeposit) ...[
+                const SizedBox(height: 12),
+                _soRow(
+                  'Deposit',
+                  '\$${so.depositAmount!.toStringAsFixed(2)}'
+                      '${so.depositMethod != null ? ' · ${so.depositMethod}' : ''}'
+                      '${so.qboPaymentId != null ? '  (in QuickBooks)' : ''}',
+                  bold: true,
+                ),
+              ],
             ],
           ],
         ),

@@ -161,12 +161,177 @@ class _EstimateDetailScreenState extends State<EstimateDetailScreen> {
     }
   }
 
+  Future<void> _delete() async {
+    final so = _so;
+    final label = so?.soNumber != null ? '#${so!.soNumber}' : 'this estimate';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete estimate?'),
+        content: Text(
+          'Estimate $label will be deleted here AND removed from QuickBooks. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    try {
+      await _api.deleteEstimate(widget.id);
+      if (!mounted) return;
+      _snack('Estimate deleted (and removed from QuickBooks)');
+      Navigator.of(context).pop(true); // back to the list, which reloads
+    } catch (e) {
+      if (mounted) setState(() => _busy = false);
+      _snack('Delete failed: $e');
+    }
+  }
+
+  Future<void> _recordDeposit() async {
+    final amountCtl = TextEditingController();
+    final methodCtl = TextEditingController();
+    final entered = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Record deposit'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountCtl,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                prefixText: '\$ ',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: methodCtl,
+              decoration: const InputDecoration(
+                labelText: 'Method (optional) — cash, card, check…',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Posts a matching Payment to QuickBooks.',
+              style: TextStyle(fontSize: 12, color: AppColors.disabled),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Record'),
+          ),
+        ],
+      ),
+    );
+    if (entered != true) return;
+
+    final amount = double.tryParse(amountCtl.text.trim());
+    if (amount == null || amount <= 0) {
+      _snack('Enter a deposit amount greater than zero');
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final so = await _api.recordDeposit(widget.id, amount, method: methodCtl.text.trim());
+      if (!mounted) return;
+      setState(() => _so = so);
+      _snack(so.qboPaymentId != null
+          ? 'Deposit recorded and posted to QuickBooks'
+          : 'Deposit recorded (QuickBooks post pending)');
+    } catch (e) {
+      _snack('Deposit failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _deposit(SalesOrder so) {
+    return Card(
+      color: AppColors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Deposit',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                if (!so.hasDeposit)
+                  TextButton.icon(
+                    onPressed: _busy ? null : _recordDeposit,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Record'),
+                  ),
+              ],
+            ),
+            if (so.hasDeposit) ...[
+              const SizedBox(height: 4),
+              Text(
+                '\$${so.depositAmount!.toStringAsFixed(2)}'
+                '${so.depositMethod != null ? ' · ${so.depositMethod}' : ''}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                so.qboPaymentId != null
+                    ? 'Posted to QuickBooks'
+                    : 'Recorded — QuickBooks post pending',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: so.qboPaymentId != null ? Colors.green : Colors.orange,
+                ),
+              ),
+            ] else
+              const Text('No deposit recorded yet.',
+                  style: TextStyle(color: AppColors.disabled)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final so = _so;
     return Scaffold(
       appBar: AppBar(
         title: Text(so?.soNumber != null ? 'Estimate #${so!.soNumber}' : 'Estimate'),
+        actions: [
+          // A converted estimate is a live trailer — no delete (the backend
+          // refuses it too). Edit that trailer into a stock build instead.
+          if (so != null && !so.isConverted)
+            IconButton(
+              tooltip: 'Delete estimate',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _busy ? null : _delete,
+            ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
@@ -186,6 +351,8 @@ class _EstimateDetailScreenState extends State<EstimateDetailScreen> {
                               _lines(so),
                               const SizedBox(height: 16),
                               _totals(so),
+                              const SizedBox(height: 16),
+                              _deposit(so),
                               const SizedBox(height: 24),
                               _actions(so),
                               const SizedBox(height: 40),

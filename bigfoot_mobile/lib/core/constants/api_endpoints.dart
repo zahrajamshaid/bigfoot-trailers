@@ -127,6 +127,7 @@ abstract final class ApiEndpoints {
   static const String qboImportCatalog = '/quickbooks/import-catalog';
   static String salesOrderSend(int id) => '/sales-orders/$id/send';
   static String salesOrderAccept(int id) => '/sales-orders/$id/accept';
+  static String salesOrderDeposit(int id) => '/sales-orders/$id/deposit';
 
   // ── Locations ────────────────────────────────────────────────────────────
   static const String locations = '/locations';

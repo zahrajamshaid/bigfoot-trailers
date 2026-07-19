@@ -50,13 +50,17 @@ Trailer _$TrailerFromJson(Map<String, dynamic> json) => Trailer(
   intendedStockLocation: json['intendedStockLocation'] == null
       ? null
       : LocationInfo.fromJson(
-          json['intendedStockLocation'] as Map<String, dynamic>),
+          json['intendedStockLocation'] as Map<String, dynamic>,
+        ),
   addons: (json['addons'] as List<dynamic>?)
       ?.map((e) => TrailerAddon.fromJson(e as Map<String, dynamic>))
       .toList(),
   productionSteps: (json['productionSteps'] as List<dynamic>?)
       ?.map((e) => ProductionStepSummary.fromJson(e as Map<String, dynamic>))
       .toList(),
+  salesOrder: json['salesOrder'] == null
+      ? null
+      : SalesOrderInfo.fromJson(json['salesOrder'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
@@ -91,7 +95,48 @@ Map<String, dynamic> _$TrailerToJson(Trailer instance) => <String, dynamic>{
   'intendedStockLocation': instance.intendedStockLocation,
   'addons': instance.addons,
   'productionSteps': instance.productionSteps,
+  'salesOrder': instance.salesOrder,
 };
+
+SalesOrderInfo _$SalesOrderInfoFromJson(Map<String, dynamic> json) =>
+    SalesOrderInfo(
+      id: (json['id'] as num).toInt(),
+      soNumber: json['soNumber'] as String?,
+      status: json['status'] as String,
+      syncState: json['syncState'] as String,
+      qboEstimateId: json['qboEstimateId'] as String?,
+      qboDocNumber: json['qboDocNumber'] as String?,
+      subtotal: _parseDecimalField(json['subtotal']),
+      taxAmount: _parseDecimalField(json['taxAmount']),
+      total: _parseDecimalField(json['total']),
+      acceptedAt: json['acceptedAt'] == null
+          ? null
+          : DateTime.parse(json['acceptedAt'] as String),
+      depositAmount: _parseDecimalField(json['depositAmount']),
+      depositPaidAt: json['depositPaidAt'] == null
+          ? null
+          : DateTime.parse(json['depositPaidAt'] as String),
+      depositMethod: json['depositMethod'] as String?,
+      qboPaymentId: json['qboPaymentId'] as String?,
+    );
+
+Map<String, dynamic> _$SalesOrderInfoToJson(SalesOrderInfo instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'soNumber': instance.soNumber,
+      'status': instance.status,
+      'syncState': instance.syncState,
+      'qboEstimateId': instance.qboEstimateId,
+      'qboDocNumber': instance.qboDocNumber,
+      'subtotal': instance.subtotal,
+      'taxAmount': instance.taxAmount,
+      'total': instance.total,
+      'acceptedAt': instance.acceptedAt?.toIso8601String(),
+      'depositAmount': instance.depositAmount,
+      'depositPaidAt': instance.depositPaidAt?.toIso8601String(),
+      'depositMethod': instance.depositMethod,
+      'qboPaymentId': instance.qboPaymentId,
+    };
 
 LocationInfo _$LocationInfoFromJson(Map<String, dynamic> json) => LocationInfo(
   id: (json['id'] as num).toInt(),

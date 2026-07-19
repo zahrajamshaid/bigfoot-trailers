@@ -154,6 +154,32 @@ export class QboApiClient {
     return data.Estimate;
   }
 
+  /**
+   * Record a customer payment in QuickBooks — used for a deposit taken on a
+   * trailer. Created UNAPPLIED (no Line): with just a CustomerRef + TotalAmt it
+   * posts as an available credit on the customer's account, which the eventual
+   * invoice draws down. `paymentDate` is an ISO date (yyyy-mm-dd) supplied by
+   * the caller (services stay deterministic — no Date.now() in here).
+   */
+  async createPayment(input: {
+    customerRef: string;
+    amount: number;
+    paymentDate: string;
+    memo?: string;
+  }): Promise<{ Id: string }> {
+    const data = await this.request<{ Payment: { Id: string } }>(
+      'POST',
+      '/payment',
+      {
+        CustomerRef: { value: input.customerRef },
+        TotalAmt: input.amount,
+        TxnDate: input.paymentDate,
+        ...(input.memo ? { PrivateNote: input.memo } : {}),
+      },
+    );
+    return data.Payment;
+  }
+
   /** Read one estimate back (e.g. to refresh status / PDF link). */
   async getEstimate(id: string): Promise<QboEstimate> {
     const data = await this.request<{ Estimate: QboEstimate }>(
@@ -197,6 +223,19 @@ export class QboApiClient {
    * ISO date (yyyy-mm-dd); the caller supplies it (no Date.now() in services
    * that need to stay deterministic — pass it in).
    */
+  /**
+   * Delete an estimate in QuickBooks. QBO's delete is a POST with
+   * ?operation=delete carrying the current SyncToken (read it first). Used when
+   * an estimate is removed in the app so the two stay in step.
+   */
+  async deleteEstimate(id: string): Promise<void> {
+    const current = await this.getEstimate(id);
+    await this.request('POST', '/estimate?operation=delete', {
+      Id: id,
+      SyncToken: current.SyncToken,
+    });
+  }
+
   async acceptEstimate(
     id: string,
     acceptedBy: string,

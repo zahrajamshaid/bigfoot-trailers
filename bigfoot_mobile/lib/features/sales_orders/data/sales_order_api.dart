@@ -111,6 +111,26 @@ class SalesOrderApi {
     return SalesOrder.fromJson(res.data ?? const {});
   }
 
+  /// Delete an estimate — also removes it from QuickBooks. The backend refuses
+  /// (400) if it's already a production trailer.
+  Future<void> deleteEstimate(int id) async {
+    await _api.delete<Map<String, dynamic>>(
+      ApiEndpoints.salesOrder(id),
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+  }
+
+  /// Record an initial deposit received on the trailer — posts a QuickBooks
+  /// customer Payment. Returns the updated estimate.
+  Future<SalesOrder> recordDeposit(int id, double amount, {String? method}) async {
+    final res = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.salesOrderDeposit(id),
+      data: {'amount': amount, if (method != null && method.isNotEmpty) 'method': method},
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return SalesOrder.fromJson(res.data ?? const {});
+  }
+
   /// The QuickBooks estimate PDF bytes for a synced Sales Order.
   Future<Uint8List> estimatePdf(int id) async {
     final res = await _api.dio.get<List<int>>(
@@ -349,6 +369,10 @@ class SalesOrder {
   final String? sentAt;
   final String? acceptedAt;
   final int? trailerId;
+  final double? depositAmount;
+  final String? depositPaidAt;
+  final String? depositMethod;
+  final String? qboPaymentId;
   final List<ComposedLine> lines;
   const SalesOrder({
     required this.id,
@@ -367,12 +391,17 @@ class SalesOrder {
     this.sentAt,
     this.acceptedAt,
     this.trailerId,
+    this.depositAmount,
+    this.depositPaidAt,
+    this.depositMethod,
+    this.qboPaymentId,
     this.lines = const [],
   });
 
   bool get isSynced => qboEstimateId != null;
   bool get isSent => sentAt != null;
   bool get isConverted => trailerId != null;
+  bool get hasDeposit => depositAmount != null && depositAmount! > 0;
 
   factory SalesOrder.fromJson(Map<String, dynamic> j) {
     final customer = j['customer'];
@@ -400,6 +429,10 @@ class SalesOrder {
       sentAt: j['sentAt'] as String?,
       acceptedAt: j['acceptedAt'] as String?,
       trailerId: (j['trailerId'] as num?)?.toInt(),
+      depositAmount: j['depositAmount'] == null ? null : _d(j['depositAmount']),
+      depositPaidAt: j['depositPaidAt'] as String?,
+      depositMethod: j['depositMethod'] as String?,
+      qboPaymentId: j['qboPaymentId'] as String?,
       lines: ((j['lines'] as List<dynamic>?) ?? const [])
           .whereType<Map<String, dynamic>>()
           .map(ComposedLine.fromJson)

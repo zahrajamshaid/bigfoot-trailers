@@ -37,6 +37,8 @@ describe('Sales Orders RBAC', () => {
     'getCatalog',
     'importFromQbo',
     'syncEstimates',
+    'remove',
+    'recordDeposit',
   ])('lets SALES drive the estimate quote lifecycle: %s', (method) => {
     expect(rolesFor(method)).toContain(UserRole.SALES);
   });
@@ -85,6 +87,8 @@ describe('Sales Orders RBAC', () => {
       'importFromQbo',
       'syncEstimates',
       'reconcileAcceptance',
+      'remove',
+      'recordDeposit',
     ];
     for (const name of routes) {
       expect({ name, roles: rolesFor(name) }).toEqual({

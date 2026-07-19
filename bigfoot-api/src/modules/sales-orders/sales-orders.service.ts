@@ -395,6 +395,151 @@ export class SalesOrdersService {
   }
 
   /**
+   * Delete an estimate — from QuickBooks too, so an accidental one doesn't
+   * linger in the books.
+   *
+   * A converted estimate is NOT deletable: it's a real production trailer on
+   * the floor. If the customer backed out, the trailer isn't wasted — edit it
+   * into a stock build (the trailer edit screen already does this). We refuse
+   * the delete and say so.
+   *
+   * The QBO delete is best-effort: if the estimate is already gone from QBO (or
+   * QBO is briefly unreachable), we still remove it locally so the app isn't
+   * stuck with a ghost — the app is the source of truth for operations.
+   */
+  async remove(id: bigint, userId: bigint) {
+    const so = await this.prisma.salesOrder.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        soNumber: true,
+        status: true,
+        trailerId: true,
+        qboEstimateId: true,
+        total: true,
+      },
+    });
+    if (!so) throw new AppError(ErrorCode.NOT_FOUND, `Sales order ${id} not found`);
+
+    if (so.trailerId) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        `Estimate ${so.soNumber ?? id} is already a production trailer and can't be deleted. ` +
+          `If the customer backed out, edit that trailer to make it a stock build instead.`,
+      );
+    }
+
+    if (this.flags.isEnabled(FeatureFlag.QBO_SYNC) && so.qboEstimateId) {
+      try {
+        await this.qboClient.deleteEstimate(so.qboEstimateId);
+      } catch (e) {
+        this.logger.warn(
+          `QBO delete failed for estimate ${so.qboEstimateId} (removing locally anyway): ${
+            e instanceof Error ? e.message : e
+          }`,
+        );
+      }
+    }
+
+    // SalesOrderLine rows cascade on the SO delete (onDelete: Cascade).
+    await this.prisma.salesOrder.delete({ where: { id } });
+
+    await this.audit.create({
+      userId: Number(userId),
+      entityType: 'sales_order',
+      entityId: Number(id),
+      action: 'sales_order.deleted',
+      oldValues: {
+        status: so.status,
+        soNumber: so.soNumber,
+        total: Number(so.total),
+        qboEstimateId: so.qboEstimateId,
+      },
+      newValues: undefined,
+    });
+
+    return { deleted: true, id: Number(id) };
+  }
+
+  /**
+   * Record an initial deposit received on a trailer, and post it to QuickBooks
+   * as a customer Payment (an unapplied credit the eventual invoice draws down).
+   *
+   * The money was received regardless of QBO, so the deposit is ALWAYS recorded
+   * locally; the QBO post is best-effort. If it fails (or the customer isn't in
+   * QBO yet and can't be synced), the deposit is still saved with no
+   * qboPaymentId — visible in-app, and re-postable later.
+   */
+  async recordDeposit(
+    id: bigint,
+    dto: { amount: number; method?: string; paidAt?: string },
+    userId: bigint,
+  ) {
+    const so = await this.prisma.salesOrder.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        soNumber: true,
+        customerId: true,
+        customer: { select: { qbCustomerId: true } },
+      },
+    });
+    if (!so) throw new AppError(ErrorCode.NOT_FOUND, `Sales order ${id} not found`);
+    if (!(dto.amount > 0)) {
+      throw new AppError(ErrorCode.BAD_REQUEST, 'Deposit amount must be greater than zero');
+    }
+
+    const paidAt = dto.paidAt ? new Date(dto.paidAt) : new Date();
+
+    let qboPaymentId: string | null = null;
+    if (this.flags.isEnabled(FeatureFlag.QBO_SYNC)) {
+      try {
+        const customerRef =
+          so.customer.qbCustomerId ?? (await this.qboSync.ensureCustomer(so.customerId));
+        const payment = await this.qboClient.createPayment({
+          customerRef,
+          amount: dto.amount,
+          paymentDate: paidAt.toISOString().slice(0, 10),
+          memo: `Deposit — estimate ${so.soNumber ?? id}`,
+        });
+        qboPaymentId = payment.Id;
+      } catch (e) {
+        this.logger.warn(
+          `QBO payment post failed for SO ${id} (deposit recorded locally): ${
+            e instanceof Error ? e.message : e
+          }`,
+        );
+      }
+    }
+
+    await this.prisma.salesOrder.update({
+      where: { id },
+      data: {
+        depositAmount: dto.amount,
+        depositPaidAt: paidAt,
+        depositMethod: dto.method?.trim() || null,
+        qboPaymentId,
+      },
+    });
+
+    await this.audit.create({
+      userId: Number(userId),
+      entityType: 'sales_order',
+      entityId: Number(id),
+      action: 'sales_order.deposit_recorded',
+      oldValues: undefined,
+      newValues: {
+        amount: dto.amount,
+        method: dto.method?.trim() || null,
+        qboPaymentId,
+        postedToQbo: qboPaymentId != null,
+      },
+    });
+
+    return this.findOne(id);
+  }
+
+  /**
    * Email the estimate to the customer via QuickBooks — the "Send" action in
    * the QBO estimate menu. Uses the customer's email if we have one, else QBO's
    * on-file billing email. Records the send timestamp + QBO email status.

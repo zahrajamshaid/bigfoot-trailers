@@ -124,6 +124,11 @@ class SalesOrderInfo {
   @JsonKey(fromJson: _parseDecimalField)
   final double? total;
   final DateTime? acceptedAt;
+  @JsonKey(fromJson: _parseDecimalField)
+  final double? depositAmount;
+  final DateTime? depositPaidAt;
+  final String? depositMethod;
+  final String? qboPaymentId;
 
   const SalesOrderInfo({
     required this.id,
@@ -136,7 +141,13 @@ class SalesOrderInfo {
     this.taxAmount,
     this.total,
     this.acceptedAt,
+    this.depositAmount,
+    this.depositPaidAt,
+    this.depositMethod,
+    this.qboPaymentId,
   });
+
+  bool get hasDeposit => depositAmount != null && depositAmount! > 0;
 
   factory SalesOrderInfo.fromJson(Map<String, dynamic> json) =>
       _$SalesOrderInfoFromJson(json);
