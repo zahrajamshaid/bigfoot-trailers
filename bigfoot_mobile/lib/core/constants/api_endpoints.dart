@@ -114,6 +114,8 @@ abstract final class ApiEndpoints {
 
   // ── Sales Orders (Phase 2) ────────────────────────────────────────────────
   static const String salesOrders = '/sales-orders';
+  /// Two-way estimate sync with QuickBooks (import from QBO + push unsynced).
+  static const String salesOrdersSync = '/sales-orders/sync';
   static const String salesOrderCatalog = '/sales-orders/catalog';
   static const String salesOrderPreview = '/sales-orders/preview';
   static String salesOrder(int id) => '/sales-orders/$id';

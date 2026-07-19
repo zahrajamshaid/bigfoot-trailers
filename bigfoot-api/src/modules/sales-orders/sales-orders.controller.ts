@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
@@ -88,6 +90,18 @@ export class SalesOrdersController {
   importFromQbo(@CurrentUser() user: JwtPayload) {
     this.assertEnabled();
     return this.service.importFromQbo(BigInt(user.sub));
+  }
+
+  // Two-way estimate sync: import estimates from QBO + push any app estimates
+  // that failed to reach QBO. Pure data sync (no conversion). Returns
+  // { imported, pushed }.
+  @Post('sync')
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Two-way estimate sync with QuickBooks' })
+  syncEstimates(@CurrentUser() user: JwtPayload) {
+    this.assertEnabled();
+    return this.service.syncEstimates(BigInt(user.sub));
   }
 
   @Get(':id')

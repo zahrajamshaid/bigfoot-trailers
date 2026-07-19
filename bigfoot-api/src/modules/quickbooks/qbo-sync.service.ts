@@ -443,9 +443,25 @@ export class QboSyncService {
           }));
         const total = est.TotalAmt ?? 0;
         const tax = est.TxnTaxDetail?.TotalTax ?? 0;
+
+        // soNumber is unique in the app, but QBO DocNumbers are NOT guaranteed
+        // unique (several sandbox estimates share "1001"). Only adopt the
+        // DocNumber as our soNumber when no OTHER estimate already holds it —
+        // otherwise leave soNumber null. The QBO number is still preserved in
+        // qboDocNumber, so nothing is lost, and the import stops failing on a
+        // duplicate-DocNumber unique violation.
+        let soNumber: string | null = est.DocNumber ?? null;
+        if (soNumber) {
+          const clash = await this.prisma.salesOrder.findFirst({
+            where: { soNumber, qboEstimateId: { not: est.Id } },
+            select: { id: true },
+          });
+          if (clash) soNumber = null;
+        }
+
         const base = {
           customerId,
-          soNumber: est.DocNumber ?? null,
+          soNumber,
           qboEstimateId: est.Id,
           qboDocNumber: est.DocNumber ?? null,
           status: 'approved' as SalesOrderStatus,
@@ -488,8 +504,16 @@ export class QboSyncService {
         }
       } catch (e) {
         failed++;
+        // Prisma errors sometimes carry an empty message; fall back to the
+        // error name + any code so a failed import is actually diagnosable.
+        const detail =
+          e instanceof Error
+            ? [e.message || e.name, (e as { code?: string }).code]
+                .filter(Boolean)
+                .join(' ')
+            : String(e);
         this.logger.warn(
-          `Import of QBO estimate ${est.Id} failed: ${e instanceof Error ? e.message : e}`,
+          `Import of QBO estimate ${est.Id} (Doc ${est.DocNumber ?? '?'}) failed: ${detail}`,
         );
       }
     }

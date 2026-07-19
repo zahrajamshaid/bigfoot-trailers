@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, SalesOrderStatus } from '@prisma/client';
+import { Prisma, QbSyncState, SalesOrderStatus } from '@prisma/client';
 import { AppError, ErrorCode } from '../../common/errors';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -338,6 +338,60 @@ export class SalesOrdersService {
       await this.qboSync.pushSalesOrderEstimate(id);
     }
     return this.findOne(id);
+  }
+
+  /**
+   * Push every approved estimate that never made it cleanly to QuickBooks
+   * (sync error, or still pending) — the bulk version of the per-estimate retry
+   * button. Each is pushed independently; pushSalesOrderEstimate records
+   * success/failure on the row itself, so one failure doesn't stop the rest.
+   */
+  async pushUnsyncedEstimates(): Promise<{
+    total: number;
+    pushed: number;
+    failed: number;
+  }> {
+    if (!this.flags.isEnabled(FeatureFlag.QBO_SYNC)) {
+      return { total: 0, pushed: 0, failed: 0 };
+    }
+    const stuck = await this.prisma.salesOrder.findMany({
+      where: {
+        status: SalesOrderStatus.approved,
+        syncState: { not: QbSyncState.synced },
+      },
+      select: { id: true, soNumber: true },
+    });
+
+    let pushed = 0;
+    let failed = 0;
+    for (const so of stuck) {
+      try {
+        await this.qboSync.pushSalesOrderEstimate(so.id);
+        pushed++;
+      } catch (e) {
+        failed++;
+        this.logger.warn(
+          `Bulk estimate push failed for SO ${so.soNumber ?? so.id}: ${
+            e instanceof Error ? e.message : e
+          }`,
+        );
+      }
+    }
+    return { total: stuck.length, pushed, failed };
+  }
+
+  /**
+   * Two-way estimate sync with QuickBooks, mirroring the customer sync: import
+   * estimates created in QBO into the app, then push any app estimates that
+   * failed to reach QBO. Pure data reconciliation — it does NOT convert
+   * accepted estimates to trailers (that's the acceptance reconciliation, which
+   * runs nightly and has its own button, so a routine sync never surprises
+   * anyone by starting a build).
+   */
+  async syncEstimates(userId: bigint) {
+    const imported = await this.importFromQbo(userId);
+    const pushed = await this.pushUnsyncedEstimates();
+    return { imported, pushed };
   }
 
   /**

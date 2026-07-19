@@ -63,6 +63,21 @@ class _EstimatesListScreenState extends State<EstimatesListScreen> {
     if (mounted) _load();
   }
 
+  /// Two-way estimate sync with QuickBooks: pull estimates created in QBO into
+  /// the app and push any that failed to reach QBO, then refresh the list.
+  Future<void> _syncEstimates() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+        const SnackBar(content: Text('Syncing estimates with QuickBooks…')));
+    try {
+      final summary = await _api.syncEstimates();
+      messenger.showSnackBar(SnackBar(content: Text(summary)));
+      if (mounted) _load();
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Estimate sync failed: $e')));
+    }
+  }
+
   /// Slice 1 — pull models/options/fees + prices from QuickBooks. Idempotent:
   /// re-running updates prices in place and creates no duplicates.
   Future<void> _syncCatalog() async {
@@ -89,6 +104,11 @@ class _EstimatesListScreenState extends State<EstimatesListScreen> {
       appBar: AppBar(
         title: const Text('Estimates'),
         actions: [
+          IconButton(
+            tooltip: 'Sync estimates with QuickBooks',
+            onPressed: _syncEstimates,
+            icon: const Icon(Icons.cloud_sync_outlined),
+          ),
           IconButton(
             tooltip: 'Sync catalog from QuickBooks',
             onPressed: _syncCatalog,

@@ -28,12 +28,18 @@ describe('Sales Orders RBAC', () => {
     ]);
   };
 
-  it.each(['approve', 'retrySync', 'send', 'create', 'preview', 'getCatalog'])(
-    'lets SALES drive the estimate quote lifecycle: %s',
-    (method) => {
-      expect(rolesFor(method)).toContain(UserRole.SALES);
-    },
-  );
+  it.each([
+    'approve',
+    'retrySync',
+    'send',
+    'create',
+    'preview',
+    'getCatalog',
+    'importFromQbo',
+    'syncEstimates',
+  ])('lets SALES drive the estimate quote lifecycle: %s', (method) => {
+    expect(rolesFor(method)).toContain(UserRole.SALES);
+  });
 
   it('does NOT let SALES accept — converting to a production trailer is committed', () => {
     const roles = rolesFor('accept');
@@ -77,6 +83,8 @@ describe('Sales Orders RBAC', () => {
       'send',
       'accept',
       'importFromQbo',
+      'syncEstimates',
+      'reconcileAcceptance',
     ];
     for (const name of routes) {
       expect({ name, roles: rolesFor(name) }).toEqual({

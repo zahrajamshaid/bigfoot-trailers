@@ -149,6 +149,31 @@ class SalesOrderApi {
     return res.data ?? const {};
   }
 
+  /// Two-way estimate sync with QuickBooks: import estimates created in QBO and
+  /// push any app estimates that failed to reach QBO. Returns a short summary.
+  Future<String> syncEstimates() async {
+    final res = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.salesOrdersSync,
+      data: const {},
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    final data = res.data ?? const {};
+    final imported = (data['imported'] as Map?) ?? const {};
+    final pushed = (data['pushed'] as Map?) ?? const {};
+    final pulled = (imported['created'] ?? 0) + (imported['updated'] ?? 0);
+    final importFailed = imported['failed'] ?? 0;
+    final sent = pushed['pushed'] ?? 0;
+    final pushFailed = pushed['failed'] ?? 0;
+
+    var msg = 'Synced estimates — pulled $pulled from QuickBooks, pushed $sent';
+    final problems = <String>[
+      if (importFailed != 0) '$importFailed couldn\'t import',
+      if (pushFailed != 0) '$pushFailed failed to push',
+    ];
+    if (problems.isNotEmpty) msg += ' (${problems.join(', ')})';
+    return msg;
+  }
+
   Future<List<SalesOrder>> list() async {
     final res = await _api.get<List<dynamic>>(
       ApiEndpoints.salesOrders,
