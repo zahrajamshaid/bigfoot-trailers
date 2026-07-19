@@ -167,17 +167,23 @@ export class SalesOrdersController {
   }
 
   // Approve a draft → allocate SO number + push a QBO Estimate.
+  // Sales can approve: this only allocates the SO# and pushes a QBO ESTIMATE
+  // (a quote, not a commitment) — the core sales action, and the reason Quick
+  // Estimate exists. It's also what makes the estimate sendable, and `send`
+  // already allows SALES. Turning the quote into a production trailer is a
+  // separate, committed step (`accept`), which stays OWNER/OFFICE.
   @Post(':id/approve')
-  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @ApiOperation({ summary: 'Approve a draft Sales Order (pushes a QBO Estimate)' })
   approve(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
     this.assertEnabled();
     return this.service.approve(BigInt(id), BigInt(user.sub));
   }
 
-  // Retry a failed QBO Estimate push (the sync-chip retry button).
+  // Retry a failed QBO Estimate push (the sync-chip retry button). Sales owns
+  // the estimate they approved, so they own recovering its sync too.
   @Post(':id/retry-sync')
-  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @ApiOperation({ summary: 'Retry the QuickBooks Estimate push for an approved SO' })
   retrySync(@Param('id', ParseIntPipe) id: number) {
     this.assertEnabled();
