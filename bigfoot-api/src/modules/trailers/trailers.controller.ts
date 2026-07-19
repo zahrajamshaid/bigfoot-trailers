@@ -103,8 +103,11 @@ export class TrailersController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Trailer detail' })
   @ApiResponse({ status: 404, description: 'Trailer not found' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.trailersService.findOne(BigInt(id));
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.trailersService.findOne(BigInt(id), user.role);
   }
 
   // ---------------------------------------------------------------------------

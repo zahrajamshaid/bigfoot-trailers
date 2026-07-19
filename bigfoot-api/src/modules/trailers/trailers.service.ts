@@ -9,6 +9,7 @@ import {
 import { StorageService } from '../storage/storage.service';
 import { WorkflowGeneratorService } from './workflow-generator.service';
 import { AppError, ErrorCode } from '../../common/errors';
+import { UserRole } from '../../common/decorators/roles.decorator';
 import { CreateTrailerDto } from './dto/create-trailer.dto';
 import { UpdateTrailerDto } from './dto/update-trailer.dto';
 import { QueryTrailersDto } from './dto/query-trailers.dto';
@@ -551,7 +552,16 @@ export class TrailersService {
   // ---------------------------------------------------------------------------
   // GET /trailers/:id — full detail
   // ---------------------------------------------------------------------------
-  async findOne(id: bigint) {
+  /** Prices (the Sales Order money) are owner/office/sales only. */
+  private static canSeePrices(role?: string): boolean {
+    return (
+      role === UserRole.OWNER ||
+      role === UserRole.OFFICE ||
+      role === UserRole.SALES
+    );
+  }
+
+  async findOne(id: bigint, viewerRole?: string) {
     const trailer = await this.prisma.trailer.findUnique({
       where: { id },
       select: {
@@ -597,6 +607,25 @@ export class TrailersService {
 
     if (!trailer) {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    // The trailer detail is open to every production role (jig, QC, parts …),
+    // and it carries the Sales Order. Strip the MONEY from that SO for anyone
+    // who can't see prices — otherwise a jig worker could read the totals /
+    // deposit straight out of the JSON even though the app hides them.
+    if (trailer.salesOrder && !TrailersService.canSeePrices(viewerRole)) {
+      const so = trailer.salesOrder as Record<string, unknown>;
+      for (const field of [
+        'subtotal',
+        'taxAmount',
+        'total',
+        'depositAmount',
+        'depositPaidAt',
+        'depositMethod',
+        'qboPaymentId',
+      ]) {
+        delete so[field];
+      }
     }
 
     return trailer;

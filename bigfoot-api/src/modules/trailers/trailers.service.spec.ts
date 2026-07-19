@@ -431,6 +431,62 @@ describe('TrailersService', () => {
         errorCode: ErrorCode.NOT_FOUND,
       });
     });
+
+    // Price visibility: the trailer detail carries the Sales Order, and is open
+    // to every production role. The MONEY must not reach anyone but
+    // owner/office/sales — a jig worker could otherwise read it from the JSON.
+    const withSalesOrder = () => ({
+      ...mockTrailer,
+      productionSteps: [],
+      salesOrder: {
+        id: BigInt(5),
+        soNumber: '7001',
+        status: 'in_production',
+        subtotal: 9000,
+        taxAmount: 500,
+        total: 9500,
+        depositAmount: 2000,
+        depositMethod: 'card',
+        qboPaymentId: '165',
+      },
+    });
+
+    it.each(['worker', 'qc_inspector', 'driver', 'parts', 'purchasing', 'production_manager'])(
+      'strips Sales Order money from the payload for %s',
+      async (role) => {
+        mockPrisma.trailer.findUnique.mockResolvedValue(withSalesOrder());
+
+        const result = await service.findOne(BigInt(1), role);
+        const so = result.salesOrder as Record<string, unknown>;
+
+        // Non-money reference stays (they need the SO number for the work order).
+        expect(so.soNumber).toBe('7001');
+        expect(so.status).toBe('in_production');
+        // Money is gone.
+        for (const k of ['subtotal', 'taxAmount', 'total', 'depositAmount', 'depositMethod', 'qboPaymentId']) {
+          expect(so[k]).toBeUndefined();
+        }
+      },
+    );
+
+    it.each(['owner', 'office', 'sales'])('keeps the money for %s', async (role) => {
+      mockPrisma.trailer.findUnique.mockResolvedValue(withSalesOrder());
+
+      const result = await service.findOne(BigInt(1), role);
+      const so = result.salesOrder as Record<string, unknown>;
+
+      expect(so.total).toBe(9500);
+      expect(so.depositAmount).toBe(2000);
+    });
+
+    it('strips money when no viewer role is provided (fail closed)', async () => {
+      mockPrisma.trailer.findUnique.mockResolvedValue(withSalesOrder());
+
+      const result = await service.findOne(BigInt(1));
+      const so = result.salesOrder as Record<string, unknown>;
+
+      expect(so.total).toBeUndefined();
+    });
   });
 
   // =========================================================================

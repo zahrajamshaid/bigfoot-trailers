@@ -119,10 +119,10 @@ describe('TrailersController', () => {
   });
 
   describe('GET /trailers/:id', () => {
-    it('should return trailer detail', async () => {
-      const result = await controller.findOne(1);
+    it('should return trailer detail, passing the viewer role for price gating', async () => {
+      const result = await controller.findOne(1, { sub: 9, role: 'owner' } as never);
 
-      expect(mockTrailersService.findOne).toHaveBeenCalledWith(BigInt(1));
+      expect(mockTrailersService.findOne).toHaveBeenCalledWith(BigInt(1), 'owner');
       expect(result.soNumber).toBe('SO-1001');
     });
   });
