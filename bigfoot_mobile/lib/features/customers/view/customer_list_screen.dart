@@ -105,30 +105,36 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l.customersTitle),
-        actions: [
-          if (_canSync)
-            _syncing
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Center(
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.sync),
-                    tooltip: 'Sync with QuickBooks',
-                    onPressed: _syncWithQuickBooks,
-                  ),
-        ],
-      ),
       body: Column(
         children: [
+          // Title + sync live in the body (not a second app bar) so the sync
+          // button is always visible. Sync is owner/office only.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Row(
+              children: [
+                Text(l.customersTitle,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                if (_canSync)
+                  _syncing
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: _syncWithQuickBooks,
+                          icon: const Icon(Icons.sync, size: 18),
+                          label: const Text('Sync with QuickBooks'),
+                        ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(

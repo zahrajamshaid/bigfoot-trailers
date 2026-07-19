@@ -101,39 +101,53 @@ class _EstimatesListScreenState extends State<EstimatesListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Estimates'),
-        actions: [
-          IconButton(
-            tooltip: 'Sync estimates with QuickBooks',
-            onPressed: _syncEstimates,
-            icon: const Icon(Icons.cloud_sync_outlined),
+      body: Column(
+        children: [
+          // Sync actions live in the body (not a second app bar) so they're
+          // always visible. Anyone who can see estimates can sync them.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Row(
+              children: [
+                const Text('Estimates',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: _syncEstimates,
+                  icon: const Icon(Icons.cloud_sync_outlined, size: 18),
+                  label: const Text('Sync with QuickBooks'),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Sync catalog (models / options / fees) from QuickBooks',
+                  onPressed: _syncCatalog,
+                  icon: const Icon(Icons.sync),
+                ),
+              ],
+            ),
           ),
-          IconButton(
-            tooltip: 'Sync catalog from QuickBooks',
-            onPressed: _syncCatalog,
-            icon: const Icon(Icons.sync),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
+                : _error != null
+                    ? _ErrorView(message: _error!, onRetry: _load)
+                    : _items.isEmpty
+                        ? _EmptyView(onNew: _newEstimate)
+                        : RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: _items.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 8),
+                              itemBuilder: (_, i) => _EstimateCard(
+                                so: _items[i],
+                                onTap: () => _openDetail(_items[i]),
+                              ),
+                            ),
+                          ),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
-          : _error != null
-              ? _ErrorView(message: _error!, onRetry: _load)
-              : _items.isEmpty
-                  ? _EmptyView(onNew: _newEstimate)
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (_, i) => _EstimateCard(
-                          so: _items[i],
-                          onTap: () => _openDetail(_items[i]),
-                        ),
-                      ),
-                    ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _newEstimate,
         icon: const Icon(Icons.add),

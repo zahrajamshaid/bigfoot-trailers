@@ -1297,6 +1297,30 @@ class _SalesOrderCard extends StatefulWidget {
 class _SalesOrderCardState extends State<_SalesOrderCard> {
   bool _busy = false;
   final Map<bool, Uint8List> _cache = {}; // priced? -> bytes
+  late String _syncState = widget.so.syncState;
+
+  /// Retry pushing this Sales Order to QuickBooks after a sync error.
+  Future<void> _retrySync() async {
+    setState(() => _busy = true);
+    try {
+      final api = SalesOrderApi(context.read<DioClient>());
+      final updated = await api.retrySync(widget.so.id);
+      if (!mounted) return;
+      setState(() => _syncState = updated.syncState);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(updated.syncState == 'synced'
+            ? 'Synced to QuickBooks'
+            : 'Still not synced${updated.syncError != null ? ': ${updated.syncError}' : ''}'),
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Retry failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   /// Phase 2 role gate: admin/office/sales see the priced Sales Order AND the
   /// work order; production/jig/floor roles see the work order only. The API
@@ -1392,6 +1416,34 @@ class _SalesOrderCardState extends State<_SalesOrderCard> {
                 ),
               ],
             ),
+            // Sync error → offer a retry (owner/office/sales can act on it).
+            if (_syncState == 'error' && _canSeePrices) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.sync_problem, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('QuickBooks sync failed',
+                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                    ),
+                    TextButton.icon(
+                      onPressed: _busy ? null : _retrySync,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 10),
             if (so.acceptedAt != null)
               _soRow('Accepted', EstClock.dateTime(so.acceptedAt!)),
