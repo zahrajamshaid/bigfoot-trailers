@@ -1071,6 +1071,9 @@ model QboAuthToken {
 enum SalesOrderStatus {
   draft
   approved
+  // The customer accepted the estimate and it was converted to a Sales Order.
+  // From here the build is tracked on the trailer's status, not the estimate's.
+  accepted
   in_production
   ready
   delivered

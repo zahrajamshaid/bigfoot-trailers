@@ -696,12 +696,14 @@ export class SalesOrdersService {
       );
     }
 
-    // 3) Record the conversion. Only move into production when a trailer was
-    //    actually created; otherwise it stays approved but flagged accepted.
+    // 3) Record the conversion. The customer accepted, so the estimate moves to
+    //    ACCEPTED — from here the build is tracked on the trailer's own status,
+    //    not the estimate's. (Accepted even if no trailer resolved: it still
+    //    needs a manual build, but the acceptance is real.)
     await this.prisma.salesOrder.update({
       where: { id },
       data: {
-        status: trailerId ? SalesOrderStatus.in_production : so.status,
+        status: SalesOrderStatus.accepted,
         acceptedAt: new Date(),
         trailerId,
       },
@@ -715,7 +717,7 @@ export class SalesOrdersService {
       action: 'sales_order.converted',
       oldValues: { status: so.status },
       newValues: {
-        status: trailerId ? SalesOrderStatus.in_production : so.status,
+        status: SalesOrderStatus.accepted,
         trailerId: trailerId ? Number(trailerId) : null,
         soNumber: so.soNumber,
         total: Number(so.total),

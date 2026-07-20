@@ -79,7 +79,7 @@ describe('SalesOrdersService — delete + deposit', () => {
       prisma.salesOrder.findUnique.mockResolvedValue({
         id: BigInt(1),
         soNumber: '7001',
-        status: 'in_production',
+        status: 'accepted',
         trailerId: BigInt(613),
         qboEstimateId: '158',
         total: 9000,

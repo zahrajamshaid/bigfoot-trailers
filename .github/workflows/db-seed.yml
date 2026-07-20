@@ -40,6 +40,7 @@ on:
           - seed-gn-yeti-model # new gooseneck_yeti series + GN_YETI model (GN workflow with YETI_FIN at step 3)
           - apply-option-accountability # one-shot: trailer_addon_departments + trailer_addons provenance/PM-review columns (additive)
           - apply-sales-order-deposit # one-shot: sales_orders deposit columns (amount/paid_at/method/qbo_payment_id) — additive
+          - apply-sales-order-accepted-status # one-shot: add 'accepted' to sales_order_status_enum + relabel converted rows
           - seed-cxp-models # new cxp series + 10 CXP / 14K CXP models (gooseneck workflow 1-for-1, incl. GN_FIN + QC_2 bypass and PAINT_B default)
           - seed-backfill-sold-at # one-shot: fill trailers.sold_at for already-sold trailers from audit_log (falls back to createdAt for born-sold cases). Needed once after the sold_at column ships so Health Check → Sales reads history correctly.
           - seed-fix-va-semi-arrival # one-shot: move 5 trailers (6361, 6417, 6586, 6743, 6777) from MULBERRY → TAPPAHANNOCK to reflect the 2026-06-22 semi shipment that never got marked. Flips status delivered→ready_for_delivery on the four that were prematurely closed.

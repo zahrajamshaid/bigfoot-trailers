@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Coloured pill for a Sales Order lifecycle status. The underlying value is
 /// still `approved` (DB + API), but sales sees it as "Quoted" — "approved" read
 /// too close to the customer *accepting*, which is a different, later step.
-/// draft → approved(=Quoted) → in_production → ready → delivered / cancelled.
+/// draft → approved(=Quoted) → accepted → (build tracked on the trailer).
 class SoStatusChip extends StatelessWidget {
   final String status;
   const SoStatusChip({super.key, required this.status});
@@ -13,6 +13,7 @@ class SoStatusChip extends StatelessWidget {
     final (label, color) = switch (status) {
       'draft' => ('Draft', Colors.grey),
       'approved' => ('Quoted', Colors.blue),
+      'accepted' => ('Accepted', Colors.green),
       'in_production' => ('In production', Colors.orange),
       'ready' => ('Ready', Colors.teal),
       'delivered' => ('Delivered', Colors.green),
