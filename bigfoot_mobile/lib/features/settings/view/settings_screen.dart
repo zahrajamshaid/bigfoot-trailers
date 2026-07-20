@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/i18n/locale_cubit.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/security/pin_storage.dart';
 import '../../../core/websocket/ws_client.dart';
+import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
+import '../data/quickbooks_api.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,10 +24,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final PinStorage _pinStorage = PinStorage();
   bool _pinEnabled = false;
 
+  // ── QuickBooks connection ────────────────────────────────────────────────
+  QboStatus? _qbo;
+  bool _qboLoading = false;
+  bool _qboBusy = false;
+
+  /// Owner, office and sales can see + start the connect flow. Completing it
+  /// still needs real QuickBooks credentials on Intuit's consent screen.
+  bool get _canManageQbo {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    final r = auth.user.role;
+    return r == UserRole.owner || r == UserRole.office || r == UserRole.sales;
+  }
+
+  /// Disconnecting breaks sync for everyone, so it stays with the owner.
+  bool get _canDisconnectQbo {
+    final auth = context.read<AuthViewModel>().state;
+    return auth is Authenticated && auth.user.role == UserRole.owner;
+  }
+
   @override
   void initState() {
     super.initState();
     _loadPinSetting();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _canManageQbo) _loadQboStatus();
+    });
+  }
+
+  Future<void> _loadQboStatus() async {
+    setState(() => _qboLoading = true);
+    try {
+      final status = await QuickBooksApi(context.read<DioClient>()).status();
+      if (mounted) setState(() => _qbo = status);
+    } catch (_) {
+      if (mounted) setState(() => _qbo = null); // show "unknown" rather than crash
+    } finally {
+      if (mounted) setState(() => _qboLoading = false);
+    }
+  }
+
+  Future<void> _connectQuickBooks() async {
+    setState(() => _qboBusy = true);
+    try {
+      final url = await QuickBooksApi(context.read<DioClient>()).authorizationUrl();
+      if (url.isEmpty) throw Exception('No authorization URL returned');
+      final ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+      if (!mounted) return;
+      if (!ok) throw Exception('Could not open the QuickBooks sign-in page');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Sign in to QuickBooks in the new tab, then come back and pull to refresh.'),
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Connect failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _qboBusy = false);
+    }
+  }
+
+  Future<void> _disconnectQuickBooks() async {
+    // Grab the client before the dialog await so we don't touch context after.
+    final api = QuickBooksApi(context.read<DioClient>());
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Disconnect QuickBooks?'),
+        content: const Text(
+          'Syncing will stop for everyone until QuickBooks is connected again.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Disconnect'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _qboBusy = true);
+    try {
+      await api.disconnect();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('QuickBooks disconnected')));
+      }
+      await _loadQboStatus();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Disconnect failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _qboBusy = false);
+    }
   }
 
   Future<void> _loadPinSetting() async {
@@ -205,6 +312,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               },
             ),
+
+            const SizedBox(height: 8),
+
+            // ── QuickBooks ────────────────────────────────────────────────
+            if (_canManageQbo) ...[
+              const _SectionHeader(title: 'QuickBooks'),
+              _SettingsTile(
+                icon: Icons.account_balance,
+                iconColor: _qbo?.connected == true
+                    ? AppColors.success
+                    : AppColors.disabled,
+                title: _qbo?.connected == true
+                    ? 'Connected${_qbo?.companyName != null ? ' · ${_qbo!.companyName}' : ''}'
+                    : 'Not connected',
+                subtitle: _qboLoading
+                    ? 'Checking…'
+                    : _qbo == null
+                        ? 'Status unavailable — tap refresh'
+                        : _qbo!.isProduction
+                            ? 'Live company (real accounting data)'
+                            : 'Sandbox — test company, not your real books',
+                trailing: _qboBusy || _qboLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Refresh status',
+                        onPressed: _loadQboStatus,
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _qboBusy ? null : _connectQuickBooks,
+                        icon: const Icon(Icons.link, size: 18),
+                        label: Text(_qbo?.connected == true
+                            ? 'Reconnect QuickBooks'
+                            : 'Connect QuickBooks'),
+                      ),
+                    ),
+                    if (_canDisconnectQbo && _qbo?.connected == true) ...[
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: _qboBusy ? null : _disconnectQuickBooks,
+                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                        child: const Text('Disconnect'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 8),
 

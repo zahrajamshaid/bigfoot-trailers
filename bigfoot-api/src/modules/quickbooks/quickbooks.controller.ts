@@ -77,8 +77,11 @@ export class QuickBooksController {
   // ---------------------------------------------------------------------------
   // GET /quickbooks/connect — owner starts the OAuth flow
   // ---------------------------------------------------------------------------
+  // Owner/office/sales can all start the connect flow — completing it still
+  // requires real QuickBooks credentials at Intuit's consent screen, so this
+  // button alone grants nobody access to the books.
   @Get('connect')
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @ApiOperation({ summary: 'Get the Intuit consent URL to connect QuickBooks' })
   @ApiResponse({ status: 200, description: 'Authorization URL to open in a browser' })
   getConnectUrl(): { authorizationUrl: string } {
@@ -121,7 +124,7 @@ export class QuickBooksController {
   // GET /quickbooks/health — connection status + a live CompanyInfo probe
   // ---------------------------------------------------------------------------
   @Get('health')
-  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @ApiOperation({ summary: 'QuickBooks connection status + company probe' })
   async health(): Promise<{
     enabled: boolean;

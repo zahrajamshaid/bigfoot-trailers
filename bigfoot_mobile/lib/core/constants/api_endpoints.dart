@@ -125,6 +125,13 @@ abstract final class ApiEndpoints {
   static String salesOrderPackingSlip(int id) => '/sales-orders/$id/packing-slip';
   static String salesOrderPricedPdf(int id) => '/sales-orders/$id/sales-order-pdf';
   static const String qboImportCatalog = '/quickbooks/import-catalog';
+  // ── QuickBooks connection (Settings) ─────────────────────────────────────
+  /// Returns the Intuit consent URL to open in a browser.
+  static const String quickbooksConnect = '/quickbooks/connect';
+  /// Connection status + live company probe.
+  static const String quickbooksHealth = '/quickbooks/health';
+  /// Drop the connection (owner only).
+  static const String quickbooksDisconnect = '/quickbooks/disconnect';
   static String salesOrderSend(int id) => '/sales-orders/$id/send';
   static String salesOrderAccept(int id) => '/sales-orders/$id/accept';
   static String salesOrderDeposit(int id) => '/sales-orders/$id/deposit';
