@@ -766,23 +766,48 @@ class _NavDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final onSettings =
+        GoRouterState.of(context).matchedLocation.startsWith('/settings');
+
     return Drawer(
       child: SafeArea(
-        child: ListView.builder(
-          itemCount: tabs.length,
-          itemBuilder: (context, i) {
-            final tab = tabs[i];
-            final selected = i == currentIndex;
-            return ListTile(
-              leading: Icon(selected ? tab.selectedIcon : tab.icon),
-              title: Text(tab.label),
-              selected: selected,
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                itemCount: tabs.length,
+                itemBuilder: (context, i) {
+                  final tab = tabs[i];
+                  final selected = i == currentIndex;
+                  return ListTile(
+                    leading: Icon(selected ? tab.selectedIcon : tab.icon),
+                    title: Text(tab.label),
+                    selected: selected,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.go(tab.path);
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            // Settings lives in the drawer FOOTER rather than as a tab: it was
+            // only reachable by tapping the avatar, which nobody finds, but
+            // making it a tab would crowd the bottom bar. (QuickBooks
+            // connect/disconnect lives in here.)
+            ListTile(
+              leading: Icon(
+                  onSettings ? Icons.settings : Icons.settings_outlined),
+              title: Text(l.navSettings),
+              selected: onSettings,
               onTap: () {
                 Navigator.of(context).pop();
-                context.go(tab.path);
+                context.go('/settings');
               },
-            );
-          },
+            ),
+          ],
         ),
       ),
     );

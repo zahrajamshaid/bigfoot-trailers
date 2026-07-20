@@ -290,6 +290,12 @@ abstract class AppLocalizations {
   /// **'My Queue'**
   String get navMyQueue;
 
+  /// No description provided for @navSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get navSettings;
+
   /// No description provided for @navMyPoints.
   ///
   /// In en, this message translates to:
