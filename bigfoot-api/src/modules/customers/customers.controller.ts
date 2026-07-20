@@ -62,7 +62,7 @@ export class CustomersController {
   }
 
   @Post('import-from-qbo')
-  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Import every QuickBooks customer into the app (QBO → app)' })
   @ApiResponse({ status: 200, description: 'Import summary (created/updated)' })
@@ -71,7 +71,7 @@ export class CustomersController {
   }
 
   @Post('export-to-qbo')
-  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Push every app customer not yet in QuickBooks (app → QBO)' })
   @ApiResponse({ status: 200, description: 'Export summary (exported/failed)' })
@@ -79,8 +79,10 @@ export class CustomersController {
     return this.customersService.exportToQbo();
   }
 
+  // Sales syncs customers too — they already view and create them, and a
+  // stale customer list is exactly what blocks them writing an estimate.
   @Post('sync')
-  @Roles(UserRole.OWNER, UserRole.OFFICE)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Two-way customer sync with QuickBooks (import then export)' })
   @ApiResponse({ status: 200, description: 'Combined { imported, exported } summary' })

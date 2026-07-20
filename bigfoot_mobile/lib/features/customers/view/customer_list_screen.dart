@@ -44,12 +44,14 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
 
   bool _syncing = false;
 
-  /// Only owner/office run the QuickBooks sync (matches the backend @Roles on
-  /// POST /customers/sync). Sales can see and edit customers but not bulk-sync.
+  /// Owner, office and sales can run the QuickBooks customer sync (matches the
+  /// backend @Roles on POST /customers/sync) — the same roles that can see and
+  /// create customers.
   bool get _canSync {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
-    return auth.user.role == UserRole.owner || auth.user.role == UserRole.office;
+    final r = auth.user.role;
+    return r == UserRole.owner || r == UserRole.office || r == UserRole.sales;
   }
 
   Future<void> _syncWithQuickBooks() async {
@@ -108,7 +110,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
       body: Column(
         children: [
           // Title + sync live in the body (not a second app bar) so the sync
-          // button is always visible. Sync is owner/office only.
+          // button is always visible. Sync is owner/office/sales.
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: Row(

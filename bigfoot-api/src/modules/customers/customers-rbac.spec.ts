@@ -46,12 +46,20 @@ describe('Customers RBAC', () => {
     }
   });
 
-  it('QuickBooks sync (import/export/two-way) is an owner/office action', () => {
+  it('QuickBooks sync (import/export/two-way) is open to the commercial roles', () => {
+    // Sales syncs customers too — they view and create them, and a stale list
+    // is what blocks them writing an estimate.
     for (const method of ['importFromQbo', 'exportToQbo', 'sync']) {
-      expect([...(rolesFor(method) ?? [])].sort()).toEqual(
-        [UserRole.OWNER, UserRole.OFFICE].sort(),
-      );
+      expect([...(rolesFor(method) ?? [])].sort()).toEqual([...COMMERCIAL].sort());
     }
+  });
+
+  it('customer DELETE stays owner/office (destructive, cascades trailers)', () => {
+    const roles = rolesFor('remove');
+    expect(roles).not.toContain(UserRole.SALES);
+    expect([...(roles ?? [])].sort()).toEqual(
+      [UserRole.OWNER, UserRole.OFFICE].sort(),
+    );
   });
 
   it('every customer route declares roles — no accidental "everyone allowed"', () => {
