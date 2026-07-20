@@ -107,6 +107,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navMyQueue => 'Mi Cola';
 
   @override
+  String get navSettings => 'Ajustes';
+
+  @override
   String get navMyPoints => 'Mis Puntos';
 
   @override

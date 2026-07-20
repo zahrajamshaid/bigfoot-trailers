@@ -107,6 +107,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navMyQueue => 'My Queue';
 
   @override
+  String get navSettings => 'Settings';
+
+  @override
   String get navMyPoints => 'My Points';
 
   @override
