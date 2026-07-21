@@ -123,6 +123,69 @@ describe('ProductionReportService', () => {
       mockPrisma.trailerModelStageCost.findMany.mockResolvedValue([]);
     });
 
+    // Open-stock reporting: how many stock orders were PUT IN, and of the stock
+    // that sold, how much came off the line vs out of the yard.
+    it('counts open-stock orders placed and splits stock sales by production vs inventory', async () => {
+      const model = { id: 1, code: 'XP_14ET', displayName: 'XP 14ET', series: 'xp' };
+      const soldAt = new Date('2026-06-16T12:00:00Z');
+
+      // stockOrdersPlaced is the only trailer.count keyed on isStockBuild+createdAt.
+      mockPrisma.trailer.count.mockImplementation((args: never) => {
+        const w = (args as { where?: Record<string, unknown> })?.where ?? {};
+        return Promise.resolve(w.isStockBuild === true && w.createdAt ? 5 : 0);
+      });
+
+      mockPrisma.trailer.findMany.mockImplementation((args: never) => {
+        const w = (args as { where?: Record<string, unknown> })?.where ?? {};
+        if (w.isStockBuild !== true || w.saleStatus !== 'sold') {
+          return Promise.resolve([]);
+        }
+        return Promise.resolve([
+          // A step never finished → it was still being built when it sold.
+          {
+            trailerModelId: 1,
+            soldAt,
+            trailerModel: model,
+            productionSteps: [{ completedAt: null }],
+          },
+          // A step finished AFTER the sale → still on the line at sale time.
+          {
+            trailerModelId: 1,
+            soldAt,
+            trailerModel: model,
+            productionSteps: [
+              { completedAt: new Date('2026-06-15T00:00:00Z') },
+              { completedAt: new Date('2026-06-17T00:00:00Z') },
+            ],
+          },
+          // Every step done before the sale → sold out of finished stock.
+          {
+            trailerModelId: 1,
+            soldAt,
+            trailerModel: model,
+            productionSteps: [{ completedAt: new Date('2026-06-10T00:00:00Z') }],
+          },
+          // Never ran the line at all (inventory-only series) → inventory.
+          { trailerModelId: 1, soldAt, trailerModel: model, productionSteps: [] },
+        ]);
+      });
+
+      const { current } = await service.getReport({
+        period: 'weekly',
+        start: '2026-06-19',
+      });
+
+      expect(current.sales.stockOrdersPlaced).toBe(5);
+      expect(current.sales.openStockSold).toBe(4);
+      expect(current.sales.openStockSoldFromProduction).toBe(2);
+      expect(current.sales.openStockSoldFromInventory).toBe(2);
+      // The split must always reconcile with the total.
+      expect(
+        current.sales.openStockSoldFromProduction +
+          current.sales.openStockSoldFromInventory,
+      ).toBe(current.sales.openStockSold);
+    });
+
     it('rejects an invalid period', async () => {
       await expect(
         service.getReport({ period: 'forever' as any }),
@@ -303,6 +366,12 @@ describe('ProductionReportService', () => {
       expect(result.current.sales).toEqual({
         customerOrders: 5,
         openStockSold: 2,
+        // No stock orders were placed in this window (trailer.count stubbed 0),
+        // and neither sold stock row carries step data, so both read as sold
+        // out of finished inventory.
+        stockOrdersPlaced: 0,
+        openStockSoldFromProduction: 0,
+        openStockSoldFromInventory: 2,
         totalSales: 7,
       });
       // Per-model: XP gets 5 cust + 1 stock + 2 built = (sold 6, built 2),
