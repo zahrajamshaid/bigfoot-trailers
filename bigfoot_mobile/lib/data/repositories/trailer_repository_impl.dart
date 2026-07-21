@@ -178,6 +178,16 @@ class TrailerRepositoryImpl implements TrailerRepository {
   }
 
   @override
+  Future<Trailer> setWireHydraulic(int id, String code) async {
+    final response = await _api.patch<Map<String, dynamic>>(
+      ApiEndpoints.trailerWireHydraulic(id),
+      data: {'departmentCode': code},
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return Trailer.fromJson(response.data!);
+  }
+
+  @override
   Future<void> addAddon(int trailerId, Map<String, dynamic> data) async {
     await _api.post(ApiEndpoints.trailerAddons(trailerId), data: data);
   }

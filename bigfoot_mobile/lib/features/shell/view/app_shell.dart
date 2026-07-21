@@ -795,8 +795,7 @@ class _NavDrawer extends StatelessWidget {
             const Divider(height: 1),
             // Settings lives in the drawer FOOTER rather than as a tab: it was
             // only reachable by tapping the avatar, which nobody finds, but
-            // making it a tab would crowd the bottom bar. (QuickBooks
-            // connect/disconnect lives in here.)
+            // making it a tab would crowd the bottom bar.
             ListTile(
               leading: Icon(
                   onSettings ? Icons.settings : Icons.settings_outlined),

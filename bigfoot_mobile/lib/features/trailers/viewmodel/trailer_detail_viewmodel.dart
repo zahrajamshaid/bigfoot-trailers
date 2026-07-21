@@ -314,6 +314,11 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
     if (!isClosed) await load();
   }
 
+  Future<void> setWireHydraulic(String code) async {
+    await _repository.setWireHydraulic(trailerId, code);
+    if (!isClosed) await load();
+  }
+
   Future<void> setPriority(int priority) async {
     try {
       await _repository.updatePriority(trailerId, priority);

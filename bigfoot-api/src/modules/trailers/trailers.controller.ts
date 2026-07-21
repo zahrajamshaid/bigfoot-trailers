@@ -29,6 +29,7 @@ import {
   UploadQbPdfDto,
   UpdateSaleStatusDto,
   SetPaintBoothDto,
+  SetWireHydraulicDto,
 } from './dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -206,6 +207,35 @@ export class TrailersController {
     @Body() dto: SetPaintBoothDto,
   ) {
     return this.trailersService.setPaintBooth(BigInt(id), dto.paintBoothCode);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/wire-hydraulic — swap step 9 between WIRE / HYDRAULICS
+  // ---------------------------------------------------------------------------
+  @Patch(':id/wire-hydraulic')
+  @Roles(UserRole.OWNER, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({
+    summary: 'Manually move a trailer between WIRE and HYDRAULICS',
+    description:
+      'Production manager / owner override of the series-based auto-routing ' +
+      '(XP / Yeti / Deck-Over run WIRE; the gooseneck-line series run ' +
+      'HYDRAULICS). The trailer\'s step-9 production_step is repointed to the ' +
+      'target department; status / queue position are preserved. Rejected once ' +
+      'that step is already complete.',
+  })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Wire/hydraulic department updated' })
+  @ApiResponse({
+    status: 400,
+    description: 'No wire/hydraulics step, or it is already complete',
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden — insufficient role' })
+  @ApiResponse({ status: 404, description: 'Trailer not found' })
+  async setWireHydraulic(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetWireHydraulicDto,
+  ) {
+    return this.trailersService.setWireHydraulic(BigInt(id), dto.departmentCode);
   }
 
   // ---------------------------------------------------------------------------

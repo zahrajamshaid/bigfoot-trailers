@@ -26,6 +26,8 @@ abstract final class ApiEndpoints {
   static String trailerSaleStatus(int id) => '/trailers/$id/sale-status';
   static String trailerMarkCompleted(int id) => '/trailers/$id/mark-completed';
   static String trailerPaintBooth(int id) => '/trailers/$id/paint-booth';
+  /// Swap step 9 between WIRE and HYDRAULICS (owner / production manager).
+  static String trailerWireHydraulic(int id) => '/trailers/$id/wire-hydraulic';
   static String trailerAddons(int id) => '/trailers/$id/addons';
 
   // ── Options / add-on accountability ──────────────────────────────────────
