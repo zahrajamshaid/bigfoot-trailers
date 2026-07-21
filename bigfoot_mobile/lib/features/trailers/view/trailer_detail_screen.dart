@@ -455,6 +455,54 @@ String? _paintStepFor(dynamic trailer) {
   return null;
 }
 
+/// Line-routing overrides (paint booth, wire/hydraulics) are production
+/// decisions — owner + production_manager only, matching the API's @Roles.
+/// `_canEditTrailer` is wider (it includes sales / QC) so it can't be reused.
+bool _canRouteProduction(BuildContext context) {
+  final auth = context.read<AuthViewModel>().state;
+  if (auth is! Authenticated) return false;
+  return auth.user.role == UserRole.owner ||
+      auth.user.role == UserRole.productionManager;
+}
+
+/// Returns the trailer's step-9 department code (`WIRE` or `HYDRAULICS`)
+/// when it has one, else null. Auto-routing puts XP / Yeti / Deck-Over on
+/// WIRE and the gooseneck-line series on HYDRAULICS; inventory-only models
+/// have no such step.
+String? _wireHydraulicStepFor(dynamic trailer) {
+  final steps = trailer.productionSteps as List?;
+  if (steps == null || steps.isEmpty) return null;
+  for (final s in steps) {
+    final code = s.departmentCode as String?;
+    if (code == 'WIRE' || code == 'HYDRAULICS') return code;
+  }
+  return null;
+}
+
+/// Owner / production_manager swap WIRE ↔ HYDRAULICS.
+Future<void> _swapWireHydraulic(BuildContext context, String code) async {
+  final l = AppLocalizations.of(context);
+  final cubit = context.read<TrailerDetailViewModel>();
+  final messenger = ScaffoldMessenger.of(context);
+  final label = code == 'WIRE' ? 'Wire' : 'Hydraulics';
+  try {
+    await cubit.setWireHydraulic(code);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Moved to $label.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+  } on ApiException catch (e) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(l.trailerDetailUpdateFailed(e.displayMessage)),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+}
+
 /// Owner / production_manager swap PAINT_A ↔ PAINT_B. Calls the API,
 /// shows a snackbar on success/failure.
 Future<void> _swapPaintBooth(BuildContext context, String code) async {
@@ -574,6 +622,21 @@ class _InfoTab extends StatelessWidget {
               child: _PaintBoothCard(
                 currentBoothCode: paintStep,
                 onSwap: (code) => _swapPaintBooth(context, code),
+              ),
+            );
+          }(),
+
+        // Wire / Hydraulics swap — owner / production_manager only, and only
+        // when the trailer has that step (skips inventory-only models).
+        if (_canRouteProduction(context))
+          () {
+            final step = _wireHydraulicStepFor(t);
+            if (step == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _WireHydraulicCard(
+                currentCode: step,
+                onSwap: (code) => _swapWireHydraulic(context, code),
               ),
             );
           }(),
@@ -2242,6 +2305,53 @@ class _PaintBoothCard extends StatelessWidget {
               onSelectionChanged: (sel) {
                 final next = sel.first;
                 if (next != currentBoothCode) onSwap(next);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Swaps the trailer's step-9 department between WIRE and HYDRAULICS.
+/// Auto-routing already puts non-gooseneck builds on Wire and the
+/// gooseneck-line series on Hydraulics; this is the per-trailer override.
+/// The API rejects a swap once the step is complete and we surface that.
+class _WireHydraulicCard extends StatelessWidget {
+  final String currentCode; // 'WIRE' | 'HYDRAULICS'
+  final ValueChanged<String> onSwap;
+
+  const _WireHydraulicCard({
+    required this.currentCode,
+    required this.onSwap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: [
+            const Icon(Icons.cable_outlined, size: 18, color: AppColors.disabled),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Wire / Hydraulics',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'WIRE', label: Text('Wire')),
+                ButtonSegment(value: 'HYDRAULICS', label: Text('Hydraulic')),
+              ],
+              selected: {currentCode},
+              showSelectedIcon: false,
+              onSelectionChanged: (sel) {
+                final next = sel.first;
+                if (next != currentCode) onSwap(next);
               },
             ),
           ],

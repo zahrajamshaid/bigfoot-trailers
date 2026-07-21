@@ -23,6 +23,7 @@ import {
   FulfilmentType,
 } from './dto/sale-status.dto';
 import { PaintBoothCode } from './dto/paint-booth.dto';
+import { WireHydraulicCode } from './dto/wire-hydraulic.dto';
 
 // trailer.sizeFt is a free-form string ("24" / "26ft" / "20'"); pull the
 // leading number and return it as feet. Mirrors the helper in the workflow
@@ -42,6 +43,7 @@ import {
   DeliveryStatus,
   DeliveryType,
   CustomerType,
+  ProductionStepStatus,
 } from '@prisma/client';
 
 /** Select shape for trailer detail — includes model, customer, location, and current step info. */
@@ -949,6 +951,71 @@ export class TrailersService {
       await this.prisma.productionStep.update({
         where: { id: paintStep.id },
         data: { departmentId: targetBooth.id },
+      });
+    }
+
+    return this.prisma.trailer.findUnique({
+      where: { id },
+      select: TRAILER_DETAIL_SELECT,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATCH /trailers/:id/wire-hydraulic — swap step 9 between WIRE / HYDRAULICS
+  //
+  // Step 9 of every line is one or the other, and QC_5 inspects whichever ran.
+  // Auto-routing sends XP / Yeti / Deck-Over to WIRE and the gooseneck-line
+  // series (gooseneck_dump, gooseneck_yeti, cxp) to HYDRAULICS. This is the
+  // manual override for a specific build, mirroring the paint-booth swap:
+  // the existing step is repointed, so its status and queue position survive.
+  // ---------------------------------------------------------------------------
+  async setWireHydraulic(id: bigint, code: WireHydraulicCode) {
+    const trailer = await this.prisma.trailer.findUnique({
+      where: { id },
+      select: { id: true, soNumber: true },
+    });
+    if (!trailer) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
+    }
+
+    const targetDept = await this.prisma.department.findUnique({
+      where: { code },
+      select: { id: true, code: true },
+    });
+    if (!targetDept) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Department "${code}" missing — seed misconfiguration.`,
+      );
+    }
+
+    const step = await this.prisma.productionStep.findFirst({
+      where: {
+        trailerId: id,
+        department: { code: { in: ['WIRE', 'HYDRAULICS'] } },
+      },
+      select: { id: true, departmentId: true, status: true },
+    });
+    if (!step) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'Trailer has no wire/hydraulics production_step — model may be inventory-only.',
+      );
+    }
+
+    // Once the step is finished, moving it would rewrite history (and the
+    // work is already done in the other department). Nothing to swap.
+    if (step.status === ProductionStepStatus.complete) {
+      throw new AppError(
+        ErrorCode.BAD_REQUEST,
+        'This trailer has already finished wire/hydraulics — it can no longer be switched.',
+      );
+    }
+
+    if (step.departmentId !== targetDept.id) {
+      await this.prisma.productionStep.update({
+        where: { id: step.id },
+        data: { departmentId: targetDept.id },
       });
     }
 

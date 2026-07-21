@@ -7,3 +7,4 @@ export { ToggleHotDto } from './hot.dto';
 export { UploadQbPdfDto } from './qb-pdf.dto';
 export { UpdateSaleStatusDto, TrailerSaleStatusDto } from './sale-status.dto';
 export { SetPaintBoothDto, PaintBoothCode } from './paint-booth.dto';
+export { SetWireHydraulicDto, WireHydraulicCode } from './wire-hydraulic.dto';

@@ -85,6 +85,11 @@ const mockPrisma = {
   },
   productionStep: {
     findMany: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
+  },
+  department: {
+    findUnique: jest.fn(),
   },
   qcInspection: {
     findMany: jest.fn(),
@@ -486,6 +491,78 @@ describe('TrailersService', () => {
       const so = result.salesOrder as Record<string, unknown>;
 
       expect(so.total).toBeUndefined();
+    });
+  });
+
+  // =========================================================================
+  // setWireHydraulic — step-9 override (WIRE <-> HYDRAULICS)
+  // =========================================================================
+  describe('setWireHydraulic', () => {
+    const wireDept = { id: 30, code: 'WIRE' };
+
+    beforeEach(() => {
+      mockPrisma.trailer.findUnique.mockResolvedValue({
+        id: BigInt(1),
+        soNumber: 'SO-1001',
+      });
+      mockPrisma.department.findUnique.mockResolvedValue(wireDept);
+    });
+
+    it('repoints the step-9 department, preserving the step itself', async () => {
+      mockPrisma.productionStep.findFirst.mockResolvedValue({
+        id: BigInt(90),
+        departmentId: 31, // currently HYDRAULICS
+        status: 'waiting',
+      });
+
+      await service.setWireHydraulic(BigInt(1), 'WIRE' as never);
+
+      // Same step row is updated — status/queue position are untouched.
+      expect(mockPrisma.productionStep.update).toHaveBeenCalledWith({
+        where: { id: BigInt(90) },
+        data: { departmentId: 30 },
+      });
+    });
+
+    it('is a no-op when it is already on the target department', async () => {
+      mockPrisma.productionStep.findFirst.mockResolvedValue({
+        id: BigInt(90),
+        departmentId: 30, // already WIRE
+        status: 'waiting',
+      });
+
+      await service.setWireHydraulic(BigInt(1), 'WIRE' as never);
+
+      expect(mockPrisma.productionStep.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses once the wire/hydraulics step is complete', async () => {
+      mockPrisma.productionStep.findFirst.mockResolvedValue({
+        id: BigInt(90),
+        departmentId: 31,
+        status: 'complete',
+      });
+
+      await expect(
+        service.setWireHydraulic(BigInt(1), 'WIRE' as never),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+      expect(mockPrisma.productionStep.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a trailer with no wire/hydraulics step (inventory-only)', async () => {
+      mockPrisma.productionStep.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.setWireHydraulic(BigInt(1), 'WIRE' as never),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+    });
+
+    it('404s on a missing trailer', async () => {
+      mockPrisma.trailer.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.setWireHydraulic(BigInt(999), 'WIRE' as never),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     });
   });
 

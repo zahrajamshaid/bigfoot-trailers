@@ -57,6 +57,10 @@ abstract class TrailerRepository {
   /// PAINT_A for ≥25ft trailers on the server.
   Future<Trailer> setPaintBooth(int id, String code);
 
+  /// Move the trailer's step-9 department. [code] is `WIRE` or
+  /// `HYDRAULICS`. Rejected server-side once that step is complete.
+  Future<Trailer> setWireHydraulic(int id, String code);
+
   Future<void> addAddon(int trailerId, Map<String, dynamic> data);
 
   Future<void> removeAddon(int trailerId, int addonId);
