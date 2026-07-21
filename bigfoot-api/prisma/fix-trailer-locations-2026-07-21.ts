@@ -31,13 +31,16 @@ const prisma = createPrismaClient();
 const DRY_RUN = process.env['DRY_RUN'] === 'true';
 
 // Yard moves: SO number -> location code the trailer is physically at now.
-const YARD_MOVES: Record<string, 'JACKSONVILLE' | 'ATLANTA'> = {
+const YARD_MOVES: Record<string, 'JACKSONVILLE' | 'ATLANTA' | 'TALLAHASSEE'> = {
   '6680': 'JACKSONVILLE',
   '6999': 'JACKSONVILLE',
   '6778': 'JACKSONVILLE',
   '6859': 'ATLANTA',
   '6904': 'ATLANTA',
   '6844': 'ATLANTA',
+  // Already standing at Jim's (Tallahassee) but still earmarked for Mulberry,
+  // so it kept reading as "still to ship". Align the intended yard.
+  '6959': 'TALLAHASSEE',
 };
 
 // Customer orders that have gone out to the customer.
