@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ProductionStepStatus, TrailerStatus } from '@prisma/client';
+import { ProductionStepStatus } from '@prisma/client';
 import { AppError, ErrorCode } from '../../common/errors';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService } from '../admin/audit-log.service';
@@ -97,7 +97,9 @@ export class TrailerOptionsService {
       },
       include: {
         departments: {
-          include: { department: { select: { id: true, code: true, displayName: true } } },
+          include: {
+            department: { select: { id: true, code: true, displayName: true } },
+          },
         },
       },
     });
@@ -190,7 +192,10 @@ export class TrailerOptionsService {
       },
     });
     if (!row) {
-      throw new AppError(ErrorCode.NOT_FOUND, `Option assignment ${addonDeptId} not found`);
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `Option assignment ${addonDeptId} not found`,
+      );
     }
     if (row.acknowledgedAt) return row; // idempotent
 
@@ -250,7 +255,9 @@ export class TrailerOptionsService {
         addedAtDepartment: { select: { id: true, code: true, displayName: true } },
         addedByUser: { select: { id: true, fullName: true } },
         departments: {
-          include: { department: { select: { id: true, code: true, displayName: true } } },
+          include: {
+            department: { select: { id: true, code: true, displayName: true } },
+          },
         },
         trailer: {
           select: {
@@ -277,8 +284,7 @@ export class TrailerOptionsService {
 
     return rows.map((r) => {
       const steps = r.trailer.productionSteps;
-      const current =
-        steps.find((s) => s.status === ProductionStepStatus.active) ?? null;
+      const current = steps.find((s) => s.status === ProductionStepStatus.active) ?? null;
       // Departments that still owe work on this option.
       const outstanding = r.departments.filter((d) => d.acknowledgedAt === null);
 
