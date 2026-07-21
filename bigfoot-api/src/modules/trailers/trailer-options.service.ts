@@ -69,10 +69,13 @@ export class TrailerOptionsService {
       },
     });
 
-    // Anything past pending_production means steel is already being cut.
-    const inProduction =
-      trailer.status !== TrailerStatus.pending_production &&
-      trailer.status !== TrailerStatus.delivered;
+    // EVERY option lands on the production manager's review box. An option can
+    // only ever be added to a trailer that already exists (nothing attaches
+    // addons at create time), so anything added here is a change to an order
+    // that was already placed — the shop wants to see all of them, not only the
+    // ones added after the line started. A trailer still sitting in
+    // pending_production is exactly the case that was silently skipped before.
+    const addedAfterOrder = true;
 
     // De-dupe: the same department twice is one responsibility, not two.
     const deptIds = [...new Set(dto.installDepartmentIds ?? [])];
@@ -83,9 +86,11 @@ export class TrailerOptionsService {
         addonName: dto.addonName,
         notes: dto.notes,
         addedByUserId: userId,
-        addedDuringProduction: inProduction,
-        addedAtStepOrder: inProduction ? (activeStep?.stepOrder ?? null) : null,
-        addedAtDepartmentId: inProduction ? (activeStep?.departmentId ?? null) : null,
+        addedDuringProduction: addedAfterOrder,
+        // Where the build actually was, when it was already on the line. Null
+        // for a trailer that hasn't started — there's no step it "got past".
+        addedAtStepOrder: activeStep?.stepOrder ?? null,
+        addedAtDepartmentId: activeStep?.departmentId ?? null,
         departments: {
           create: deptIds.map((departmentId) => ({ departmentId })),
         },
@@ -101,7 +106,9 @@ export class TrailerOptionsService {
       userId: Number(userId),
       entityType: 'trailer',
       entityId: Number(trailerId),
-      action: inProduction ? 'option.added_during_production' : 'option.added',
+      // The audit distinguishes the two cases even though both now alert:
+      // "during production" means the line had already started on it.
+      action: activeStep ? 'option.added_during_production' : 'option.added',
       newValues: {
         option: dto.addonName,
         fittedBy: addon.departments.map((d) => d.department.code).join(', ') || null,
@@ -109,12 +116,13 @@ export class TrailerOptionsService {
       },
     });
 
-    if (inProduction) {
-      this.logger.warn(
-        `Option "${dto.addonName}" added to SO ${trailer.soNumber} DURING production ` +
-          `(past ${activeStep?.department.code ?? 'unknown step'}) — flagged for the production manager`,
-      );
-    }
+    this.logger.warn(
+      activeStep
+        ? `Option "${dto.addonName}" added to SO ${trailer.soNumber} DURING production ` +
+            `(past ${activeStep.department.code}) — flagged for the production manager`
+        : `Option "${dto.addonName}" added to SO ${trailer.soNumber} before the line started ` +
+            `— flagged for the production manager`,
+    );
     return addon;
   }
 

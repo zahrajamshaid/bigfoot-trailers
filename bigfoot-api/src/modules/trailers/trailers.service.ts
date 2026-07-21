@@ -1265,11 +1265,19 @@ export class TrailersService {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
     }
 
+    // This is the legacy add-on route (the app now uses POST /trailers/:id/
+    // options, which also captures who fits it). Anything created here used to
+    // default addedDuringProduction=false and get no department rows, so an
+    // option added this way slipped past the production manager's review box
+    // entirely. Flag it like any other option change so it still surfaces —
+    // it just arrives with no department assigned, which the review screen
+    // shows as "no department yet".
     return this.prisma.trailerAddon.create({
       data: {
         trailerId,
         addonName: dto.addonName,
         notes: dto.notes ?? null,
+        addedDuringProduction: true,
       },
       select: { id: true, addonName: true, notes: true, addedAt: true },
     });

@@ -154,7 +154,11 @@ describe('TrailerOptionsService', () => {
       );
     });
 
-    it('does NOT flag an option added before the build starts', async () => {
+    // Every option is a change to an order that already exists, so it always
+    // reaches the production manager's review box — including on a trailer
+    // that hasn't started yet. That case used to be skipped silently, which is
+    // exactly how an added option went unseen.
+    it('flags an option added BEFORE the build starts (still needs review)', async () => {
       prisma.trailer.findUnique.mockResolvedValue({
         id: 5n,
         soNumber: '6995',
@@ -168,9 +172,34 @@ describe('TrailerOptionsService', () => {
       expect(prisma.trailerAddon.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            addedDuringProduction: false,
+            addedDuringProduction: true,
+            // Nothing was active, so there's no step it "got past".
             addedAtStepOrder: null,
+            addedAtDepartmentId: null,
           }),
+        }),
+      );
+    });
+
+    it.each([
+      ['pending_production', null],
+      ['in_production', { stepOrder: 3, departmentId: 8, department: { code: 'XP_FIN' } }],
+      ['ready_for_delivery', null],
+      ['delivered', null],
+    ])('flags the option whatever state the trailer is in: %s', async (status, step) => {
+      prisma.trailer.findUnique.mockResolvedValue({
+        id: 5n,
+        soNumber: '6995',
+        status,
+      });
+      prisma.productionStep.findFirst.mockResolvedValue(step);
+      prisma.trailerAddon.create.mockResolvedValue(addon);
+
+      await service.addOption(5n, { addonName: 'Spare tire' }, 9n);
+
+      expect(prisma.trailerAddon.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ addedDuringProduction: true }),
         }),
       );
     });
