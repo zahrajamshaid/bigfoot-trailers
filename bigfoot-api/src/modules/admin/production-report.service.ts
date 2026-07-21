@@ -225,6 +225,7 @@ export class ProductionReportService {
       deliveredCount,
       customerOrderRows,
       openStockSoldRows,
+      stockOrdersPlaced,
     ] = await Promise.all([
       // Entered production: first production step became active in window.
       this.prisma.productionStep.count({
@@ -299,9 +300,24 @@ export class ProductionReportService {
         },
         select: {
           trailerModelId: true,
+          soldAt: true,
           trailerModel: {
             select: { id: true, code: true, displayName: true, series: true },
           },
+          // Used to tell "sold off the line" from "sold out of the yard": if any
+          // step was still unfinished when it sold, it was sold out of
+          // production. See splitStockSaleByStage below.
+          productionSteps: { select: { completedAt: true } },
+        },
+      }),
+      // Open-stock ORDERS PUT IN during the window — stock builds entered in
+      // this period (no customer attached; a customer order is counted under
+      // customerOrders instead). Keyed on createdAt: this is when the order was
+      // placed, regardless of when the build starts or sells.
+      this.prisma.trailer.count({
+        where: {
+          isStockBuild: true,
+          createdAt: { gte: start, lt: end },
         },
       }),
     ]);
@@ -317,6 +333,29 @@ export class ProductionReportService {
     const customerOrders = customerOrderRows.length;
     const openStockSold = openStockSoldRows.length;
     const totalSales = customerOrders + openStockSold;
+
+    // Split the open-stock sales by where the trailer was when it sold.
+    // "Out of production" = it was still being built at the moment of sale
+    // (some step hadn't finished yet). "Out of inventory" = the build was
+    // already complete and it was sitting as stock. A trailer that never ran
+    // the line at all (inventory-only series) counts as inventory.
+    // The two always add up to openStockSold.
+    let openStockSoldFromProduction = 0;
+    for (const t of openStockSoldRows) {
+      // Defensive: never let a missing relation crash the whole report — a
+      // trailer with no steps is inventory by definition anyway.
+      const steps = t.productionSteps ?? [];
+      const soldAt = t.soldAt;
+      const stillBuildingAtSale =
+        steps.length > 0 &&
+        steps.some(
+          (s) =>
+            s.completedAt === null ||
+            (soldAt !== null && s.completedAt.getTime() > soldAt.getTime()),
+        );
+      if (stillBuildingAtSale) openStockSoldFromProduction += 1;
+    }
+    const openStockSoldFromInventory = openStockSold - openStockSoldFromProduction;
 
     // ── Sold vs Built per model ────────────────────────────────────────────
     type ModelAgg = {
@@ -390,6 +429,11 @@ export class ProductionReportService {
       sales: {
         customerOrders,
         openStockSold,
+        // Open-stock orders entered in this window (no customer attached).
+        stockOrdersPlaced,
+        // openStockSoldFromProduction + openStockSoldFromInventory === openStockSold
+        openStockSoldFromProduction,
+        openStockSoldFromInventory,
         totalSales,
       },
       soldVsBuilt,

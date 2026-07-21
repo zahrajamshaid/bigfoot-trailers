@@ -553,15 +553,33 @@ class HealthCheckThroughput {
 class HealthCheckSales {
   final int customerOrders;
   final int openStockSold;
+
+  /// Open-stock orders PUT IN during the period (no customer attached).
+  final int stockOrdersPlaced;
+
+  /// Of [openStockSold]: sold while still on the line vs sold out of the yard.
+  /// These two always add up to [openStockSold].
+  final int openStockSoldFromProduction;
+  final int openStockSoldFromInventory;
+
   final int totalSales;
   const HealthCheckSales({
     required this.customerOrders,
     required this.openStockSold,
+    required this.stockOrdersPlaced,
+    required this.openStockSoldFromProduction,
+    required this.openStockSoldFromInventory,
     required this.totalSales,
   });
   factory HealthCheckSales.fromJson(Map<String, dynamic> j) => HealthCheckSales(
         customerOrders: (j['customerOrders'] as num).toInt(),
         openStockSold: (j['openStockSold'] as num).toInt(),
+        // Default to 0 so an older API response still parses.
+        stockOrdersPlaced: (j['stockOrdersPlaced'] as num?)?.toInt() ?? 0,
+        openStockSoldFromProduction:
+            (j['openStockSoldFromProduction'] as num?)?.toInt() ?? 0,
+        openStockSoldFromInventory:
+            (j['openStockSoldFromInventory'] as num?)?.toInt() ?? 0,
         totalSales: (j['totalSales'] as num).toInt(),
       );
 }
