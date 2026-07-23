@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   diffFields,
@@ -153,6 +153,8 @@ const TRAILER_LIST_SELECT = {
 
 @Injectable()
 export class TrailersService {
+  private readonly logger = new Logger(TrailersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly workflowGenerator: WorkflowGeneratorService,
@@ -262,10 +264,7 @@ export class TrailersService {
     // that hasn't been sold yet — the exclusion was hiding those from the
     // picker (SO 6862 was the report), which made otherwise-eligible
     // trailers un-bookable without a data workaround.
-    if (
-      query.status === TrailerStatus.ready_for_delivery &&
-      !query.includeOpenStock
-    ) {
+    if (query.status === TrailerStatus.ready_for_delivery && !query.includeOpenStock) {
       where.NOT = {
         ...(where.NOT as Prisma.TrailerWhereInput | undefined),
         isStockBuild: true,
@@ -524,8 +523,7 @@ export class TrailersService {
             dto.customerId || dto.soldToName?.trim()
               ? TrailerSaleStatus.sold
               : TrailerSaleStatus.available,
-          soldAt:
-            dto.customerId || dto.soldToName?.trim() ? new Date() : null,
+          soldAt: dto.customerId || dto.soldToName?.trim() ? new Date() : null,
         },
         select: TRAILER_DETAIL_SELECT,
       });
@@ -863,12 +861,17 @@ export class TrailersService {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${id} not found`);
     }
 
+    // TEMP (owner request): the 25ft cap on Booth A is lifted — a 28ft trailer
+    // was being blocked from B→A. This endpoint is owner/production-manager
+    // only, so we trust whoever runs the swap that the booth can take it. The
+    // over-cap move is logged so it stays visible; to restore the cap, turn the
+    // warning below back into the AppError throw it replaced.
     if (code === PaintBoothCode.PAINT_A) {
       const len = parsePaintLengthFt(trailer.sizeFt);
       if (len !== null && len >= 25) {
-        throw new AppError(
-          ErrorCode.BAD_REQUEST,
-          `PAINT_A only fits trailers under 25ft (this trailer is ${len}ft). Route to PAINT_B.`,
+        this.logger.warn(
+          `Manual move of SO ${trailer.soNumber} (${len}ft) onto PAINT_A — ` +
+            `above the usual 25ft booth cap (owner/PM override)`,
         );
       }
     }
@@ -1122,10 +1125,7 @@ export class TrailersService {
       // Only act on the sold transition when sales picked a fulfilment type.
       // If we just flipped from delivered → ready_for_delivery above, the
       // trailer is now legitimately a candidate for a scheduled Delivery.
-      if (
-        dto.saleStatus === TrailerSaleStatusDto.SOLD &&
-        dto.fulfilmentType != null
-      ) {
+      if (dto.saleStatus === TrailerSaleStatusDto.SOLD && dto.fulfilmentType != null) {
         // Don't double up: skip when a live (scheduled/in_transit) delivery
         // already exists. Re-runs / accidental double-clicks stay idempotent.
         const existingLive = await tx.delivery.findFirst({
@@ -1151,12 +1151,9 @@ export class TrailersService {
             });
           } else {
             // DELIVERY: dealer → stack_to_dealer; everyone else → single_pull.
-            const isDealer =
-              existing.customer?.customerType === CustomerType.dealer;
+            const isDealer = existing.customer?.customerType === CustomerType.dealer;
             const address =
-              dto.deliveryAddress?.trim() ||
-              existing.customer?.deliveryAddress ||
-              null;
+              dto.deliveryAddress?.trim() || existing.customer?.deliveryAddress || null;
             await tx.delivery.create({
               data: {
                 trailerId: id,
@@ -1567,13 +1564,17 @@ export class TrailersService {
       return out;
     };
 
-    const locIds = [...collect([
-      'currentLocationId',
-      'intendedStockLocationId',
-      'stockLocationId',
-    ])].map(Number).filter((n) => Number.isFinite(n));
-    const deptIds = [...collect(['departmentId'])].map(Number).filter((n) => Number.isFinite(n));
-    const modelIds = [...collect(['trailerModelId'])].map(Number).filter((n) => Number.isFinite(n));
+    const locIds = [
+      ...collect(['currentLocationId', 'intendedStockLocationId', 'stockLocationId']),
+    ]
+      .map(Number)
+      .filter((n) => Number.isFinite(n));
+    const deptIds = [...collect(['departmentId'])]
+      .map(Number)
+      .filter((n) => Number.isFinite(n));
+    const modelIds = [...collect(['trailerModelId'])]
+      .map(Number)
+      .filter((n) => Number.isFinite(n));
     const custIds = [...collect(['customerId'])].filter((s) => /^\d+$/.test(s));
 
     const [locs, depts, models, customers] = await Promise.all([
@@ -1607,9 +1608,7 @@ export class TrailersService {
       locations: new Map(locs.map((l) => [l.id, l.name || l.code])),
       departments: new Map(depts.map((d) => [d.id, d.displayName || d.code])),
       models: new Map(models.map((m) => [m.id, m.code])),
-      customers: new Map(
-        customers.map((c) => [String(c.id), c.company || c.name]),
-      ),
+      customers: new Map(customers.map((c) => [String(c.id), c.company || c.name])),
     };
   }
 }
