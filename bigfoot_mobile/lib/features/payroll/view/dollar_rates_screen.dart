@@ -85,8 +85,9 @@ class _DollarRatesScreenState extends State<DollarRatesScreen> {
     final l = AppLocalizations.of(context);
     final auth = context.watch<AuthViewModel>().state;
     final role = auth is Authenticated ? auth.user.role : '';
-    final canManage =
-        role == UserRole.owner || role == UserRole.productionManager;
+    final canManage = role == UserRole.owner ||
+        role == UserRole.office ||
+        role == UserRole.productionManager;
     final grouped = <int, List<DollarRate>>{};
     for (final r in _rates) {
       grouped.putIfAbsent(r.departmentId, () => []).add(r);

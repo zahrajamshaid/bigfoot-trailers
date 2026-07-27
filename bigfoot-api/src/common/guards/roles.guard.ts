@@ -25,6 +25,16 @@ export class RolesGuard implements CanActivate {
       return false;
     }
 
-    return requiredRoles.includes(user.role as UserRole);
+    const role = user.role as UserRole;
+
+    // OFFICE is a back-office admin peer of the owner: anywhere the owner is
+    // allowed, office is allowed too. This keeps office at full owner parity
+    // across every endpoint (present and future) without listing it on each
+    // @Roles() decorator. Owner-only routes therefore also admit office.
+    if (role === UserRole.OFFICE && requiredRoles.includes(UserRole.OWNER)) {
+      return true;
+    }
+
+    return requiredRoles.includes(role);
   }
 }

@@ -147,6 +147,7 @@ class _TrailerListScreenState extends State<TrailerListScreen> {
     // drops the SO into production directly.
     final canCreate = authState is Authenticated &&
         (authState.user.role == UserRole.owner ||
+            authState.user.role == UserRole.office ||
             authState.user.role == UserRole.productionManager ||
             authState.user.role == UserRole.sales);
 

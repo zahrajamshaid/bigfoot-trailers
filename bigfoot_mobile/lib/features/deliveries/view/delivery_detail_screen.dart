@@ -91,7 +91,9 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     final isOpen = d.status == 'scheduled' || d.status == 'in_transit';
     final canAct = role == UserRole.driver || role == UserRole.transportManager;
     final canDelete =
-        role == UserRole.transportManager || role == UserRole.owner;
+        role == UserRole.transportManager ||
+            role == UserRole.owner ||
+            role == UserRole.office;
     final hasPhone = deliveryHasCustomerPhone(d);
     // Factory-pickup deliveries are auto-created when sales marks a
     // trailer sold + pickup. They land in `scheduled` and used to have
@@ -141,6 +143,7 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
                 batch: _batch!,
                 currentTrailerId: d.trailerId,
                 canComplete: role == UserRole.owner ||
+                    role == UserRole.office ||
                     role == UserRole.transportManager,
                 busy: _actionBusy,
                 onComplete: () => _completeBatch(_batch!),

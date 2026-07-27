@@ -120,6 +120,7 @@ export class TrailersController {
   @Patch(':id')
   @Roles(
     UserRole.OWNER,
+    UserRole.OFFICE,
     UserRole.PRODUCTION_MANAGER,
     UserRole.SALES,
     UserRole.QC_INSPECTOR,
@@ -162,7 +163,7 @@ export class TrailersController {
   // PATCH /trailers/:id/sale-status — owner + sales + production_manager
   // ---------------------------------------------------------------------------
   @Patch(':id/sale-status')
-  @Roles(UserRole.OWNER, UserRole.SALES, UserRole.PRODUCTION_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.SALES, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({
     summary: 'Set the sale status (available / sale_pending / sold)',
     description:
@@ -194,7 +195,7 @@ export class TrailersController {
     summary: 'Manually move a trailer between PAINT_A and PAINT_B',
     description:
       'Production manager / owner override of the size-based auto-routing. ' +
-      'The trailer\'s paint production_step is repointed to the target booth; ' +
+      "The trailer's paint production_step is repointed to the target booth; " +
       'status / queue position are preserved. PAINT_A rejects trailers ≥25ft.',
   })
   @ApiParam({ name: 'id', type: 'number' })
@@ -219,7 +220,7 @@ export class TrailersController {
     description:
       'Production manager / owner override of the series-based auto-routing ' +
       '(XP / Yeti / Deck-Over run WIRE; the gooseneck-line series run ' +
-      'HYDRAULICS). The trailer\'s step-9 production_step is repointed to the ' +
+      "HYDRAULICS). The trailer's step-9 production_step is repointed to the " +
       'target department; status / queue position are preserved. Rejected once ' +
       'that step is already complete.',
   })
@@ -251,7 +252,7 @@ export class TrailersController {
   @ApiOperation({
     summary: 'Sales-facing terminal completion — picked up or delivered',
     description:
-      'Closes the trailer\'s open delivery and marks the trailer delivered. ' +
+      "Closes the trailer's open delivery and marks the trailer delivered. " +
       'Same end state regardless of pickup vs delivery intent. Restricted to ' +
       'owner, sales, and production_manager.',
   })

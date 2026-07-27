@@ -99,4 +99,29 @@ describe('RolesGuard', () => {
 
     expect(guard.canActivate(context)).toBe(true);
   });
+
+  it('should allow office wherever owner is allowed (owner parity)', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.OWNER]);
+    const context = createMockContext('office');
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('should allow office on an owner-only route it is not explicitly listed on', () => {
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([UserRole.OWNER, UserRole.PRODUCTION_MANAGER]);
+    const context = createMockContext('office');
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('should deny office where owner is NOT allowed (no free-for-all)', () => {
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue([UserRole.DRIVER, UserRole.TRANSPORT_MANAGER]);
+    const context = createMockContext('office');
+
+    expect(guard.canActivate(context)).toBe(false);
+  });
 });

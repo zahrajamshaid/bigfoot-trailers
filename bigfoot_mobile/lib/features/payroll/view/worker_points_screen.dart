@@ -35,7 +35,9 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
     final auth = context.watch<AuthViewModel>().state;
     final user = auth is Authenticated ? auth.user : null;
     final isManager = user != null &&
-        (user.role == UserRole.owner || user.role == UserRole.productionManager);
+        (user.role == UserRole.owner ||
+            user.role == UserRole.office ||
+            user.role == UserRole.productionManager);
 
     return Scaffold(
       body: RefreshIndicator(

@@ -31,7 +31,8 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
   bool get _canDelete {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
-    return auth.user.role == UserRole.owner;
+    return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.office;
   }
 
   @override

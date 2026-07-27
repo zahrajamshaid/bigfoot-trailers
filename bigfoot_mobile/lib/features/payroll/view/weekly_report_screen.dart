@@ -62,8 +62,9 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     final role = auth is Authenticated ? auth.user.role : '';
     // Backend RBAC was extended to let production_manager lock the week,
     // so mirror it here.
-    final canLock =
-        role == UserRole.owner || role == UserRole.productionManager;
+    final canLock = role == UserRole.owner ||
+        role == UserRole.office ||
+        role == UserRole.productionManager;
 
     return Scaffold(
       appBar: AppBar(title: Text(l.payrollWeeklyReportTitle)),

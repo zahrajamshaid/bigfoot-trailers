@@ -281,6 +281,7 @@ class _TrailerDetailBody extends StatelessWidget {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.office ||
         auth.user.role == UserRole.productionManager;
   }
 
@@ -292,6 +293,7 @@ class _TrailerDetailBody extends StatelessWidget {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.office ||
         auth.user.role == UserRole.productionManager ||
         auth.user.role == UserRole.sales ||
         auth.user.role == UserRole.qcInspector;
@@ -435,6 +437,7 @@ bool _canEditTrailer(BuildContext context) {
   final auth = context.read<AuthViewModel>().state;
   if (auth is! Authenticated) return false;
   return auth.user.role == UserRole.owner ||
+      auth.user.role == UserRole.office ||
       auth.user.role == UserRole.productionManager ||
       auth.user.role == UserRole.sales ||
       auth.user.role == UserRole.qcInspector;
@@ -460,6 +463,7 @@ bool _canRouteProduction(BuildContext context) {
   final auth = context.read<AuthViewModel>().state;
   if (auth is! Authenticated) return false;
   return auth.user.role == UserRole.owner ||
+      auth.user.role == UserRole.office ||
       auth.user.role == UserRole.productionManager;
 }
 
@@ -793,6 +797,7 @@ class _SaleStatusSection extends StatelessWidget {
     if (auth is! Authenticated) return false;
     final role = auth.user.role;
     return role == UserRole.owner ||
+        role == UserRole.office ||
         role == UserRole.sales ||
         role == UserRole.productionManager;
   }
@@ -1459,6 +1464,7 @@ class _WorkflowTab extends StatelessWidget {
     final auth = context.read<AuthViewModel>().state;
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
+        auth.user.role == UserRole.office ||
         auth.user.role == UserRole.productionManager ||
         auth.user.role == UserRole.qcInspector;
   }
