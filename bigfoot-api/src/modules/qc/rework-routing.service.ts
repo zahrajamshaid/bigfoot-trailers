@@ -26,7 +26,7 @@ export class ReworkRoutingService {
     failNotes: string | null,
     tx: Prisma.TransactionClient,
   ): Promise<ReworkResult> {
-    // 1. Get the trailer's series from its model
+    // 1. Get the trailer's series from its model (for error context)
     const trailer = await tx.trailer.findUnique({
       where: { id: trailerId },
       select: {
@@ -38,39 +38,36 @@ export class ReworkRoutingService {
       throw new AppError(ErrorCode.NOT_FOUND, `Trailer with id ${trailerId} not found`);
     }
 
-    // 2. Validate the target department exists in this trailer's workflow
-    const validTemplate = await tx.workflowTemplate.findFirst({
+    // 2. Validate the target against the trailer's OWN production steps.
+    //
+    // A valid rework target is any department this trailer actually has a
+    // production step in — that set *is* the trailer's real workflow. It can
+    // legitimately diverge from the series' workflow_templates: the paint
+    // booth swap (PAINT_A ⇄ PAINT_B) and the wire/hydraulics swap repoint a
+    // step's department without touching the template. Validating against the
+    // template instead rejected any trailer sitting on the "other" side of one
+    // of those swaps — e.g. a Yeti moved to PAINT_B when the template names
+    // PAINT_A — with "this department is not in the trailer's workflow", even
+    // though PAINT_B is exactly where the trailer physically is. Checking the
+    // production step directly fixes that permanently and generally.
+    const reworkStep = await tx.productionStep.findFirst({
       where: {
-        series: trailer.trailerModel.series,
+        trailerId,
         departmentId: targetDepartmentId,
       },
-      include: {
+      select: {
+        id: true,
+        reworkCount: true,
         department: {
           select: { id: true, code: true, displayName: true, isQcStep: true },
         },
       },
     });
 
-    if (!validTemplate) {
-      throw new AppError(
-        ErrorCode.QC_INVALID_REWORK_TARGET,
-        `Department ${targetDepartmentId} is not a valid production department in this trailer's workflow series (${trailer.trailerModel.series})`,
-      );
-    }
-
-    // 3. Find the production_step for (trailerId, targetDepartmentId)
-    const reworkStep = await tx.productionStep.findFirst({
-      where: {
-        trailerId,
-        departmentId: targetDepartmentId,
-      },
-      select: { id: true, reworkCount: true },
-    });
-
     if (!reworkStep) {
       throw new AppError(
         ErrorCode.QC_INVALID_REWORK_TARGET,
-        `No production step found for trailer ${trailerId} in department ${targetDepartmentId}`,
+        `Department ${targetDepartmentId} is not part of trailer ${trailerId}'s workflow (series ${trailer.trailerModel.series})`,
       );
     }
 
@@ -104,8 +101,8 @@ export class ReworkRoutingService {
 
     return {
       reworkStepId: reworkStep.id,
-      reworkTargetDeptId: validTemplate.department.id,
-      reworkTargetDepartment: validTemplate.department.displayName,
+      reworkTargetDeptId: reworkStep.department.id,
+      reworkTargetDepartment: reworkStep.department.displayName,
       reworkQueuePosition: 1,
     };
   }

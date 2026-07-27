@@ -31,8 +31,10 @@ describe('ReworkRoutingService', () => {
           trailerModel: { series: 'xp' },
         }),
       },
-      workflowTemplate: {
+      productionStep: {
         findFirst: jest.fn().mockResolvedValue({
+          id: BigInt(199),
+          reworkCount: 0,
           department: {
             id: 1,
             code: 'XP_JIG',
@@ -40,9 +42,6 @@ describe('ReworkRoutingService', () => {
             isQcStep: false,
           },
         }),
-      },
-      productionStep: {
-        findFirst: jest.fn().mockResolvedValue({ id: BigInt(199), reworkCount: 0 }),
         updateMany: jest.fn(),
         update: jest.fn(),
       },
@@ -89,7 +88,16 @@ describe('ReworkRoutingService', () => {
   it('should increment reworkCount on subsequent reworks', async () => {
     const tx = createMockTx({
       productionStep: {
-        findFirst: jest.fn().mockResolvedValue({ id: BigInt(199), reworkCount: 2 }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: BigInt(199),
+          reworkCount: 2,
+          department: {
+            id: 1,
+            code: 'XP_JIG',
+            displayName: 'XP Jig Weld',
+            isQcStep: false,
+          },
+        }),
         updateMany: jest.fn(),
         update: jest.fn(),
       },
@@ -104,16 +112,48 @@ describe('ReworkRoutingService', () => {
     );
   });
 
-  it('should throw QC_INVALID_REWORK_TARGET if department not in workflow', async () => {
+  it('should throw QC_INVALID_REWORK_TARGET if department is not part of the trailer workflow', async () => {
     const tx = createMockTx({
-      workflowTemplate: {
-        findFirst: jest.fn().mockResolvedValue(null), // Not in workflow
+      productionStep: {
+        findFirst: jest.fn().mockResolvedValue(null), // Trailer has no step there
+        updateMany: jest.fn(),
+        update: jest.fn(),
       },
     });
 
     await expect(service.routeRework(BigInt(1), 999, 'Bad', tx)).rejects.toMatchObject({
       errorCode: ErrorCode.QC_INVALID_REWORK_TARGET,
     });
+  });
+
+  it('should route rework to PAINT_B even when the series template names PAINT_A', async () => {
+    // Regression: a Yeti trailer manually moved to booth B has a PAINT_B
+    // production step while the yeti template lists PAINT_A. Rework must
+    // follow the trailer's actual step (PAINT_B), not the template, and must
+    // NOT throw "department not in workflow".
+    const tx = createMockTx({
+      productionStep: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: BigInt(707),
+          reworkCount: 0,
+          department: {
+            id: 42,
+            code: 'PAINT_B',
+            displayName: 'Paint Booth B',
+            isQcStep: false,
+          },
+        }),
+        updateMany: jest.fn(),
+        update: jest.fn(),
+      },
+    });
+
+    const result = await service.routeRework(BigInt(498), 42, 'Runs in paint', tx);
+
+    expect(result.reworkStepId).toBe(BigInt(707));
+    expect(result.reworkTargetDeptId).toBe(42);
+    expect(result.reworkTargetDepartment).toBe('Paint Booth B');
+    expect(result.reworkQueuePosition).toBe(1);
   });
 
   it('should throw if trailer not found', async () => {
