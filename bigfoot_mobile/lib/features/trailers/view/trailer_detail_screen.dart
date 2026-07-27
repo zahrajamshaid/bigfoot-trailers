@@ -302,6 +302,8 @@ class _TrailerDetailBody extends StatelessWidget {
     if (auth is! Authenticated) return false;
     return auth.user.role == UserRole.owner ||
         auth.user.role == UserRole.productionManager ||
+        // QC takes these photos at each stage, so they can review them here.
+        auth.user.role == UserRole.qcInspector ||
         // Sales show customers build progress from these photos.
         auth.user.role == UserRole.sales ||
         auth.user.role == UserRole.office;
