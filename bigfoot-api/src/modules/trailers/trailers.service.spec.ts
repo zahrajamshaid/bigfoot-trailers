@@ -231,10 +231,7 @@ describe('TrailersService', () => {
       expect(where.AND).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            OR: [
-              { currentLocationId: JAX_ID },
-              { intendedStockLocationId: JAX_ID },
-            ],
+            OR: [{ currentLocationId: JAX_ID }, { intendedStockLocationId: JAX_ID }],
           }),
         ]),
       );
@@ -252,9 +249,7 @@ describe('TrailersService', () => {
 
       const where = mockPrisma.trailer.findMany.mock.calls[0]?.[0]?.where;
       expect(where.AND).toEqual(
-        expect.arrayContaining([
-          { status: { not: 'delivered' } },
-        ]),
+        expect.arrayContaining([{ status: { not: 'delivered' } }]),
       );
     });
 
@@ -550,6 +545,76 @@ describe('TrailersService', () => {
         errorCode: ErrorCode.NOT_FOUND,
       });
     });
+
+    it('generates a full workflow when promoting inventory (misc) → a production series', async () => {
+      // Trailer currently on the inventory series (misc), no steps.
+      mockPrisma.trailer.findUnique.mockResolvedValue({
+        id: BigInt(1),
+        soNumber: '7089',
+        isStockBuild: false,
+        saleStatus: 'sold',
+        sizeFt: "22'",
+        trailerModel: { series: 'inventory' },
+      });
+      // Switching to an XP model.
+      mockPrisma.trailerModel.findUnique.mockResolvedValue({ id: 2, series: 'xp' });
+
+      const txUpdate = jest.fn().mockResolvedValue({});
+      const txFindUnique = jest
+        .fn()
+        .mockResolvedValue({ ...mockTrailer, status: 'pending_production' });
+      mockPrisma.$transaction.mockImplementation(async (fn: any) =>
+        fn({
+          trailer: { update: txUpdate, findUnique: txFindUnique },
+          productionStep: { count: jest.fn().mockResolvedValue(0) },
+        }),
+      );
+
+      await service.update(BigInt(1), { trailerModelId: 2 });
+
+      // Generated the line for the new series with the trailer's own size.
+      expect(mockWorkflowGenerator.generateSteps).toHaveBeenCalledWith(
+        BigInt(1),
+        'xp',
+        expect.anything(),
+        "22'",
+      );
+      // Dropped into pending_production so it enters the queue at step 1.
+      expect(txUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'pending_production' } }),
+      );
+    });
+
+    it('does NOT generate a duplicate workflow if the promoted trailer already has steps', async () => {
+      mockPrisma.trailer.findUnique.mockResolvedValue({
+        id: BigInt(1),
+        soNumber: '7089',
+        isStockBuild: false,
+        saleStatus: 'sold',
+        sizeFt: "22'",
+        trailerModel: { series: 'inventory' },
+      });
+      mockPrisma.trailerModel.findUnique.mockResolvedValue({ id: 2, series: 'xp' });
+
+      const reconcileSpy = jest
+        .spyOn(service as any, 'reconcileStepsToSeries')
+        .mockResolvedValue(undefined);
+      mockPrisma.$transaction.mockImplementation(async (fn: any) =>
+        fn({
+          trailer: {
+            update: jest.fn(),
+            findUnique: jest.fn().mockResolvedValue(mockTrailer),
+          },
+          productionStep: { count: jest.fn().mockResolvedValue(12) },
+        }),
+      );
+
+      await service.update(BigInt(1), { trailerModelId: 2 });
+
+      expect(mockWorkflowGenerator.generateSteps).not.toHaveBeenCalled();
+      expect(reconcileSpy).toHaveBeenCalledWith(expect.anything(), BigInt(1), 'xp');
+      reconcileSpy.mockRestore();
+    });
   });
 
   // =========================================================================
@@ -754,8 +819,8 @@ describe('TrailersService', () => {
   // =========================================================================
   describe('markCompleted', () => {
     beforeEach(() => {
-      mockPrisma.$transaction.mockImplementation(
-        (fn: (tx: any) => Promise<any>) => fn(mockPrisma),
+      mockPrisma.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) =>
+        fn(mockPrisma),
       );
     });
 

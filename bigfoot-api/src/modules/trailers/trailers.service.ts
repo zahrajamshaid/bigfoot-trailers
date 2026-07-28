@@ -598,6 +598,9 @@ export class TrailersService {
         // and sync `soldAt` accordingly. Without this the sales counts on
         // Health Check still drift on unrelated edits.
         saleStatus: true,
+        // sizeFt drives paint-booth / wire-vs-hydraulics routing when we have
+        // to generate a workflow on the fly (inventory → production promotion).
+        sizeFt: true,
         trailerModel: { select: { series: true } },
       },
     });
@@ -753,22 +756,34 @@ export class TrailersService {
       data.soldAt = data.saleStatus === TrailerSaleStatus.sold ? new Date() : null;
     }
 
-    // Detect a real series change (workflow → workflow with a different
-    // series). Same-series model swaps (e.g. XP_14ET → XP_17K) don't touch
-    // production_steps. Transitions involving the inventory series have no
-    // sensible automatic step mapping — those require a manual fix.
+    // Classify the model swap by what it does to the workflow.
     // existing.trailerModel can be undefined under test mocks that don't
     // include the relation; treat that as "unknown old series" and skip
-    // the reconcile rather than crashing.
+    // any step work rather than crashing.
     const oldSeries = existing.trailerModel?.series ?? null;
+    const changingSeries =
+      newSeries !== null && oldSeries !== null && newSeries !== oldSeries;
+
+    // Workflow → workflow swap (e.g. XP → Yeti): re-route the existing steps
+    // to the new series' template. Same-series model swaps (XP_14ET → XP_17K)
+    // don't touch production_steps.
     const seriesChanged =
-      newSeries !== null &&
-      oldSeries !== null &&
-      newSeries !== oldSeries &&
+      changingSeries &&
       oldSeries !== TrailerSeries.inventory &&
       newSeries !== TrailerSeries.inventory;
 
-    if (!seriesChanged) {
+    // Inventory (misc) → a real production series. An inventory trailer never
+    // had a workflow, so there is nothing to reconcile — we generate the full
+    // line now, exactly the way create() does, and drop it into
+    // pending_production so it enters the queue at step 1. Previously this
+    // transition was skipped and the trailer sat in ready_for_delivery with no
+    // steps (had to be fixed by hand — see fix-generate-workflow-7089).
+    const promotingFromInventory =
+      changingSeries &&
+      oldSeries === TrailerSeries.inventory &&
+      newSeries !== TrailerSeries.inventory;
+
+    if (!seriesChanged && !promotingFromInventory) {
       return this.prisma.trailer.update({
         where: { id },
         data,
@@ -776,15 +791,36 @@ export class TrailersService {
       });
     }
 
+    // newSeries is non-null whenever seriesChanged or promotingFromInventory
+    // is true (both require changingSeries).
+    const nextSizeFt = dto.sizeFt !== undefined ? dto.sizeFt : existing.sizeFt;
+
     return this.prisma.$transaction(async (tx) => {
-      const trailer = await tx.trailer.update({
-        where: { id },
-        data,
-        select: TRAILER_DETAIL_SELECT,
-      });
-      // newSeries is non-null when seriesChanged is true (see the guard above).
-      await this.reconcileStepsToSeries(tx, id, newSeries!);
-      return trailer;
+      await tx.trailer.update({ where: { id }, data });
+
+      if (promotingFromInventory) {
+        const stepCount = await tx.productionStep.count({ where: { trailerId: id } });
+        if (stepCount === 0) {
+          await this.workflowGenerator.generateSteps(id, newSeries!, tx, nextSizeFt);
+          // Match create(): a freshly generated line starts in
+          // pending_production (it flips to in_production on its own once the
+          // first step completes). Respect an explicit status from the caller.
+          if (dto.status === undefined) {
+            await tx.trailer.update({
+              where: { id },
+              data: { status: TrailerStatus.pending_production },
+            });
+          }
+        } else {
+          // Defensive: an inventory trailer that somehow already carries steps
+          // (e.g. flipped to inventory and back) is reconciled, not duplicated.
+          await this.reconcileStepsToSeries(tx, id, newSeries!);
+        }
+      } else {
+        await this.reconcileStepsToSeries(tx, id, newSeries!);
+      }
+
+      return tx.trailer.findUnique({ where: { id }, select: TRAILER_DETAIL_SELECT });
     });
   }
 
