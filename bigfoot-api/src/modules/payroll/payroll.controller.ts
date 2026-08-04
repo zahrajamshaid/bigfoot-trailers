@@ -205,10 +205,17 @@ export class PayrollController {
   // ---------------------------------------------------------------------------
   // Stage crews — fixed rosters for split-pay stages (GN_WELD, YETI_FIN)
   // ---------------------------------------------------------------------------
+  @Get('stage-rates')
+  @ApiOperation({ summary: 'Pay + cost matrix per model+department' })
+  async getStageRates() {
+    return this.payrollService.getStageRates();
+  }
+
   @Get('stage-crews')
   @ApiOperation({ summary: 'Get the fixed crew roster for each split-pay stage' })
   async getStageCrews() {
-    return this.payrollService.getStageCrews();
+    const crews = await this.payrollService.getStageCrews();
+    return { crews };
   }
 
   @Patch('stage-crews/:dept_id')

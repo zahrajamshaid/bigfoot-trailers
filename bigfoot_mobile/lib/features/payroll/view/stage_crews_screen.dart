@@ -36,19 +36,23 @@ class _StageCrewsScreenState extends State<StageCrewsScreen> {
       _error = null;
     });
     try {
-      final crewsResp = await _api.get<List<dynamic>>(
+      final crewsResp = await _api.get<Map<String, dynamic>>(
         ApiEndpoints.payrollStageCrews,
-        fromJson: (d) => d as List<dynamic>,
+        fromJson: (d) => d as Map<String, dynamic>,
       );
-      final usersResp = await _api.get<List<dynamic>>(
+      final usersResp = await _api.get<Map<String, dynamic>>(
         ApiEndpoints.users,
-        fromJson: (d) => d as List<dynamic>,
+        fromJson: (d) => d as Map<String, dynamic>,
       );
-      final crews = (crewsResp.data ?? const [])
+      final crews = ((crewsResp.data?['crews'] as List<dynamic>?) ?? const [])
           .whereType<Map<String, dynamic>>()
           .map(_Crew.fromJson)
           .toList();
-      final workers = (usersResp.data ?? const [])
+      // /users is paginated: { items: [...] }.
+      final userList = (usersResp.data?['items'] as List<dynamic>?) ??
+          (usersResp.data?['users'] as List<dynamic>?) ??
+          const [];
+      final workers = userList
           .whereType<Map<String, dynamic>>()
           .map(_Worker.fromJson)
           .where((w) => w.isActive)

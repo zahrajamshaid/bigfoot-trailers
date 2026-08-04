@@ -44,6 +44,7 @@ abstract final class RouteNames {
   static const String pointMatrix = 'pointMatrix';
   static const String dollarRates = 'dollarRates';
   static const String stageCrews = 'stageCrews';
+  static const String stageRatesMatrix = 'stageRatesMatrix';
 
   // ── Admin ────────────────────────────────────────────────────────────────
   static const String adminDashboard = 'adminDashboard';

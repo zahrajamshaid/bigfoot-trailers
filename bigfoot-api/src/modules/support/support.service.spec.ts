@@ -170,4 +170,22 @@ describe('SupportService', () => {
       ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
     });
   });
+
+  describe('deleteTicket', () => {
+    it('forbids a non-admin', async () => {
+      await expect(service.deleteTicket('sales', BigInt(1))).rejects.toMatchObject({
+        errorCode: ErrorCode.FORBIDDEN,
+      });
+    });
+
+    it('deletes for an admin', async () => {
+      mockPrisma.supportTicket.findUnique.mockResolvedValue({ id: BigInt(1) });
+      mockPrisma.supportTicket.delete = jest.fn().mockResolvedValue({});
+      const res = await service.deleteTicket('owner', BigInt(1));
+      expect(res).toEqual({ deleted: true });
+      expect(mockPrisma.supportTicket.delete).toHaveBeenCalledWith({
+        where: { id: BigInt(1) },
+      });
+    });
+  });
 });

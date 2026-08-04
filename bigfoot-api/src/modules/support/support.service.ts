@@ -269,6 +269,23 @@ export class SupportService {
     return this.getTicket(userId, role, ticketId);
   }
 
+  // Delete a ticket + its whole thread (messages cascade). Admins only — used
+  // to clear out stale / test conversations.
+  async deleteTicket(role: string, ticketId: bigint): Promise<{ deleted: true }> {
+    if (!this.isAdmin(role)) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Only admins can delete tickets');
+    }
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      select: { id: true },
+    });
+    if (!ticket) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Ticket ${ticketId} not found`);
+    }
+    await this.prisma.supportTicket.delete({ where: { id: ticketId } });
+    return { deleted: true };
+  }
+
   // Unresolved-ticket count for the admin dashboard badge.
   async openCount(): Promise<{ count: number }> {
     const count = await this.prisma.supportTicket.count({

@@ -62,19 +62,68 @@ class SupportListScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 itemCount: state.tickets.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) => _TicketCard(
-                  ticket: state.tickets[i],
-                  showReporter: adminView,
-                  onTap: () async {
-                    await context.pushNamed(
-                      RouteNames.supportThread,
-                      pathParameters: {'id': '${state.tickets[i].id}'},
-                    );
-                    if (context.mounted) {
-                      context.read<SupportListCubit>().load();
-                    }
-                  },
-                ),
+                itemBuilder: (context, i) {
+                  final t = state.tickets[i];
+                  final card = _TicketCard(
+                    ticket: t,
+                    showReporter: adminView,
+                    onTap: () async {
+                      await context.pushNamed(
+                        RouteNames.supportThread,
+                        pathParameters: {'id': '${t.id}'},
+                      );
+                      if (context.mounted) {
+                        context.read<SupportListCubit>().load();
+                      }
+                    },
+                  );
+                  // Admins can swipe a report away to clear stale/test threads.
+                  if (!adminView) return card;
+                  return Dismissible(
+                    key: ValueKey('ticket-${t.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.delete, color: AppColors.white),
+                    ),
+                    confirmDismiss: (_) async {
+                      final api = SupportApi(context.read<DioClient>());
+                      final messenger = ScaffoldMessenger.of(context);
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete this report?'),
+                          content: const Text('Removes the whole conversation. Can\'t be undone.'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok != true) return false;
+                      try {
+                        await api.deleteTicket(t.id);
+                        return true;
+                      } catch (e) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text('Delete failed: $e'), backgroundColor: AppColors.error),
+                        );
+                        return false;
+                      }
+                    },
+                    onDismissed: (_) => context.read<SupportListCubit>().load(),
+                    child: card,
+                  );
+                },
               ),
             );
           },

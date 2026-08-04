@@ -57,6 +57,35 @@ class _ThreadViewState extends State<_ThreadView> {
     if (ok) _replyController.clear();
   }
 
+  Future<void> _confirmDelete(BuildContext context, int ticketId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this report?'),
+        content: const Text('This removes the whole conversation. It can\'t be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    try {
+      await SupportApi(context.read<DioClient>()).deleteTicket(ticketId);
+      if (context.mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SupportThreadCubit, SupportThreadState>(
@@ -78,6 +107,12 @@ class _ThreadViewState extends State<_ThreadView> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                ),
+              if (widget.isAdmin && detail != null)
+                IconButton(
+                  tooltip: 'Delete report',
+                  icon: const Icon(Icons.delete_outline, color: AppColors.white),
+                  onPressed: () => _confirmDelete(context, detail.id),
                 ),
             ],
           ),

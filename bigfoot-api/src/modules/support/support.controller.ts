@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   ParseIntPipe,
@@ -79,5 +80,13 @@ export class SupportController {
   @ApiParam({ name: 'id', type: 'number' })
   async reopen(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
     return this.support.setStatus(BigInt(user.sub), user.role, BigInt(id), 'open');
+  }
+
+  @Delete('tickets/:id')
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
+  @ApiOperation({ summary: 'Delete a ticket + its thread (admins)' })
+  @ApiParam({ name: 'id', type: 'number' })
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
+    return this.support.deleteTicket(user.role, BigInt(id));
   }
 }

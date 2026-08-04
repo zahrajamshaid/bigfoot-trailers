@@ -58,6 +58,13 @@ class SupportApi {
     return SupportTicketDetail.fromJson(resp.data ?? const {});
   }
 
+  Future<void> deleteTicket(int id) async {
+    await _api.delete<Map<String, dynamic>>(
+      ApiEndpoints.supportTicket(id),
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+  }
+
   Future<int> openCount() async {
     try {
       final resp = await _api.get<Map<String, dynamic>>(

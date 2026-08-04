@@ -91,6 +91,7 @@ abstract final class ApiEndpoints {
   static String payrollPointValue(int id) => '/payroll/point-values/$id';
   static const String payrollDollarRates = '/payroll/dollar-rates';
   static String payrollDollarRate(int id) => '/payroll/dollar-rates/$id';
+  static const String payrollStageRates = '/payroll/stage-rates';
   static const String payrollStageCrews = '/payroll/stage-crews';
   static String payrollStageCrew(int deptId) => '/payroll/stage-crews/$deptId';
   static const String payrollRecords = '/payroll/records';

@@ -22,7 +22,19 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  bool _isManager() {
+    final auth = context.read<AuthViewModel>().state;
+    if (auth is! Authenticated) return false;
+    final role = auth.user.role;
+    return role == UserRole.owner ||
+        role == UserRole.office ||
+        role == UserRole.productionManager;
+  }
+
   void _load() {
+    // Payroll data is gated to owner/office/PM on the backend, so don't hit the
+    // summary endpoint (it 403s) for a worker — they get a placeholder instead.
+    if (!_isManager()) return;
     final auth = context.read<AuthViewModel>().state;
     if (auth is Authenticated) {
       context.read<PayrollViewModel>().loadWorkerSummary(auth.user.id);
@@ -38,6 +50,36 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
         (user.role == UserRole.owner ||
             user.role == UserRole.office ||
             user.role == UserRole.productionManager);
+
+    // Payroll is gated to owner/office/PM. Workers see the tab (nav placeholder)
+    // but not the numbers — a clean message instead of a 403.
+    if (!isManager) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_outline, size: 48, color: AppColors.disabled),
+                const SizedBox(height: 16),
+                const Text(
+                  'Payroll is managed by your admin',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.navy),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Your pay details aren\'t shown here yet. Talk to the office if you have questions.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: RefreshIndicator(
@@ -88,20 +130,15 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
                         icon: const Icon(Icons.table_chart_outlined),
                         label: Text(l.payrollWeeklyReport),
                       ),
-                      // Point matrix + dollar rates are now editable by
-                      // owner and production_manager (backend RBAC mirrors
-                      // this), so the entry buttons render for both.
+                      // Pay is now a flat rate per model+department (points
+                      // retired). The pay + cost matrix and the stage crews are
+                      // the payroll config screens now.
                       if (isManager)
                         OutlinedButton.icon(
-                          onPressed: () => context.pushNamed(RouteNames.pointMatrix),
+                          onPressed: () =>
+                              context.pushNamed(RouteNames.stageRatesMatrix),
                           icon: const Icon(Icons.grid_view_outlined),
-                          label: Text(l.payrollPointMatrix),
-                        ),
-                      if (isManager)
-                        OutlinedButton.icon(
-                          onPressed: () => context.pushNamed(RouteNames.dollarRates),
-                          icon: const Icon(Icons.attach_money_outlined),
-                          label: Text(l.payrollDollarRates),
+                          label: const Text('Pay & cost matrix'),
                         ),
                       if (isManager)
                         OutlinedButton.icon(

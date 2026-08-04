@@ -181,7 +181,9 @@ class _AppShellState extends State<AppShell> {
                       // homepage" complaint without relying on the iOS swipe
                       // gesture or finding the right back chevron.
                       HoverTap(
-                        onTap: () => context.go('/dashboard'),
+                        onTap: () => context.go(
+                            AppShell.landingPathForRole(
+                                user?.role ?? UserRole.worker)),
                         child: const BrandLogoAvatar(
                           size: 32,
                           padding: EdgeInsets.all(0.1),
@@ -190,7 +192,9 @@ class _AppShellState extends State<AppShell> {
                       const SizedBox(width: 10),
                       Flexible(
                         child: HoverTap(
-                          onTap: () => context.go('/dashboard'),
+                          onTap: () => context.go(
+                              AppShell.landingPathForRole(
+                                  user?.role ?? UserRole.worker)),
                           child: Text(
                             r.isCompact ? l.appTitleShort : l.appTitle,
                             overflow: TextOverflow.ellipsis,
@@ -558,11 +562,14 @@ class _AppShellState extends State<AppShell> {
           _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
         ];
       case UserRole.worker:
-        // Payroll is restricted to owner / office / production_manager, so the
-        // worker's "My Points" tab is gone — they just get their queue.
+        // Payroll data is gated to owner/office/PM on the backend, but the tab
+        // stays in the worker's nav (as a placeholder / so a second tab keeps
+        // the bottom bar + drawer available for navigation, and so it can be
+        // opened to workers later without an app change).
         return [
           _NavTab(
               '/production', l.navMyQueue, Icons.queue_outlined, Icons.queue),
+          _NavTab('/payroll', l.navMyPoints, Icons.star_outline, Icons.star),
         ];
       case UserRole.driver:
         return [

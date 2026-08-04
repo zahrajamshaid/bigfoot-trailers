@@ -834,6 +834,66 @@ export class PayrollService {
   }
 
   // ---------------------------------------------------------------------------
+  // Stage rates — the pay + cost matrix (per model+department). Backs the mobile
+  // pay/cost matrix screen. Reads trailer_model_stage_costs (the current
+  // effective row per model+dept), which is where both the flat pay and the
+  // WIP cost now live.
+  // ---------------------------------------------------------------------------
+  async getStageRates() {
+    const rows = await this.prisma.trailerModelStageCost.findMany({
+      distinct: ['trailerModelId', 'departmentId'],
+      orderBy: [
+        { trailerModelId: 'asc' },
+        { departmentId: 'asc' },
+        { effectiveFrom: 'desc' },
+      ],
+      select: {
+        trailerModelId: true,
+        departmentId: true,
+        costDollars: true,
+        payDollars: true,
+        workerSplit: true,
+        trailerModel: { select: { code: true, displayName: true, series: true } },
+        department: { select: { code: true, displayName: true } },
+      },
+    });
+
+    const models = new Map<
+      number,
+      { id: number; code: string; name: string; series: string }
+    >();
+    const departments = new Map<number, { id: number; code: string; name: string }>();
+    const cells = rows.map((r) => {
+      models.set(r.trailerModelId, {
+        id: r.trailerModelId,
+        code: r.trailerModel.code,
+        name: r.trailerModel.displayName,
+        series: r.trailerModel.series,
+      });
+      departments.set(r.departmentId, {
+        id: r.departmentId,
+        code: r.department.code,
+        name: r.department.displayName,
+      });
+      return {
+        modelId: r.trailerModelId,
+        departmentId: r.departmentId,
+        cost: Number(r.costDollars),
+        pay: Number(r.payDollars),
+        split: Array.isArray(r.workerSplit)
+          ? (r.workerSplit as unknown[]).map(Number)
+          : null,
+      };
+    });
+
+    return {
+      models: [...models.values()].sort((a, b) => a.code.localeCompare(b.code)),
+      departments: [...departments.values()],
+      cells,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
   // Stage crews — fixed roster for split-pay stages (GN_WELD, YETI_FIN). Slot i
   // earns the model's worker_split[i]. Edited by owner / office / PM.
   // ---------------------------------------------------------------------------
