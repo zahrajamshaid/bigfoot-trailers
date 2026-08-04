@@ -344,6 +344,69 @@ class _EditTrailerScreenState extends State<EditTrailerScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Process reminder: once an order is placed, options
+                        // and changes must go in as Add-ons (so production + QC
+                        // see them), NOT by editing the trailer here. Salesmen
+                        // in particular tend to just edit — this nudges them to
+                        // the add-on flow at the exact moment they'd do it.
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.amber.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.amber),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.lightbulb_outline,
+                                  color: AppColors.amber),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Adding an option or change?',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.navy,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Once the order is placed, options and '
+                                      'changes must be entered as Add-ons — not '
+                                      'by editing here — so production and QC '
+                                      'actually see them.',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: AppColors.navy,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: OutlinedButton.icon(
+                                        onPressed: () => context.pop(),
+                                        icon: const Icon(Icons.add, size: 18),
+                                        label: const Text(
+                                            'Add it as an add-on instead'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppColors.navy,
+                                          side: const BorderSide(
+                                              color: AppColors.amber),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         if (_errorMessage != null) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
