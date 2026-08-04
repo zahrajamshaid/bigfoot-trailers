@@ -11,7 +11,9 @@ import '../data/support_api.dart';
 /// notifies owner/office/PM) and drops the user into the thread so they can
 /// follow up.
 class ReportProblemScreen extends StatefulWidget {
-  const ReportProblemScreen({super.key});
+  /// When opened from a trailer, its SO — prefills the subject for context.
+  final String? prefillSo;
+  const ReportProblemScreen({super.key, this.prefillSo});
 
   @override
   State<ReportProblemScreen> createState() => _ReportProblemScreenState();
@@ -23,6 +25,15 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
   final _bodyController = TextEditingController();
   bool _submitting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final so = widget.prefillSo;
+    if (so != null && so.isNotEmpty) {
+      _subjectController.text = 'Trailer $so: ';
+    }
+  }
 
   @override
   void dispose() {

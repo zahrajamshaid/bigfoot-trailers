@@ -401,7 +401,9 @@ class AppRouter {
             GoRoute(
               path: '/report-problem',
               name: RouteNames.supportReport,
-              builder: (context, state) => const ReportProblemScreen(),
+              builder: (context, state) => ReportProblemScreen(
+                prefillSo: state.uri.queryParameters['so'],
+              ),
             ),
             GoRoute(
               path: '/support-tickets',

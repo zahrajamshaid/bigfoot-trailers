@@ -175,6 +175,29 @@ class _TrailerDetailBody extends StatelessWidget {
                               ],
                             ),
                           ),
+                        const PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: 'report',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.report_problem_outlined,
+                                  size: 20, color: AppColors.amber),
+                              const SizedBox(width: 8),
+                              const Text('Report a problem'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'myReports',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.forum_outlined,
+                                  size: 20, color: AppColors.navy),
+                              const SizedBox(width: 8),
+                              const Text('My reports'),
+                            ],
+                          ),
+                        ),
                         if (_canDeleteTrailer(context)) ...[
                           const PopupMenuDivider(),
                           PopupMenuItem(
@@ -253,6 +276,17 @@ class _TrailerDetailBody extends StatelessWidget {
             title: trailer.soNumber,
           ),
         );
+        return;
+      case 'report':
+        // Report a problem straight from the trailer — prefill the SO so the
+        // admin sees which trailer it's about.
+        context.pushNamed(
+          RouteNames.supportReport,
+          queryParameters: {'so': trailer.soNumber.toString()},
+        );
+        return;
+      case 'myReports':
+        context.pushNamed(RouteNames.supportList);
         return;
       case 'delete':
         _confirmAndDelete(context, trailer);
