@@ -1070,6 +1070,10 @@ export class ProductionService {
         soNumber: step.trailer.soNumber,
         modelName: step.trailer.trailerModel.displayName,
         series: step.trailer.trailerModel.series,
+        // The step's department code — lets the completion dialog show the
+        // right manual pay inputs (WIRE jacks/toolbox, PAINT ramp jacks,
+        // WOOD tire swaps).
+        departmentCode: step.department.code,
         color: step.trailer.color,
         sizeFt: step.trailer.sizeFt,
         customerName: step.trailer.customer?.name ?? null,
