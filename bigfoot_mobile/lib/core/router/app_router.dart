@@ -274,6 +274,7 @@ class AppRouter {
             GoRoute(
               path: '/payroll',
               name: RouteNames.workerPoints,
+              redirect: _payrollAccess,
               builder: (context, state) =>
                   const SecureScreen(child: WorkerPointsScreen()),
               routes: [
@@ -537,6 +538,21 @@ class AppRouter {
             authState.user.role == 'office' ||
             authState.user.role == 'production_manager' ||
             authState.user.role == 'qc_inspector')) {
+      return null;
+    }
+    return '/dashboard';
+  }
+
+  /// Guards ALL of payroll (the landing + every child screen). Payroll is
+  /// restricted to owner, office (admin) and production_manager — the same set
+  /// the backend @Roles enforce on /payroll/*. Everyone else (workers, sales,
+  /// QC, transport, drivers) is bounced to their dashboard.
+  String? _payrollAccess(BuildContext context, GoRouterState state) {
+    final authState = context.read<AuthViewModel>().state;
+    if (authState is Authenticated &&
+        (authState.user.role == 'owner' ||
+            authState.user.role == 'office' ||
+            authState.user.role == 'production_manager')) {
       return null;
     }
     return '/dashboard';

@@ -459,19 +459,19 @@ class _WorkerDashboard extends StatelessWidget {
                 color: AppColors.navy,
                 onTap: () => context.goNamed(RouteNames.productionQueue),
               ),
+              // Payroll is owner/office/PM only now, so these worker tiles are
+              // display-only — no deep-link into the gated payroll screen.
               StatCard(
                 title: l.dashStatPointsToday,
                 value: data.myPointsToday.toStringAsFixed(1),
                 icon: Icons.star,
                 color: AppColors.amber,
-                onTap: () => context.goNamed(RouteNames.workerPoints),
               ),
               StatCard(
                 title: l.dashStatPointsThisWeek,
                 value: data.myPointsWeek.toStringAsFixed(1),
                 icon: Icons.emoji_events,
                 color: AppColors.success,
-                onTap: () => context.goNamed(RouteNames.workerPoints),
               ),
             ],
           ),

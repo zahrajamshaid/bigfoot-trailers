@@ -558,10 +558,11 @@ class _AppShellState extends State<AppShell> {
           _NavTab('/qc', l.navQc, Icons.checklist_outlined, Icons.checklist),
         ];
       case UserRole.worker:
+        // Payroll is restricted to owner / office / production_manager, so the
+        // worker's "My Points" tab is gone — they just get their queue.
         return [
           _NavTab(
               '/production', l.navMyQueue, Icons.queue_outlined, Icons.queue),
-          _NavTab('/payroll', l.navMyPoints, Icons.star_outline, Icons.star),
         ];
       case UserRole.driver:
         return [
