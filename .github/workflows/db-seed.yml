@@ -80,6 +80,7 @@ on:
           - retag-audit-log-entity-types # one-shot: rewrite historical audit_logs entity_type so QC/batch rows surface in the mobile dropdown
           - qc-today-report # read-only: list every QC inspection submitted today (SO, dept, inspector)
           - fix-generate-workflow-7089-2026-07-28 # one-shot: build the missing 12-step XP workflow for SO 7089 (entered as misc, switched to 10K XP) + set pending_production at XP_JIG
+          - fix-complete-single-pull-loads-2026-08-04 # one-shot: complete stuck single_pull loads SO 6930 + 6681 (→ delivered) and delete the duplicate scheduled single_pull on SO 6829
           - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
 
 concurrency:
