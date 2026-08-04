@@ -10,15 +10,14 @@ describe('jig-queue config', () => {
   it('thresholds are two-tier: critical below warning', () => {
     expect(JIG_CRITICAL_THRESHOLD).toBeLessThan(JIG_WARN_THRESHOLD);
     expect(JIG_CRITICAL_THRESHOLD).toBe(2);
-    expect(JIG_WARN_THRESHOLD).toBe(5);
+    expect(JIG_WARN_THRESHOLD).toBe(3);
   });
 
   it('jigSeverity classifies counts into ok / warning / critical', () => {
     expect(jigSeverity(0)).toBe('critical');
     expect(jigSeverity(2)).toBe('critical'); // ≤2
-    expect(jigSeverity(3)).toBe('warning');
-    expect(jigSeverity(5)).toBe('warning'); // ≤5
-    expect(jigSeverity(6)).toBe('ok');
+    expect(jigSeverity(3)).toBe('warning'); // ≤3
+    expect(jigSeverity(4)).toBe('ok');
     expect(jigSeverity(50)).toBe('ok');
   });
 

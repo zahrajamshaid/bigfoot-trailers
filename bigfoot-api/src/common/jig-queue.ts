@@ -13,7 +13,7 @@ export const JIG_CODES = ['XP_JIG', 'YETI_JIG', 'DO_JIG', 'GN_WELD'] as const;
 export type JigCode = (typeof JIG_CODES)[number];
 
 /** ≤ this (but above critical) → amber warning. */
-export const JIG_WARN_THRESHOLD = 5;
+export const JIG_WARN_THRESHOLD = 3;
 /** ≤ this → red critical: the line is about to stop. */
 export const JIG_CRITICAL_THRESHOLD = 2;
 
