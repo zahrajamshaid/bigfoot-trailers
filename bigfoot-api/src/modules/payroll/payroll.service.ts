@@ -219,10 +219,7 @@ export class PayrollService {
     });
 
     if (!existing) {
-      throw new AppError(
-        ErrorCode.NOT_FOUND,
-        `Dollar rate with id ${id} not found`,
-      );
+      throw new AppError(ErrorCode.NOT_FOUND, `Dollar rate with id ${id} not found`);
     }
 
     await this.prisma.deptDollarRate.delete({ where: { id } });
@@ -289,38 +286,77 @@ export class PayrollService {
     weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
 
     // Find all completed production steps in this week (non-QC departments only)
-    const completedSteps = await this.prisma.productionStep.findMany({
+    // Pay is now driven by production_step_payouts (one row per worker per step,
+    // plus adjustment rows) so crew members who didn't tap "complete" and the
+    // >30ft / non-gray / jack / tire-swap adjustments all show up. Collapse to
+    // one line per (worker, step) — summing that worker's base + adjustments —
+    // then feed the existing aggregation, which treats the summed dollars as the
+    // step's "points" (every dept dollar-rate is 1.0, so points == dollars).
+    const payouts = await this.prisma.productionStepPayout.findMany({
       where: {
-        completedAt: {
-          gte: weekStartDate,
-          lt: new Date(weekEndDate.getTime() + 86400000), // end of Saturday
+        productionStep: {
+          completedAt: {
+            gte: weekStartDate,
+            lt: new Date(weekEndDate.getTime() + 86400000),
+          },
+          department: { isQcStep: false },
         },
-        completedByUserId: { not: null },
-        department: { isQcStep: false },
       },
       select: {
-        id: true,
-        completedByUserId: true,
-        departmentId: true,
-        pointsAwarded: true,
-        isRework: true,
-        // Pull the trailer's SO + size + model so the weekly report shows
-        // each worker which builds they touched (the team uses this to
-        // reconcile pay against the QB orders).
-        trailer: {
+        dollars: true,
+        userId: true,
+        user: { select: { id: true, fullName: true, email: true } },
+        productionStep: {
           select: {
             id: true,
-            soNumber: true,
-            sizeFt: true,
-            trailerModel: {
-              select: { id: true, displayName: true, code: true },
+            isRework: true,
+            departmentId: true,
+            department: { select: { id: true, code: true, displayName: true } },
+            trailer: {
+              select: {
+                id: true,
+                soNumber: true,
+                sizeFt: true,
+                trailerModel: { select: { id: true, displayName: true, code: true } },
+              },
             },
           },
         },
-        department: { select: { id: true, code: true, displayName: true } },
-        completedByUser: { select: { id: true, fullName: true, email: true } },
       },
     });
+
+    type PseudoStep = {
+      id: bigint;
+      completedByUserId: bigint;
+      departmentId: number;
+      pointsAwarded: number;
+      isRework: boolean;
+      department: { id: number; code: string; displayName: string };
+      completedByUser: { id: bigint; fullName: string; email: string | null };
+      trailer: (typeof payouts)[number]['productionStep']['trailer'];
+    };
+    const byUserStep = new Map<string, PseudoStep>();
+    for (const po of payouts) {
+      const st = po.productionStep;
+      if (!st) continue;
+      const key = `${po.userId}:${st.id}`;
+      const existing = byUserStep.get(key);
+      if (existing) {
+        existing.pointsAwarded += Number(po.dollars);
+      } else {
+        byUserStep.set(key, {
+          id: st.id,
+          completedByUserId: po.userId,
+          departmentId: st.departmentId,
+          pointsAwarded: Number(po.dollars),
+          isRework: st.isRework,
+          department: st.department,
+          completedByUser: po.user,
+          trailer: st.trailer,
+        });
+      }
+    }
+    const completedSteps = Array.from(byUserStep.values());
 
     // Aggregate per worker → per department → list of trailers touched.
     interface TrailerLine {
@@ -456,8 +492,7 @@ export class PayrollService {
             points: +t.points.toFixed(2),
             isRework: t.isRework,
           }))
-          .sort((a, b) =>
-              (a.soNumber ?? '').localeCompare(b.soNumber ?? ''));
+          .sort((a, b) => (a.soNumber ?? '').localeCompare(b.soNumber ?? ''));
         return {
           departmentId: dept.departmentId,
           departmentCode: dept.departmentCode,
@@ -536,23 +571,53 @@ export class PayrollService {
 
     // Generate/update payroll records from completed steps, then lock them
     return this.prisma.$transaction(async (tx) => {
-      // Find all completed production steps in this week (non-QC only)
-      const completedSteps = await tx.productionStep.findMany({
+      // Pay comes from production_step_payouts (crew splits + adjustments).
+      // Collapse to one line per (worker, step) — summing base + adjustments —
+      // so trailersCompleted counts steps, not payout rows.
+      const payouts = await tx.productionStepPayout.findMany({
         where: {
-          completedAt: {
-            gte: weekStartDate,
-            lt: new Date(weekEndDate.getTime() + 86400000),
+          productionStep: {
+            completedAt: {
+              gte: weekStartDate,
+              lt: new Date(weekEndDate.getTime() + 86400000),
+            },
+            department: { isQcStep: false },
           },
-          completedByUserId: { not: null },
-          department: { isQcStep: false },
         },
         select: {
-          completedByUserId: true,
-          departmentId: true,
-          pointsAwarded: true,
-          isRework: true,
+          dollars: true,
+          userId: true,
+          productionStep: {
+            select: { id: true, departmentId: true, isRework: true },
+          },
         },
       });
+      const byUserStep = new Map<
+        string,
+        {
+          completedByUserId: bigint;
+          departmentId: number;
+          pointsAwarded: number;
+          isRework: boolean;
+        }
+      >();
+      for (const po of payouts) {
+        const st = po.productionStep;
+        if (!st) continue;
+        const key = `${po.userId}:${st.id}`;
+        const existing = byUserStep.get(key);
+        if (existing) {
+          existing.pointsAwarded += Number(po.dollars);
+        } else {
+          byUserStep.set(key, {
+            completedByUserId: po.userId,
+            departmentId: st.departmentId,
+            pointsAwarded: Number(po.dollars),
+            isRework: st.isRework,
+          });
+        }
+      }
+      const completedSteps = Array.from(byUserStep.values());
 
       // Aggregate per (user, department)
       const aggregation = new Map<
@@ -766,5 +831,98 @@ export class PayrollService {
       reworkCount,
       departments,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stage crews — fixed roster for split-pay stages (GN_WELD, YETI_FIN). Slot i
+  // earns the model's worker_split[i]. Edited by owner / office / PM.
+  // ---------------------------------------------------------------------------
+  async getStageCrews() {
+    // Split-pay departments are those any model carries a worker_split for.
+    const stages = await this.prisma.trailerModelStageCost.findMany({
+      select: {
+        departmentId: true,
+        workerSplit: true,
+        department: { select: { id: true, code: true, displayName: true } },
+      },
+    });
+    const deptInfo = new Map<
+      number,
+      { code: string; displayName: string; maxSlots: number }
+    >();
+    for (const s of stages) {
+      if (Array.isArray(s.workerSplit) && s.workerSplit.length > 1) {
+        const cur = deptInfo.get(s.departmentId);
+        const len = s.workerSplit.length;
+        if (!cur) {
+          deptInfo.set(s.departmentId, {
+            code: s.department.code,
+            displayName: s.department.displayName,
+            maxSlots: len,
+          });
+        } else if (len > cur.maxSlots) {
+          cur.maxSlots = len;
+        }
+      }
+    }
+    const deptIds = [...deptInfo.keys()];
+    const roster = await this.prisma.stageCrewMember.findMany({
+      where: { departmentId: { in: deptIds } },
+      orderBy: { slot: 'asc' },
+      select: {
+        departmentId: true,
+        slot: true,
+        userId: true,
+        user: { select: { fullName: true } },
+      },
+    });
+    return [...deptInfo.entries()].map(([departmentId, info]) => ({
+      departmentId,
+      departmentCode: info.code,
+      departmentName: info.displayName,
+      maxSlots: info.maxSlots,
+      members: roster
+        .filter((r) => r.departmentId === departmentId)
+        .map((r) => ({
+          slot: r.slot,
+          userId: r.userId.toString(),
+          userName: r.user.fullName,
+        })),
+    }));
+  }
+
+  async setStageCrew(departmentId: number, userIds: number[]) {
+    const dept = await this.prisma.department.findUnique({
+      where: { id: departmentId },
+      select: { id: true },
+    });
+    if (!dept) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Department ${departmentId} not found`);
+    }
+    // Validate the users exist + are active.
+    if (userIds.length > 0) {
+      const found = await this.prisma.user.count({
+        where: { id: { in: userIds.map((u) => BigInt(u)) }, isActive: true },
+      });
+      if (found !== new Set(userIds).size) {
+        throw new AppError(
+          ErrorCode.BAD_REQUEST,
+          'One or more crew users are invalid or inactive',
+        );
+      }
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.stageCrewMember.deleteMany({ where: { departmentId } });
+      if (userIds.length > 0) {
+        await tx.stageCrewMember.createMany({
+          data: userIds.map((uid, i) => ({
+            departmentId,
+            slot: i,
+            userId: BigInt(uid),
+          })),
+        });
+      }
+    });
+    return this.getStageCrews();
   }
 }

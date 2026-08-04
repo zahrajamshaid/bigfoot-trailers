@@ -466,6 +466,7 @@ model Department {
   payrollRecords    PayrollRecord[]
   stallAlerts       StallAlert[]
   stageCosts        TrailerModelStageCost[]
+  stageCrew         StageCrewMember[]
 
   @@map("departments")
 }
@@ -530,6 +531,8 @@ model User {
   announcementAcks     SystemAnnouncementAck[]
   reportedSupportTickets SupportTicket[]        @relation("SupportReporter")
   sentSupportMessages    SupportTicketMessage[] @relation("SupportSender")
+  stageCrewSlots         StageCrewMember[]      @relation("StageCrew")
+  stepPayouts            ProductionStepPayout[] @relation("StepPayouts")
 
   @@index([role, isActive], map: "idx_users_role_active")
   @@map("users")
@@ -564,6 +567,7 @@ model ProductionStep {
   stepReversals           StepReversal[]
   stallAlerts             StallAlert[]
   selfChecks              ProductionStepCheck[]
+  payouts                 ProductionStepPayout[]
 
   @@unique([trailerId, departmentId, stepOrder])
   @@index([departmentId, status, queuePosition], map: "idx_production_steps_dept_status")
@@ -805,6 +809,46 @@ model TrailerModelStageCost {
   @@unique([trailerModelId, departmentId, effectiveFrom])
   @@index([trailerModelId, departmentId], map: "idx_stage_costs_model_dept")
   @@map("trailer_model_stage_costs")
+}
+
+// Fixed crew roster for a split-pay stage (e.g. GN_WELD, YETI_FIN). Each slot
+// maps to the model's worker_split index: slot 0 earns worker_split[0], etc.
+// Editable by owner / office / production_manager. When such a stage completes,
+// every roster member is paid their slot's rate (not just whoever tapped done).
+model StageCrewMember {
+  id           Int      @id @default(autoincrement())
+  departmentId Int      @map("department_id")
+  slot         Int      @db.SmallInt
+  userId       BigInt   @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  department Department @relation(fields: [departmentId], references: [id])
+  user       User       @relation("StageCrew", fields: [userId], references: [id])
+
+  @@unique([departmentId, slot])
+  @@index([departmentId])
+  @@map("stage_crew_members")
+}
+
+// Per-step, per-worker pay. A step normally pays its completer one 'base' row;
+// a crew stage pays each roster member their slot rate; auto/manual adjustments
+// (>30ft, non-gray paint, jacks, ramps, toolbox, tire swaps) add 'adjustment'
+// rows. Payroll aggregates dollars straight from here.
+model ProductionStepPayout {
+  id               BigInt   @id @default(autoincrement())
+  productionStepId BigInt   @map("production_step_id")
+  userId           BigInt   @map("user_id")
+  dollars          Decimal  @db.Decimal(10, 2)
+  kind             String   @db.VarChar(20) // 'base' | 'adjustment'
+  note             String?  @db.VarChar(160)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  productionStep ProductionStep @relation(fields: [productionStepId], references: [id], onDelete: Cascade)
+  user           User           @relation("StepPayouts", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([productionStepId])
+  @@map("production_step_payouts")
 }
 
 model PayrollRecord {

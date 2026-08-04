@@ -19,6 +19,7 @@ import { TrailerOptionsService } from '../trailers/trailer-options.service';
 import { AppError } from '../../common/errors/app-error';
 import { ErrorCode } from '../../common/errors/error-codes';
 import { StepCheckResultDto } from './dto/complete-step.dto';
+import { StagePayService, PayAdjustmentsInput } from './stage-pay.service';
 
 @Injectable()
 export class ProductionService {
@@ -28,6 +29,7 @@ export class ProductionService {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly options: TrailerOptionsService,
+    private readonly stagePay: StagePayService,
   ) {}
 
   // =========================================================================
@@ -254,6 +256,7 @@ export class ProductionService {
     completedByUserId: bigint,
     notes?: string,
     checklistResults?: StepCheckResultDto[],
+    payAdjustments?: PayAdjustmentsInput,
   ) {
     const step = await this.prisma.productionStep.findUnique({
       where: { id: stepId },
@@ -343,6 +346,7 @@ export class ProductionService {
     // (Crew-split stages still credit the completer the primary rate here; the
     // multi-worker split + conditional adjustments are layered on separately.)
     let pointsAwarded = 0;
+    let stageWorkerSplit: number[] | null = null;
     if (!step.isRework) {
       try {
         const stageRate = await this.prisma.trailerModelStageCost.findFirst({
@@ -353,10 +357,13 @@ export class ProductionService {
             OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
           },
           orderBy: { effectiveFrom: 'desc' },
-          select: { payDollars: true },
+          select: { payDollars: true, workerSplit: true },
         });
         if (stageRate) {
           pointsAwarded = Number(stageRate.payDollars);
+          if (Array.isArray(stageRate.workerSplit)) {
+            stageWorkerSplit = (stageRate.workerSplit as unknown[]).map(Number);
+          }
         }
       } catch (err) {
         // Never fail a step completion over pay lookup — e.g. the pay_dollars
@@ -505,6 +512,33 @@ export class ProductionService {
         _nextStepId: nextStepId,
       };
     });
+
+    // Write the per-worker pay rows (crew split + adjustments) AFTER the
+    // completion commits — best-effort so a pay hiccup (or the pre-migration
+    // window before the payout table exists) never rolls back a completed step.
+    // pointsAwarded on the step stays as the completer's legacy base figure;
+    // payroll reads dollars from these payout rows.
+    if (!step.isRework) {
+      try {
+        await this.stagePay.recordPayouts(this.prisma, {
+          stepId,
+          departmentId: step.departmentId,
+          deptCode: step.department.code,
+          series: step.trailer.trailerModel.series,
+          sizeFt: step.trailer.sizeFt,
+          color: step.trailer.color,
+          completedByUserId,
+          isRework: step.isRework,
+          payDollars: pointsAwarded,
+          workerSplit: stageWorkerSplit,
+          adjustments: payAdjustments,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `Payout write failed for step ${stepId}: ${(err as Error)?.message}`,
+        );
+      }
+    }
 
     // Fire notifications (outside transaction)
     await this.notificationsService.onStepCompleted({

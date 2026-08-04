@@ -156,6 +156,7 @@ export class ProductionController {
       BigInt(requester.sub),
       dto.notes,
       dto.checklistResults,
+      dto.payAdjustments,
     );
   }
 

@@ -36,11 +36,53 @@ const mockPrisma: Record<string, any> = {
   productionStep: {
     findMany: jest.fn(),
   },
+  productionStepPayout: {
+    findMany: jest.fn(),
+  },
+  trailerModelStageCost: {
+    findMany: jest.fn(),
+  },
+  stageCrewMember: {
+    findMany: jest.fn(),
+    deleteMany: jest.fn(),
+    createMany: jest.fn(),
+  },
   user: {
     findUnique: jest.fn(),
+    count: jest.fn(),
   },
   $transaction: jest.fn(),
 };
+
+// Build a payout row in the shape findWeeklyReport / lockWeek select. `dollars`
+// is what this worker earned on this step (base, or base+adjustment collapsed).
+function payoutRow(
+  userId: number,
+  deptId: number,
+  deptCode: string,
+  deptName: string,
+  stepId: number,
+  dollars: number,
+  isRework = false,
+) {
+  return {
+    dollars: new Prisma.Decimal(dollars),
+    userId: BigInt(userId),
+    user: { id: BigInt(userId), fullName: `User ${userId}`, email: `u${userId}@t.com` },
+    productionStep: {
+      id: BigInt(stepId),
+      isRework,
+      departmentId: deptId,
+      department: { id: deptId, code: deptCode, displayName: deptName },
+      trailer: {
+        id: BigInt(stepId),
+        soNumber: `SO-${stepId}`,
+        sizeFt: '18',
+        trailerModel: { id: 1, displayName: 'XP 10K', code: 'XP_10K' },
+      },
+    },
+  };
+}
 
 // Wire up $transaction: callback form passes mockPrisma as the tx argument;
 // array form (batch) resolves each operation like a real interactive transaction.
@@ -276,36 +318,9 @@ describe('PayrollService', () => {
     });
 
     it('should return weekly report for a valid Sunday', async () => {
-      // 2026-03-22 is a Sunday
-      mockPrisma.productionStep.findMany.mockResolvedValue([
-        {
-          id: BigInt(1),
-          completedByUserId: BigInt(10),
-          departmentId: 1,
-          pointsAwarded: new Prisma.Decimal(3.5),
-          isRework: false,
-          trailer: { id: BigInt(1), trailerModelId: 1 },
-          department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
-          completedByUser: {
-            id: BigInt(10),
-            fullName: 'John Doe',
-            email: 'john@test.com',
-          },
-        },
-        {
-          id: BigInt(2),
-          completedByUserId: BigInt(10),
-          departmentId: 1,
-          pointsAwarded: new Prisma.Decimal(0),
-          isRework: true,
-          trailer: { id: BigInt(2), trailerModelId: 1 },
-          department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
-          completedByUser: {
-            id: BigInt(10),
-            fullName: 'John Doe',
-            email: 'john@test.com',
-          },
-        },
+      // 2026-03-22 is a Sunday. One paid step for worker 10 in XP_JIG.
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([
+        payoutRow(10, 1, 'XP_JIG', 'XP Jig Weld', 1, 3.5),
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
         {
@@ -323,31 +338,19 @@ describe('PayrollService', () => {
       expect(result.workers).toHaveLength(1);
       expect(result.workers[0].totalPoints).toBe(3.5);
       expect(result.workers[0].totalGrossPay).toBe(43.75); // 3.5 * 12.5
-      expect(result.workers[0].totalStepsCompleted).toBe(2);
-      expect(result.workers[0].totalReworkCount).toBe(1);
+      expect(result.workers[0].totalStepsCompleted).toBe(1);
     });
 
-    it('should enforce rework steps = 0 points in aggregation', async () => {
-      mockPrisma.productionStep.findMany.mockResolvedValue([
-        {
-          id: BigInt(1),
-          completedByUserId: BigInt(10),
-          departmentId: 1,
-          pointsAwarded: new Prisma.Decimal(0), // Rework — 0 points
-          isRework: true,
-          trailer: { id: BigInt(1), trailerModelId: 1 },
-          department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
-          completedByUser: {
-            id: BigInt(10),
-            fullName: 'John Doe',
-            email: 'john@test.com',
-          },
-        },
+    it('collapses a base + adjustment payout on the same step into one line', async () => {
+      // e.g. paint base $70 + >30ft/non-gray adjustment $20 → $90 on one step.
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([
+        payoutRow(10, 1, 'PAINT_B', 'Paint Booth B', 5, 70),
+        payoutRow(10, 1, 'PAINT_B', 'Paint Booth B', 5, 20),
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
         {
           departmentId: 1,
-          dollarPerPoint: new Prisma.Decimal(12.5),
+          dollarPerPoint: new Prisma.Decimal(1),
           effectiveFrom: new Date('2026-01-01'),
         },
       ]);
@@ -355,13 +358,13 @@ describe('PayrollService', () => {
 
       const result = await service.findWeeklyReport('2026-03-22');
 
-      expect(result.workers[0].totalPoints).toBe(0);
-      expect(result.workers[0].totalGrossPay).toBe(0);
-      expect(result.workers[0].totalReworkCount).toBe(1);
+      expect(result.workers[0].totalPoints).toBe(90);
+      expect(result.workers[0].totalGrossPay).toBe(90);
+      expect(result.workers[0].totalStepsCompleted).toBe(1);
     });
 
     it('should show locked status when week is locked', async () => {
-      mockPrisma.productionStep.findMany.mockResolvedValue([]);
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([]);
       mockPrisma.payrollRecord.findFirst.mockResolvedValue({
         isLocked: true,
@@ -374,26 +377,14 @@ describe('PayrollService', () => {
     });
 
     it('should aggregate multiple workers across departments', async () => {
-      mockPrisma.productionStep.findMany.mockResolvedValue([
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([
         {
-          id: BigInt(1),
-          completedByUserId: BigInt(10),
-          departmentId: 1,
-          pointsAwarded: new Prisma.Decimal(3.5),
-          isRework: false,
-          trailer: { id: BigInt(1), trailerModelId: 1 },
-          department: { id: 1, code: 'XP_JIG', displayName: 'XP Jig Weld' },
-          completedByUser: { id: BigInt(10), fullName: 'Alice', email: 'alice@test.com' },
+          ...payoutRow(10, 1, 'XP_JIG', 'XP Jig Weld', 1, 3.5),
+          user: { id: BigInt(10), fullName: 'Alice', email: 'alice@test.com' },
         },
         {
-          id: BigInt(2),
-          completedByUserId: BigInt(20),
-          departmentId: 9,
-          pointsAwarded: new Prisma.Decimal(2.0),
-          isRework: false,
-          trailer: { id: BigInt(2), trailerModelId: 2 },
-          department: { id: 9, code: 'PAINT_PREP', displayName: 'Paint Preparation' },
-          completedByUser: { id: BigInt(20), fullName: 'Bob', email: 'bob@test.com' },
+          ...payoutRow(20, 9, 'PAINT_PREP', 'Paint Preparation', 2, 2.0),
+          user: { id: BigInt(20), fullName: 'Bob', email: 'bob@test.com' },
         },
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
@@ -442,20 +433,11 @@ describe('PayrollService', () => {
     it('should lock a week and generate payroll records', async () => {
       mockPrisma.payrollRecord.findFirst.mockResolvedValue(null); // Not locked yet
 
-      // Transaction mocks — $transaction passes mockPrisma as tx
-      mockPrisma.productionStep.findMany.mockResolvedValue([
-        {
-          completedByUserId: BigInt(10),
-          departmentId: 1,
-          pointsAwarded: new Prisma.Decimal(3.5),
-          isRework: false,
-        },
-        {
-          completedByUserId: BigInt(10),
-          departmentId: 1,
-          pointsAwarded: new Prisma.Decimal(3.5),
-          isRework: false,
-        },
+      // Transaction mocks — $transaction passes mockPrisma as tx. Two paid
+      // steps for worker 10 in dept 1 (distinct step ids → 2 trailers).
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([
+        payoutRow(10, 1, 'XP_JIG', 'XP Jig Weld', 1, 3.5),
+        payoutRow(10, 1, 'XP_JIG', 'XP Jig Weld', 2, 3.5),
       ]);
       mockPrisma.deptDollarRate.findMany.mockResolvedValue([
         {
@@ -489,44 +471,17 @@ describe('PayrollService', () => {
       );
     });
 
-    it('should handle rework steps with 0 points during lock', async () => {
+    it('locks a rework-only week with no payouts → no payroll records', async () => {
+      // Rework is uncompensated, so it produces no payout rows. Nothing to pay
+      // means no payroll records are written.
       mockPrisma.payrollRecord.findFirst.mockResolvedValue(null);
-      mockPrisma.productionStep.findMany.mockResolvedValue([
-        {
-          completedByUserId: BigInt(10),
-          departmentId: 1,
-          pointsAwarded: new Prisma.Decimal(0), // Rework = 0 points
-          isRework: true,
-        },
-      ]);
-      mockPrisma.deptDollarRate.findMany.mockResolvedValue([
-        {
-          departmentId: 1,
-          dollarPerPoint: new Prisma.Decimal(12.5),
-          effectiveFrom: new Date('2026-01-01'),
-        },
-      ]);
-      mockPrisma.payrollRecord.upsert.mockResolvedValue({
-        id: BigInt(1),
-        userId: BigInt(10),
-        departmentId: 1,
-        totalPoints: new Prisma.Decimal(0),
-        trailersCompleted: 1,
-        grossPay: new Prisma.Decimal(0),
-        isLocked: true,
-        lockedAt: new Date(),
-      });
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([]);
+      mockPrisma.deptDollarRate.findMany.mockResolvedValue([]);
 
-      await service.lockWeek('2026-03-22', BigInt(1));
+      const result = await service.lockWeek('2026-03-22', BigInt(1));
 
-      // Gross pay should be 0 because 0 points * 12.5 = 0
-      expect(mockPrisma.payrollRecord.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          create: expect.objectContaining({
-            grossPay: new Prisma.Decimal(0),
-          }),
-        }),
-      );
+      expect(mockPrisma.payrollRecord.upsert).not.toHaveBeenCalled();
+      expect(result.recordsLocked).toBe(0);
     });
   });
 

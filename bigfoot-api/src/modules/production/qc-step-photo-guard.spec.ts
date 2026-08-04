@@ -3,6 +3,7 @@ import { ProductionService } from './production.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TrailerOptionsService } from '../trailers/trailer-options.service';
+import { StagePayService } from './stage-pay.service';
 import { ErrorCode } from '../../common/errors';
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ describe('ProductionService.completeStep — QC steps cannot skip the photo', ()
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationsService, useValue: {} },
         { provide: TrailerOptionsService, useValue: options },
+        { provide: StagePayService, useValue: { recordPayouts: jest.fn() } },
       ],
     }).compile();
 
@@ -60,20 +62,23 @@ describe('ProductionService.completeStep — QC steps cannot skip the photo', ()
   it.each([
     ['a QC_1 step', qcStep],
     ['a FINAL_QC step', finalQcStep],
-  ])('refuses to complete %s directly — it must go through a QC inspection', async (_label, step) => {
-    prisma.productionStep.findUnique.mockResolvedValue(step);
+  ])(
+    'refuses to complete %s directly — it must go through a QC inspection',
+    async (_label, step) => {
+      prisma.productionStep.findUnique.mockResolvedValue(step);
 
-    await expect(
-      service.completeStep(step.id, BigInt(7), 'looks fine to me'),
-    ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
-  });
+      await expect(
+        service.completeStep(step.id, BigInt(7), 'looks fine to me'),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+    },
+  );
 
   it('names the QC inspection as the way through, so the worker knows what to do', async () => {
     prisma.productionStep.findUnique.mockResolvedValue(qcStep);
 
-    await expect(
-      service.completeStep(qcStep.id, BigInt(7)),
-    ).rejects.toThrow(/QC inspection \(with photos\)/i);
+    await expect(service.completeStep(qcStep.id, BigInt(7))).rejects.toThrow(
+      /QC inspection \(with photos\)/i,
+    );
   });
 
   it('rejects the QC step BEFORE doing any completion work', async () => {

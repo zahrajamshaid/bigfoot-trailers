@@ -1,13 +1,41 @@
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+/** Manual pay add-ons captured at completion for specific departments:
+ *  WIRE (hydraulic jack / toolbox), PAINT (ramp jacks), WOOD (tire swaps). */
+export class PayAdjustmentsDto {
+  @ApiPropertyOptional({ enum: ['single', 'double', 'ramps_jack'] })
+  @IsOptional()
+  @IsIn(['single', 'double', 'ramps_jack'])
+  hydraulicJack?: 'single' | 'double' | 'ramps_jack';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  toolbox?: boolean;
+
+  @ApiPropertyOptional({ description: 'Ramp jacks painted separately' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  rampJacks?: number;
+
+  @ApiPropertyOptional({ description: 'Tire swaps done after build' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  tireSwaps?: number;
+}
 
 export class StepCheckResultDto {
   @ApiProperty({ description: 'QcChecklistItem.id' })
@@ -42,4 +70,10 @@ export class CompleteStepDto {
   @ValidateNested({ each: true })
   @Type(() => StepCheckResultDto)
   checklistResults?: StepCheckResultDto[];
+
+  @ApiPropertyOptional({ type: PayAdjustmentsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PayAdjustmentsDto)
+  payAdjustments?: PayAdjustmentsDto;
 }

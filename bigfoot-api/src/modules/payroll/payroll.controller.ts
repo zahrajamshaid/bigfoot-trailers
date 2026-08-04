@@ -28,6 +28,7 @@ import {
   QueryDollarRatesDto,
   QueryPayrollRecordsDto,
 } from './dto';
+import { SetStageCrewDto } from './dto/set-stage-crew.dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
@@ -199,5 +200,24 @@ export class PayrollController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async getWorkerSummary(@Param('user_id', ParseIntPipe) userId: number) {
     return this.payrollService.getWorkerSummary(BigInt(userId));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stage crews — fixed rosters for split-pay stages (GN_WELD, YETI_FIN)
+  // ---------------------------------------------------------------------------
+  @Get('stage-crews')
+  @ApiOperation({ summary: 'Get the fixed crew roster for each split-pay stage' })
+  async getStageCrews() {
+    return this.payrollService.getStageCrews();
+  }
+
+  @Patch('stage-crews/:dept_id')
+  @ApiOperation({ summary: 'Set the ordered crew roster for a split-pay stage' })
+  @ApiParam({ name: 'dept_id', type: 'number' })
+  async setStageCrew(
+    @Param('dept_id', ParseIntPipe) deptId: number,
+    @Body() dto: SetStageCrewDto,
+  ) {
+    return this.payrollService.setStageCrew(deptId, dto.userIds);
   }
 }
