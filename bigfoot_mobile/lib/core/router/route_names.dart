@@ -43,6 +43,7 @@ abstract final class RouteNames {
   static const String weeklyReport = 'weeklyReport';
   static const String pointMatrix = 'pointMatrix';
   static const String dollarRates = 'dollarRates';
+  static const String stageCrews = 'stageCrews';
 
   // ── Admin ────────────────────────────────────────────────────────────────
   static const String adminDashboard = 'adminDashboard';

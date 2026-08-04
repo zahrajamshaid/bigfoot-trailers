@@ -27,6 +27,7 @@ import '../../features/deliveries/view/stock_inventory_screen.dart';
 import '../../features/notifications/view/message_screen.dart';
 import '../../features/notifications/view/notification_center.dart';
 import '../../features/payroll/view/dollar_rates_screen.dart';
+import '../../features/payroll/view/stage_crews_screen.dart';
 import '../../features/payroll/view/point_matrix_screen.dart';
 import '../../features/payroll/view/weekly_report_screen.dart';
 import '../../features/payroll/view/worker_points_screen.dart';
@@ -298,6 +299,14 @@ class AppRouter {
                   redirect: _ownerOnly,
                     builder: (context, state) =>
                         const SecureScreen(child: DollarRatesScreen()),
+                ),
+                GoRoute(
+                  path: 'stage-crews',
+                  name: RouteNames.stageCrews,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  redirect: _ownerOnly,
+                  builder: (context, state) =>
+                      const SecureScreen(child: StageCrewsScreen()),
                 ),
               ],
             ),

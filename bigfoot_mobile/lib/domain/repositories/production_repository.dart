@@ -42,6 +42,33 @@ class StepCheckResult {
       };
 }
 
+/// Manual pay bonuses captured at completion for specific departments:
+/// WIRE (hydraulic jack / toolbox), PAINT (ramp jacks), WOOD (tire swaps).
+class PayAdjustments {
+  /// 'single' | 'double' | 'ramps_jack' | null
+  final String? hydraulicJack;
+  final bool toolbox;
+  final int rampJacks;
+  final int tireSwaps;
+
+  const PayAdjustments({
+    this.hydraulicJack,
+    this.toolbox = false,
+    this.rampJacks = 0,
+    this.tireSwaps = 0,
+  });
+
+  bool get isEmpty =>
+      hydraulicJack == null && !toolbox && rampJacks == 0 && tireSwaps == 0;
+
+  Map<String, dynamic> toJson() => {
+        if (hydraulicJack != null) 'hydraulicJack': hydraulicJack,
+        if (toolbox) 'toolbox': true,
+        if (rampJacks > 0) 'rampJacks': rampJacks,
+        if (tireSwaps > 0) 'tireSwaps': tireSwaps,
+      };
+}
+
 /// Abstract contract for production queue operations.
 abstract class ProductionRepository {
   Future<List<QueueItem>> getQueue(int departmentId);
@@ -51,6 +78,7 @@ abstract class ProductionRepository {
     int stepId, {
     String? notes,
     List<StepCheckResult>? checklistResults,
+    PayAdjustments? payAdjustments,
   });
   Future<void> reverseStep(int stepId);
   Future<void> reorderQueue(int departmentId, List<int> stepIds);

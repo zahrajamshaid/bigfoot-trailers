@@ -256,12 +256,14 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
     int stepId, {
     String? notes,
     List<StepCheckResult>? checklistResults,
+    PayAdjustments? payAdjustments,
   }) async {
     try {
       final result = await _repository.completeStep(
         stepId,
         notes: notes,
         checklistResults: checklistResults,
+        payAdjustments: payAdjustments,
       );
 
       final current = state;

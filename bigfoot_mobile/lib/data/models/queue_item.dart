@@ -11,6 +11,9 @@ class QueueItem {
   final String soNumber;
   final String? modelName;
   final String? series;
+  /// The step's department code (WIRE, PAINT_B, WOOD, …) — drives the manual
+  /// pay-adjustment inputs shown on the completion dialog.
+  final String? departmentCode;
   final String? color;
   @JsonKey(name: 'sizeFt')
   final String? size;
@@ -64,6 +67,7 @@ class QueueItem {
     required this.soNumber,
     this.modelName,
     this.series,
+    this.departmentCode,
     this.color,
     this.size,
     this.customerName,

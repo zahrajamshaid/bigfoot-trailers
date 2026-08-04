@@ -103,6 +103,12 @@ class _WorkerPointsScreenState extends State<WorkerPointsScreen> {
                           icon: const Icon(Icons.attach_money_outlined),
                           label: Text(l.payrollDollarRates),
                         ),
+                      if (isManager)
+                        OutlinedButton.icon(
+                          onPressed: () => context.pushNamed(RouteNames.stageCrews),
+                          icon: const Icon(Icons.groups_outlined),
+                          label: const Text('Stage crews'),
+                        ),
                     ],
                   ),
                 if (isManager) const SizedBox(height: 12),

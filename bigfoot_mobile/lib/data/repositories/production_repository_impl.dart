@@ -78,11 +78,15 @@ class ProductionRepositoryImpl implements ProductionRepository {
     int stepId, {
     String? notes,
     List<StepCheckResult>? checklistResults,
+    PayAdjustments? payAdjustments,
   }) async {
     final data = <String, dynamic>{};
     if (notes != null && notes.isNotEmpty) data['notes'] = notes;
     if (checklistResults != null && checklistResults.isNotEmpty) {
       data['checklistResults'] = checklistResults.map((r) => r.toJson()).toList();
+    }
+    if (payAdjustments != null && !payAdjustments.isEmpty) {
+      data['payAdjustments'] = payAdjustments.toJson();
     }
 
     try {

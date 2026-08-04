@@ -39,6 +39,12 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
   late final AnimationController _successAnimCtrl;
   late final Animation<double> _successScale;
 
+  // Manual pay-adjustment inputs (dept-specific).
+  String? _hydraulicJack; // 'single' | 'double' | 'ramps_jack'
+  bool _toolbox = false;
+  int _rampJacks = 0;
+  int _tireSwaps = 0;
+
   // Checklist state
   bool _loadingChecklist = true;
   String? _checklistError;
@@ -152,10 +158,18 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
         .toList();
 
     try {
+      final adjustments = PayAdjustments(
+        hydraulicJack: _hydraulicJack,
+        toolbox: _toolbox,
+        rampJacks: _rampJacks,
+        tireSwaps: _tireSwaps,
+      );
+
       final result = await context.read<ProductionViewModel>().completeStep(
         widget.item.stepId,
         notes: _notesController.text.trim(),
         checklistResults: results.isEmpty ? null : results,
+        payAdjustments: adjustments.isEmpty ? null : adjustments,
       );
 
       if (!mounted) return;
@@ -188,6 +202,100 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
             backgroundColor: AppColors.error),
       );
     }
+  }
+
+  Widget _buildPayAdjustments() {
+    final code = widget.item.departmentCode;
+    final isWire = code == 'WIRE';
+    final isPaint = code == 'PAINT_B' || code == 'PAINT_A';
+    final isWood = code == 'WOOD';
+    if (!isWire && !isPaint && !isWood) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.amber.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.amber.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.attach_money, color: AppColors.amber, size: 20),
+                const SizedBox(width: 6),
+                const Text('Pay add-ons',
+                    style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.navy)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('Only if this trailer has them — leave blank otherwise.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            const SizedBox(height: 10),
+            if (isWire) ...[
+              const Text('Hydraulic jack', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _choice('None', _hydraulicJack == null, () => setState(() => _hydraulicJack = null)),
+                  _choice('Single (\$40)', _hydraulicJack == 'single', () => setState(() => _hydraulicJack = 'single')),
+                  _choice('Double (\$65)', _hydraulicJack == 'double', () => setState(() => _hydraulicJack = 'double')),
+                  _choice('Ramps + jack (\$125)', _hydraulicJack == 'ramps_jack', () => setState(() => _hydraulicJack = 'ramps_jack')),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                activeColor: AppColors.amber,
+                value: _toolbox,
+                onChanged: (v) => setState(() => _toolbox = v),
+                title: const Text('Plastic toolbox (+\$15)'),
+              ),
+            ],
+            if (isPaint)
+              _counter('Ramp jacks painted separately (+\$15 ea)', _rampJacks,
+                  (v) => setState(() => _rampJacks = v)),
+            if (isWood)
+              _counter('Tire swaps (+\$25 ea)', _tireSwaps,
+                  (v) => setState(() => _tireSwaps = v)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _choice(String label, bool selected, VoidCallback onTap) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: AppColors.amber.withValues(alpha: 0.3),
+    );
+  }
+
+  Widget _counter(String label, int value, ValueChanged<int> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
+          IconButton(
+            onPressed: value > 0 ? () => onChanged(value - 1) : null,
+            icon: const Icon(Icons.remove_circle_outline),
+          ),
+          Text('$value', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          IconButton(
+            onPressed: () => onChanged(value + 1),
+            icon: const Icon(Icons.add_circle_outline, color: AppColors.amber),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -490,6 +598,11 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                   );
                 }),
               ],
+
+              // Manual pay add-ons for this department (wire jacks/toolbox,
+              // paint ramp jacks, wood tire swaps). >30ft + non-gray paint are
+              // derived automatically server-side, so they're not shown here.
+              if (!item.isRework) _buildPayAdjustments(),
 
               // Optional notes field
               const SizedBox(height: 20),
