@@ -401,6 +401,9 @@ class AppRouter {
             GoRoute(
               path: '/report-problem',
               name: RouteNames.supportReport,
+              // Full-screen (root navigator) so it opens cleanly from anywhere,
+              // including the trailer detail which is itself a root-nav page.
+              parentNavigatorKey: _rootNavigatorKey,
               builder: (context, state) => ReportProblemScreen(
                 prefillSo: state.uri.queryParameters['so'],
               ),
@@ -408,11 +411,13 @@ class AppRouter {
             GoRoute(
               path: '/support-tickets',
               name: RouteNames.supportList,
+              parentNavigatorKey: _rootNavigatorKey,
               builder: (context, state) => const SupportListScreen(),
             ),
             GoRoute(
               path: '/support-tickets/:id',
               name: RouteNames.supportThread,
+              parentNavigatorKey: _rootNavigatorKey,
               builder: (context, state) => SupportThreadScreen(
                 ticketId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
               ),
