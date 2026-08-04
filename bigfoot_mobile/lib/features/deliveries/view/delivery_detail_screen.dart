@@ -89,7 +89,16 @@ class _DeliveryDetailScreenState extends State<DeliveryDetailScreen> {
     final auth = context.read<AuthViewModel>().state;
     final role = auth is Authenticated ? auth.user.role : '';
     final isOpen = d.status == 'scheduled' || d.status == 'in_transit';
-    final canAct = role == UserRole.driver || role == UserRole.transportManager;
+    // Who can mark a delivery complete / failed. Beyond the driver + transport
+    // manager, the office/admin tier can close deliveries out too: owner,
+    // office, sales, and production_manager — matching the backend RBAC on
+    // /deliveries/:id/complete + /fail.
+    final canAct = role == UserRole.driver ||
+        role == UserRole.transportManager ||
+        role == UserRole.owner ||
+        role == UserRole.office ||
+        role == UserRole.sales ||
+        role == UserRole.productionManager;
     final canDelete =
         role == UserRole.transportManager ||
             role == UserRole.owner ||

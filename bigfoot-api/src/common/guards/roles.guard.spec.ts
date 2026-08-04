@@ -116,12 +116,14 @@ describe('RolesGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
   });
 
-  it('should deny office where owner is NOT allowed (no free-for-all)', () => {
+  it('should allow office on ANY gate — full access, even routes owner is not listed on', () => {
+    // Delivery complete/fail are gated to driver/transport with no owner; office
+    // must still pass (it is a full-access back-office admin).
     jest
       .spyOn(reflector, 'getAllAndOverride')
       .mockReturnValue([UserRole.DRIVER, UserRole.TRANSPORT_MANAGER]);
     const context = createMockContext('office');
 
-    expect(guard.canActivate(context)).toBe(false);
+    expect(guard.canActivate(context)).toBe(true);
   });
 });

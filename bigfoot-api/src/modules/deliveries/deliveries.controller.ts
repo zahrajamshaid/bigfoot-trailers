@@ -215,7 +215,14 @@ export class DeliveriesController {
   // PATCH /deliveries/:id/depart — driver, transport_manager
   // ---------------------------------------------------------------------------
   @Patch(':id/depart')
-  @Roles(UserRole.DRIVER, UserRole.TRANSPORT_MANAGER)
+  @Roles(
+    UserRole.DRIVER,
+    UserRole.TRANSPORT_MANAGER,
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.SALES,
+    UserRole.PRODUCTION_MANAGER,
+  )
   @ApiOperation({ summary: 'Driver marks en_route' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Delivery departed' })
@@ -227,7 +234,14 @@ export class DeliveriesController {
   // POST /deliveries/:id/complete — driver, transport_manager
   // ---------------------------------------------------------------------------
   @Post(':id/complete')
-  @Roles(UserRole.DRIVER, UserRole.TRANSPORT_MANAGER)
+  @Roles(
+    UserRole.DRIVER,
+    UserRole.TRANSPORT_MANAGER,
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.SALES,
+    UserRole.PRODUCTION_MANAGER,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Driver marks delivered with payment & photos' })
   @ApiParam({ name: 'id', type: 'number' })
@@ -259,7 +273,14 @@ export class DeliveriesController {
   // PATCH /deliveries/:id/fail — driver, transport_manager
   // ---------------------------------------------------------------------------
   @Patch(':id/fail')
-  @Roles(UserRole.DRIVER, UserRole.TRANSPORT_MANAGER)
+  @Roles(
+    UserRole.DRIVER,
+    UserRole.TRANSPORT_MANAGER,
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.SALES,
+    UserRole.PRODUCTION_MANAGER,
+  )
   @ApiOperation({ summary: 'Mark delivery as failed' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiResponse({ status: 200, description: 'Delivery marked failed' })
@@ -271,7 +292,14 @@ export class DeliveriesController {
   // POST /deliveries/:id/photos — driver, transport_manager
   // ---------------------------------------------------------------------------
   @Post(':id/photos')
-  @Roles(UserRole.DRIVER, UserRole.TRANSPORT_MANAGER)
+  @Roles(
+    UserRole.DRIVER,
+    UserRole.TRANSPORT_MANAGER,
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.SALES,
+    UserRole.PRODUCTION_MANAGER,
+  )
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Upload proof/damage photos for a delivery' })
   @ApiParam({ name: 'id', type: 'number' })

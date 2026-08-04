@@ -27,11 +27,12 @@ export class RolesGuard implements CanActivate {
 
     const role = user.role as UserRole;
 
-    // OFFICE is a back-office admin peer of the owner: anywhere the owner is
-    // allowed, office is allowed too. This keeps office at full owner parity
-    // across every endpoint (present and future) without listing it on each
-    // @Roles() decorator. Owner-only routes therefore also admit office.
-    if (role === UserRole.OFFICE && requiredRoles.includes(UserRole.OWNER)) {
+    // OFFICE is a full-access back-office admin: it passes every role gate,
+    // present and future. Owner parity alone wasn't enough — some endpoints
+    // (e.g. completing/failing a delivery) are gated to driver/transport and
+    // never list the owner, so office was still blocked there. Both office
+    // accounts are trusted, so office bypasses the role check entirely.
+    if (role === UserRole.OFFICE) {
       return true;
     }
 
