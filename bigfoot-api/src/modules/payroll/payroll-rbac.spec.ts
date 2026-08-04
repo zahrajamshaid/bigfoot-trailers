@@ -15,11 +15,7 @@ import { PayrollController } from './payroll.controller';
  */
 describe('Payroll RBAC', () => {
   const reflector = new Reflector();
-  const ALLOWED = [
-    UserRole.OWNER,
-    UserRole.OFFICE,
-    UserRole.PRODUCTION_MANAGER,
-  ];
+  const ALLOWED = [UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER];
 
   it('locks the whole controller to owner / office / production_manager', () => {
     const roles = reflector.get<UserRole[]>(ROLES_KEY, PayrollController);

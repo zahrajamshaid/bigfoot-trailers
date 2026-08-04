@@ -834,121 +834,222 @@ export class PayrollService {
   }
 
   // ---------------------------------------------------------------------------
-  // Stage rates — the pay + cost matrix (per model+department). Backs the mobile
-  // pay/cost matrix screen. Reads trailer_model_stage_costs (the current
-  // effective row per model+dept), which is where both the flat pay and the
-  // WIP cost now live.
+  // Stage rates — the PAY matrix (per model+department). Pay only; cost lives on
+  // the Health Check cost matrix. Returns every real model + every production
+  // department so new models show up with blank, fillable cells.
   // ---------------------------------------------------------------------------
   async getStageRates() {
-    const rows = await this.prisma.trailerModelStageCost.findMany({
-      distinct: ['trailerModelId', 'departmentId'],
-      orderBy: [
-        { trailerModelId: 'asc' },
-        { departmentId: 'asc' },
-        { effectiveFrom: 'desc' },
-      ],
-      select: {
-        trailerModelId: true,
-        departmentId: true,
-        costDollars: true,
-        payDollars: true,
-        workerSplit: true,
-        trailerModel: { select: { code: true, displayName: true, series: true } },
-        department: { select: { code: true, displayName: true } },
-      },
-    });
+    const [models, departments, rows] = await Promise.all([
+      this.prisma.trailerModel.findMany({
+        where: { series: { not: 'inventory' }, isActive: true },
+        select: { id: true, code: true, displayName: true, series: true },
+        orderBy: { code: 'asc' },
+      }),
+      this.prisma.department.findMany({
+        where: { isQcStep: false },
+        select: { id: true, code: true, displayName: true },
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.trailerModelStageCost.findMany({
+        distinct: ['trailerModelId', 'departmentId'],
+        orderBy: [
+          { trailerModelId: 'asc' },
+          { departmentId: 'asc' },
+          { effectiveFrom: 'desc' },
+        ],
+        select: {
+          trailerModelId: true,
+          departmentId: true,
+          payDollars: true,
+          workerSplit: true,
+        },
+      }),
+    ]);
 
-    const models = new Map<
-      number,
-      { id: number; code: string; name: string; series: string }
-    >();
-    const departments = new Map<number, { id: number; code: string; name: string }>();
-    const cells = rows.map((r) => {
-      models.set(r.trailerModelId, {
-        id: r.trailerModelId,
-        code: r.trailerModel.code,
-        name: r.trailerModel.displayName,
-        series: r.trailerModel.series,
-      });
-      departments.set(r.departmentId, {
-        id: r.departmentId,
-        code: r.department.code,
-        name: r.department.displayName,
-      });
-      return {
-        modelId: r.trailerModelId,
-        departmentId: r.departmentId,
-        cost: Number(r.costDollars),
-        pay: Number(r.payDollars),
-        split: Array.isArray(r.workerSplit)
-          ? (r.workerSplit as unknown[]).map(Number)
-          : null,
-      };
-    });
+    const cells = rows.map((r) => ({
+      modelId: r.trailerModelId,
+      departmentId: r.departmentId,
+      pay: Number(r.payDollars),
+      split: Array.isArray(r.workerSplit)
+        ? (r.workerSplit as unknown[]).map(Number)
+        : null,
+    }));
 
     return {
-      models: [...models.values()].sort((a, b) => a.code.localeCompare(b.code)),
-      departments: [...departments.values()],
+      models: models.map((m) => ({
+        id: m.id,
+        code: m.code,
+        name: m.displayName,
+        series: m.series,
+      })),
+      departments: departments.map((d) => ({
+        id: d.id,
+        code: d.code,
+        name: d.displayName,
+      })),
       cells,
     };
   }
 
+  // Overwrite the current pay for a (model, department). Updates the latest
+  // effective rate row in place; creates one (cost 0) if none exists yet.
+  async setStageRate(trailerModelId: number, departmentId: number, pay: number) {
+    if (pay < 0) throw new AppError(ErrorCode.BAD_REQUEST, 'Pay cannot be negative');
+    const [model, dept] = await Promise.all([
+      this.prisma.trailerModel.findUnique({
+        where: { id: trailerModelId },
+        select: { id: true },
+      }),
+      this.prisma.department.findUnique({
+        where: { id: departmentId },
+        select: { id: true, isQcStep: true },
+      }),
+    ]);
+    if (!model) throw new AppError(ErrorCode.NOT_FOUND, 'Trailer model not found');
+    if (!dept || dept.isQcStep) {
+      throw new AppError(ErrorCode.BAD_REQUEST, 'Invalid production department');
+    }
+
+    const latest = await this.prisma.trailerModelStageCost.findFirst({
+      where: { trailerModelId, departmentId },
+      orderBy: { effectiveFrom: 'desc' },
+      select: { id: true },
+    });
+    if (latest) {
+      await this.prisma.trailerModelStageCost.update({
+        where: { id: latest.id },
+        data: { payDollars: new Prisma.Decimal(pay) },
+      });
+    } else {
+      await this.prisma.trailerModelStageCost.create({
+        data: {
+          trailerModelId,
+          departmentId,
+          costDollars: new Prisma.Decimal(0),
+          payDollars: new Prisma.Decimal(pay),
+          effectiveFrom: new Date(),
+        },
+      });
+    }
+    return this.getStageRates();
+  }
+
   // ---------------------------------------------------------------------------
-  // Stage crews — fixed roster for split-pay stages (GN_WELD, YETI_FIN). Slot i
-  // earns the model's worker_split[i]. Edited by owner / office / PM.
+  // Current-week shop payroll summary — real totals from payouts (drives the
+  // payroll landing). Week = Sunday 00:00 UTC → next Sunday.
   // ---------------------------------------------------------------------------
-  async getStageCrews() {
-    // Split-pay departments are those any model carries a worker_split for.
-    const stages = await this.prisma.trailerModelStageCost.findMany({
+  async getCurrentWeekSummary() {
+    const now = new Date();
+    const weekStart = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - now.getUTCDay(),
+      ),
+    );
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+    const payouts = await this.prisma.productionStepPayout.findMany({
+      where: {
+        productionStep: {
+          completedAt: { gte: weekStart, lt: weekEnd },
+          department: { isQcStep: false },
+        },
+      },
       select: {
-        departmentId: true,
-        workerSplit: true,
-        department: { select: { id: true, code: true, displayName: true } },
+        dollars: true,
+        userId: true,
+        productionStep: { select: { id: true, completedAt: true } },
       },
     });
-    const deptInfo = new Map<
-      number,
-      { code: string; displayName: string; maxSlots: number }
-    >();
-    for (const s of stages) {
-      if (Array.isArray(s.workerSplit) && s.workerSplit.length > 1) {
-        const cur = deptInfo.get(s.departmentId);
-        const len = s.workerSplit.length;
-        if (!cur) {
-          deptInfo.set(s.departmentId, {
-            code: s.department.code,
-            displayName: s.department.displayName,
-            maxSlots: len,
-          });
-        } else if (len > cur.maxSlots) {
-          cur.maxSlots = len;
+
+    let total = 0;
+    const workers = new Set<string>();
+    const steps = new Set<string>();
+    const daily = [0, 0, 0, 0, 0, 0, 0];
+    for (const p of payouts) {
+      const amt = Number(p.dollars);
+      total += amt;
+      workers.add(p.userId.toString());
+      const st = p.productionStep;
+      if (st) {
+        steps.add(st.id.toString());
+        if (st.completedAt) {
+          const idx = Math.floor(
+            (st.completedAt.getTime() - weekStart.getTime()) / 86400000,
+          );
+          if (idx >= 0 && idx < 7) daily[idx] += amt;
         }
       }
     }
-    const deptIds = [...deptInfo.keys()];
-    const roster = await this.prisma.stageCrewMember.findMany({
-      where: { departmentId: { in: deptIds } },
-      orderBy: { slot: 'asc' },
-      select: {
-        departmentId: true,
-        slot: true,
-        userId: true,
-        user: { select: { fullName: true } },
-      },
+
+    return {
+      weekStartDate: weekStart.toISOString().split('T')[0],
+      totalGrossPay: +total.toFixed(2),
+      workerCount: workers.size,
+      stepsCompleted: steps.size,
+      daily: daily.map((d) => +d.toFixed(2)),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stage crews — a crew roster can be set for ANY production department. Slot i
+  // earns the model's worker_split[i] where a split exists (e.g. GN_WELD /
+  // YETI_FIN); on other departments the roster is stored but pay stays with the
+  // completer until a split is configured. Edited by owner / office / PM.
+  // ---------------------------------------------------------------------------
+  async getStageCrews() {
+    const [departments, splitRows, roster] = await Promise.all([
+      this.prisma.department.findMany({
+        where: { isQcStep: false },
+        select: { id: true, code: true, displayName: true },
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.trailerModelStageCost.findMany({
+        select: { departmentId: true, workerSplit: true },
+      }),
+      this.prisma.stageCrewMember.findMany({
+        orderBy: { slot: 'asc' },
+        select: {
+          departmentId: true,
+          slot: true,
+          userId: true,
+          user: { select: { fullName: true } },
+        },
+      }),
+    ]);
+
+    // Longest worker_split seen per department = its split-slot count.
+    const splitLen = new Map<number, number>();
+    for (const s of splitRows) {
+      if (Array.isArray(s.workerSplit) && s.workerSplit.length > 1) {
+        splitLen.set(
+          s.departmentId,
+          Math.max(splitLen.get(s.departmentId) ?? 0, s.workerSplit.length),
+        );
+      }
+    }
+
+    return departments.map((d) => {
+      const isSplitStage = splitLen.has(d.id);
+      return {
+        departmentId: d.id,
+        departmentCode: d.code,
+        departmentName: d.displayName,
+        // Split stages cap at their split length; other departments allow up to
+        // 3 crew members so a crew can be set up ahead of a split being defined.
+        maxSlots: isSplitStage ? splitLen.get(d.id)! : 3,
+        isSplitStage,
+        members: roster
+          .filter((r) => r.departmentId === d.id)
+          .map((r) => ({
+            slot: r.slot,
+            userId: r.userId.toString(),
+            userName: r.user.fullName,
+          })),
+      };
     });
-    return [...deptInfo.entries()].map(([departmentId, info]) => ({
-      departmentId,
-      departmentCode: info.code,
-      departmentName: info.displayName,
-      maxSlots: info.maxSlots,
-      members: roster
-        .filter((r) => r.departmentId === departmentId)
-        .map((r) => ({
-          slot: r.slot,
-          userId: r.userId.toString(),
-          userName: r.user.fullName,
-        })),
-    }));
   }
 
   async setStageCrew(departmentId: number, userIds: number[]) {

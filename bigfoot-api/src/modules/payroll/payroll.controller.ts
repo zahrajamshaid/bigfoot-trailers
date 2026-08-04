@@ -29,6 +29,7 @@ import {
   QueryPayrollRecordsDto,
 } from './dto';
 import { SetStageCrewDto } from './dto/set-stage-crew.dto';
+import { SetStageRateDto } from './dto/set-stage-rate.dto';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
@@ -206,9 +207,25 @@ export class PayrollController {
   // Stage crews — fixed rosters for split-pay stages (GN_WELD, YETI_FIN)
   // ---------------------------------------------------------------------------
   @Get('stage-rates')
-  @ApiOperation({ summary: 'Pay + cost matrix per model+department' })
+  @ApiOperation({ summary: 'Pay matrix per model+department (pay only)' })
   async getStageRates() {
     return this.payrollService.getStageRates();
+  }
+
+  @Patch('stage-rates')
+  @ApiOperation({ summary: 'Set the pay for a model+department (overwrites)' })
+  async setStageRate(@Body() dto: SetStageRateDto) {
+    return this.payrollService.setStageRate(
+      dto.trailerModelId,
+      dto.departmentId,
+      dto.pay,
+    );
+  }
+
+  @Get('current-week-summary')
+  @ApiOperation({ summary: 'Real shop-wide current-week payroll totals' })
+  async getCurrentWeekSummary() {
+    return this.payrollService.getCurrentWeekSummary();
   }
 
   @Get('stage-crews')
