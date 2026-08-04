@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   Prisma,
   ProductionStepStatus,
@@ -22,6 +22,8 @@ import { StepCheckResultDto } from './dto/complete-step.dto';
 
 @Injectable()
 export class ProductionService {
+  private readonly logger = new Logger(ProductionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
@@ -333,20 +335,36 @@ export class ProductionService {
       );
     }
 
-    // Look up points for this model + department (0 for rework)
+    // Flat stage pay for this model + department (0 for rework). Payroll moved
+    // off points: the amount earned for completing a step is the stage's flat
+    // payDollars from trailer_model_stage_costs (the same table the cost matrix
+    // reads). `pointsAwarded` now carries this dollar figure; every dept dollar
+    // rate is 1.0 so the weekly report's points×rate math yields dollars.
+    // (Crew-split stages still credit the completer the primary rate here; the
+    // multi-worker split + conditional adjustments are layered on separately.)
     let pointsAwarded = 0;
     if (!step.isRework) {
-      const pointValue = await this.prisma.pointValue.findFirst({
-        where: {
-          trailerModelId: step.trailer.trailerModelId,
-          departmentId: step.departmentId,
-          effectiveFrom: { lte: new Date() },
-          OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
-        },
-        orderBy: { effectiveFrom: 'desc' },
-      });
-      if (pointValue) {
-        pointsAwarded = Number(pointValue.points);
+      try {
+        const stageRate = await this.prisma.trailerModelStageCost.findFirst({
+          where: {
+            trailerModelId: step.trailer.trailerModelId,
+            departmentId: step.departmentId,
+            effectiveFrom: { lte: new Date() },
+            OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
+          },
+          orderBy: { effectiveFrom: 'desc' },
+          select: { payDollars: true },
+        });
+        if (stageRate) {
+          pointsAwarded = Number(stageRate.payDollars);
+        }
+      } catch (err) {
+        // Never fail a step completion over pay lookup — e.g. the pay_dollars
+        // column not yet migrated in the deploy→migrate window. Award 0 for now;
+        // the rate can be backfilled once the migration lands.
+        this.logger.warn(
+          `Stage-pay lookup failed for trailer ${step.trailerId} dept ${step.departmentId}: ${(err as Error)?.message}`,
+        );
       }
     }
 

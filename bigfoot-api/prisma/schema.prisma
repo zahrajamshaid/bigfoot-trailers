@@ -787,6 +787,14 @@ model TrailerModelStageCost {
   trailerModelId Int       @map("trailer_model_id")
   departmentId   Int       @map("department_id")
   costDollars    Decimal   @map("cost_dollars") @db.Decimal(10, 2)
+  // Flat worker pay for this stage (per model+dept) — the points system is
+  // retired; this is what a worker earns for completing the step. 0 = no
+  // separate pay for this stage (e.g. gooseneck finish weld, most hydraulics).
+  payDollars     Decimal   @default(0) @map("pay_dollars") @db.Decimal(10, 2)
+  // For crew stages where pay differs by worker slot (gooseneck jig weld
+  // 665/500/400; yeti finish 200/190/160). Ordered highest→lowest; null for
+  // single-worker stages. The split's first entry equals payDollars.
+  workerSplit    Json?     @map("worker_split")
   effectiveFrom  DateTime  @map("effective_from") @db.Date
   effectiveTo    DateTime? @map("effective_to") @db.Date
 
