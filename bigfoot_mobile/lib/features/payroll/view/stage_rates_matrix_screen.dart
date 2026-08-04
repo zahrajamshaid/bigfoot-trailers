@@ -5,8 +5,9 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/dio_client.dart';
 
-/// Read-only pay + cost matrix, per model + department, straight from the
-/// stage-rate table that drives both payroll and WIP cost. Grouped by model.
+/// Editable PAY matrix — flat worker pay per model + department. Owner / office /
+/// production_manager can tap any cell to set the pay (blanks included, so new
+/// models can be filled in). Cost is not shown here — it lives on Health Check.
 class StageRatesMatrixScreen extends StatefulWidget {
   const StageRatesMatrixScreen({super.key});
 
@@ -18,11 +19,13 @@ class _StageRatesMatrixScreenState extends State<StageRatesMatrixScreen> {
   bool _loading = true;
   String? _error;
   List<_Model> _models = [];
-  Map<int, String> _deptName = {};
+  List<_Dept> _depts = [];
   // modelId -> deptId -> cell
   Map<int, Map<int, _Cell>> _byModel = {};
   final _search = TextEditingController();
   String _query = '';
+
+  DioClient get _api => context.read<DioClient>();
 
   @override
   void initState() {
@@ -42,42 +45,85 @@ class _StageRatesMatrixScreenState extends State<StageRatesMatrixScreen> {
       _error = null;
     });
     try {
-      final resp = await context.read<DioClient>().get<Map<String, dynamic>>(
-            ApiEndpoints.payrollStageRates,
-            fromJson: (d) => d as Map<String, dynamic>,
-          );
-      final data = resp.data ?? const {};
-      final models = ((data['models'] as List<dynamic>?) ?? const [])
-          .whereType<Map<String, dynamic>>()
-          .map(_Model.fromJson)
-          .toList();
-      final deptName = <int, String>{};
-      for (final d in ((data['departments'] as List<dynamic>?) ?? const [])) {
-        if (d is Map<String, dynamic>) {
-          deptName[(d['id'] as num).toInt()] = d['name'] as String? ?? '';
-        }
-      }
-      final byModel = <int, Map<int, _Cell>>{};
-      for (final c in ((data['cells'] as List<dynamic>?) ?? const [])) {
-        if (c is Map<String, dynamic>) {
-          final cell = _Cell.fromJson(c);
-          byModel.putIfAbsent(cell.modelId, () => {})[cell.deptId] = cell;
-        }
-      }
-      if (mounted) {
-        setState(() {
-          _models = models;
-          _deptName = deptName;
-          _byModel = byModel;
-          _loading = false;
-        });
-      }
+      final resp = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.payrollStageRates,
+        fromJson: (d) => d as Map<String, dynamic>,
+      );
+      _apply(resp.data ?? const {});
+      if (mounted) setState(() => _loading = false);
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = '$e';
           _loading = false;
         });
+      }
+    }
+  }
+
+  void _apply(Map<String, dynamic> data) {
+    _models = ((data['models'] as List<dynamic>?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(_Model.fromJson)
+        .toList();
+    _depts = ((data['departments'] as List<dynamic>?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(_Dept.fromJson)
+        .toList();
+    final byModel = <int, Map<int, _Cell>>{};
+    for (final c in ((data['cells'] as List<dynamic>?) ?? const [])) {
+      if (c is Map<String, dynamic>) {
+        final cell = _Cell.fromJson(c);
+        byModel.putIfAbsent(cell.modelId, () => {})[cell.deptId] = cell;
+      }
+    }
+    _byModel = byModel;
+  }
+
+  Future<void> _editPay(_Model m, _Dept d) async {
+    final cell = _byModel[m.id]?[d.id];
+    final controller =
+        TextEditingController(text: cell != null ? _fmt(cell.pay) : '');
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${m.code} · ${d.name}'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Pay (\$)',
+            prefixText: '\$ ',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final v = double.tryParse(controller.text.trim());
+              if (v == null || v < 0) return;
+              Navigator.pop(ctx, v);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || !mounted) return;
+    try {
+      final resp = await _api.patch<Map<String, dynamic>>(
+        ApiEndpoints.payrollStageRates,
+        data: {'trailerModelId': m.id, 'departmentId': d.id, 'pay': result},
+        fromJson: (d2) => d2 as Map<String, dynamic>,
+      );
+      _apply(resp.data ?? const {});
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e'), backgroundColor: AppColors.error),
+        );
       }
     }
   }
@@ -92,24 +138,37 @@ class _StageRatesMatrixScreenState extends State<StageRatesMatrixScreen> {
                 m.name.toLowerCase().contains(_query))
             .toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Pay & cost matrix')),
+      appBar: AppBar(title: const Text('Pay matrix')),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.amber))
           : _error != null
-              ? _Retry(message: 'Could not load the matrix', onRetry: _load)
+              ? _Retry(message: 'Could not load the pay matrix', onRetry: _load)
               : Column(
                   children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                       child: TextField(
                         controller: _search,
-                        onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                        onChanged: (v) =>
+                            setState(() => _query = v.trim().toLowerCase()),
                         decoration: InputDecoration(
                           hintText: 'Search model…',
                           prefixIcon: const Icon(Icons.search),
                           isDense: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                          border:
+                              OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
                         ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text('Tap a stage to set its pay',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          ),
+                        ],
                       ),
                     ),
                     Expanded(
@@ -130,8 +189,6 @@ class _StageRatesMatrixScreenState extends State<StageRatesMatrixScreen> {
 
   Widget _modelCard(_Model m) {
     final cells = _byModel[m.id] ?? const {};
-    final sortedDeptIds = cells.keys.toList()
-      ..sort((a, b) => a.compareTo(b));
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -139,60 +196,39 @@ class _StageRatesMatrixScreenState extends State<StageRatesMatrixScreen> {
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         title: Text(m.code,
             style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.navy)),
-        subtitle: Text(m.name, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        children: [
-          Row(
-            children: [
-              const Expanded(flex: 3, child: Text('Stage', style: _hStyle)),
-              const Expanded(flex: 2, child: Text('Pay', style: _hStyle, textAlign: TextAlign.right)),
-              const Expanded(flex: 2, child: Text('Cost', style: _hStyle, textAlign: TextAlign.right)),
-            ],
-          ),
-          const Divider(),
-          ...sortedDeptIds.map((deptId) {
-            final c = cells[deptId]!;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_deptName[deptId] ?? '#$deptId',
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
-                        if (c.split != null)
-                          Text('crew: ${c.split!.map((s) => '\$${_fmt(s)}').join(' / ')}',
-                              style: TextStyle(fontSize: 11, color: AppColors.amber)),
-                      ],
-                    ),
+        subtitle:
+            Text(m.name, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        children: _depts.map((d) {
+          final c = cells[d.id];
+          final hasPay = c != null && c.pay > 0;
+          return ListTile(
+            dense: true,
+            onTap: () => _editPay(m, d),
+            title: Text(d.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: c?.split != null
+                ? Text('crew: ${c!.split!.map((s) => '\$${_fmt(s)}').join(' / ')}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.amber))
+                : null,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  hasPay ? '\$${_fmt(c.pay)}' : 'set',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: hasPay ? AppColors.success : AppColors.disabled,
                   ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(c.pay > 0 ? '\$${_fmt(c.pay)}' : '—',
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.success)),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text('\$${_fmt(c.cost)}',
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(color: AppColors.navy)),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.edit_outlined, size: 16, color: AppColors.disabled),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
-
-  static const _hStyle =
-      TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey);
 
   String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
@@ -210,17 +246,27 @@ class _Model {
       );
 }
 
+class _Dept {
+  final int id;
+  final String code;
+  final String name;
+  _Dept({required this.id, required this.code, required this.name});
+  factory _Dept.fromJson(Map<String, dynamic> j) => _Dept(
+        id: (j['id'] as num).toInt(),
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+      );
+}
+
 class _Cell {
   final int modelId;
   final int deptId;
-  final double cost;
   final double pay;
   final List<double>? split;
-  _Cell({required this.modelId, required this.deptId, required this.cost, required this.pay, this.split});
+  _Cell({required this.modelId, required this.deptId, required this.pay, this.split});
   factory _Cell.fromJson(Map<String, dynamic> j) => _Cell(
         modelId: (j['modelId'] as num).toInt(),
         deptId: (j['departmentId'] as num).toInt(),
-        cost: (j['cost'] as num?)?.toDouble() ?? 0,
         pay: (j['pay'] as num?)?.toDouble() ?? 0,
         split: (j['split'] as List<dynamic>?)?.map((e) => (e as num).toDouble()).toList(),
       );

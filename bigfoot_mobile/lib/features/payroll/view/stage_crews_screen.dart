@@ -125,75 +125,92 @@ class _StageCrewsScreenState extends State<StageCrewsScreen> {
     );
   }
 
+  String _nameFor(int? userId) {
+    if (userId == null) return '— tap to assign —';
+    for (final w in _workers) {
+      if (w.id == userId) return w.name;
+    }
+    return 'User $userId';
+  }
+
+  Future<void> _pickWorker(_Crew crew, int slot) async {
+    final picked = await showModalBottomSheet<int?>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _WorkerPickerSheet(
+        workers: _workers,
+        selected: crew.slots[slot],
+      ),
+    );
+    // picked == -1 sentinel means "clear"; null means dismissed with no change.
+    if (picked == null) return;
+    setState(() => crew.slots[slot] = picked == -1 ? null : picked);
+  }
+
   Widget _buildCrewCard(_Crew crew) {
     final saving = _saving.contains(crew.departmentId);
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(crew.departmentName,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.navy)),
-            const SizedBox(height: 12),
-            ...List.generate(crew.maxSlots, (i) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 60,
-                      child: Text('Slot ${i + 1}',
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                    Expanded(
-                      child: DropdownButtonFormField<int?>(
-                        value: crew.slots[i],
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: [
-                          const DropdownMenuItem<int?>(
-                            value: null,
-                            child: Text('— unassigned —'),
-                          ),
-                          ..._workers.map((w) => DropdownMenuItem<int?>(
-                                value: w.id,
-                                child: Text(w.name, overflow: TextOverflow.ellipsis),
-                              )),
-                        ],
-                        onChanged: (v) => setState(() => crew.slots[i] = v),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: saving ? null : () => _save(crew),
-                icon: saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.save, size: 18),
-                label: const Text('Save crew'),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.amber),
-              ),
-            ),
-          ],
+      child: ExpansionTile(
+        initiallyExpanded: crew.isSplitStage || crew.assigned > 0,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        title: Text(crew.departmentName,
+            style: const TextStyle(
+                fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.navy)),
+        subtitle: Text(
+          crew.isSplitStage
+              ? 'Split pay · ${crew.assigned}/${crew.maxSlots} assigned'
+              : '${crew.assigned}/${crew.maxSlots} assigned (no split pay set)',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: [
+          ...List.generate(crew.maxSlots, (i) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 56,
+                    child: Text('Slot ${i + 1}',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _pickWorker(crew, i),
+                      style: OutlinedButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        foregroundColor: crew.slots[i] == null
+                            ? AppColors.disabled
+                            : AppColors.navy,
+                      ),
+                      child: Text(_nameFor(crew.slots[i]),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: saving ? null : () => _save(crew),
+              icon: saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child:
+                          CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.save, size: 18),
+              label: const Text('Save crew'),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.amber),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -203,14 +220,18 @@ class _Crew {
   final int departmentId;
   final String departmentName;
   final int maxSlots;
+  final bool isSplitStage;
   final List<int?> slots; // slot index -> userId (mutable)
 
   _Crew({
     required this.departmentId,
     required this.departmentName,
     required this.maxSlots,
+    required this.isSplitStage,
     required this.slots,
   });
+
+  int get assigned => slots.where((s) => s != null).length;
 
   factory _Crew.fromJson(Map<String, dynamic> j) {
     final maxSlots = (j['maxSlots'] as num?)?.toInt() ?? 3;
@@ -226,6 +247,7 @@ class _Crew {
       departmentId: (j['departmentId'] as num?)?.toInt() ?? 0,
       departmentName: j['departmentName'] as String? ?? '',
       maxSlots: maxSlots,
+      isSplitStage: (j['isSplitStage'] as bool?) ?? false,
       slots: slots,
     );
   }
@@ -242,6 +264,92 @@ class _Worker {
         name: (j['fullName'] ?? j['name'] ?? j['email'] ?? 'User') as String,
         isActive: (j['isActive'] as bool?) ?? true,
       );
+}
+
+/// Searchable worker picker. Pops the selected userId, -1 to clear, or null.
+class _WorkerPickerSheet extends StatefulWidget {
+  final List<_Worker> workers;
+  final int? selected;
+  const _WorkerPickerSheet({required this.workers, required this.selected});
+
+  @override
+  State<_WorkerPickerSheet> createState() => _WorkerPickerSheetState();
+}
+
+class _WorkerPickerSheetState extends State<_WorkerPickerSheet> {
+  final _c = TextEditingController();
+  String _q = '';
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _q.isEmpty
+        ? widget.workers
+        : widget.workers.where((w) => w.name.toLowerCase().contains(_q)).toList();
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        builder: (context, scroll) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: TextField(
+                controller: _c,
+                autofocus: true,
+                onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
+                decoration: InputDecoration(
+                  hintText: 'Type a worker\'s name…',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+                  isDense: true,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: scroll,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.person_off_outlined, color: AppColors.disabled),
+                    title: const Text('Unassign'),
+                    onTap: () => Navigator.pop(context, -1),
+                  ),
+                  const Divider(height: 1),
+                  ...filtered.map((w) => ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.navy,
+                          child: Text(
+                            w.name.isNotEmpty ? w.name[0].toUpperCase() : '?',
+                            style: const TextStyle(color: AppColors.white),
+                          ),
+                        ),
+                        title: Text(w.name),
+                        trailing: widget.selected == w.id
+                            ? const Icon(Icons.check, color: AppColors.success)
+                            : null,
+                        onTap: () => Navigator.pop(context, w.id),
+                      )),
+                  if (filtered.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: Text('No matching workers')),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ErrorView extends StatelessWidget {
