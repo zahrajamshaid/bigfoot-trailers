@@ -51,6 +51,7 @@ abstract final class ApiEndpoints {
   // ── Production ───────────────────────────────────────────────────────────
     static const String productionDepartments = '/production/departments';
   static const String productionStalledCount = '/production/stalled-count';
+  static const String productionJigQueues = '/production/jig-queues';
   static String productionQueue(int deptId) => '/production/queue/$deptId';
   static const String productionQueueAll = '/production/queue/all';
   static String stepComplete(int stepId) =>

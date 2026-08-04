@@ -10,6 +10,9 @@ import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../viewmodel/dashboard_viewmodel.dart';
 import '../../deliveries/view/driver_delivery_screen.dart';
 import '../../../shared/widgets/stat_card.dart';
+import '../../../core/network/dio_client.dart';
+import '../../jig_queues/viewmodel/jig_queues_cubit.dart';
+import '../../jig_queues/view/widgets/jig_queue_banner.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -26,12 +29,26 @@ class DashboardScreen extends StatelessWidget {
       return const DriverDeliveryList();
     }
 
-    return BlocBuilder<DashboardViewModel, DashboardState>(
-      builder: (context, state) {
-        return RefreshIndicator(
-          color: AppColors.amber,
-          onRefresh: () => context.read<DashboardViewModel>().refresh(),
-          child: switch (state) {
+    // The jig-starvation banner is for the people who enter work orders:
+    // owner / office / production_manager / sales. Others don't see it.
+    final showJigBanner = role == UserRole.owner ||
+        role == UserRole.office ||
+        role == UserRole.productionManager ||
+        role == UserRole.sales;
+
+    return BlocProvider<JigQueuesCubit>(
+      create: (ctx) => JigQueuesCubit(api: ctx.read<DioClient>())..load(),
+      child: BlocBuilder<DashboardViewModel, DashboardState>(
+        builder: (context, state) {
+          return RefreshIndicator(
+            color: AppColors.amber,
+            onRefresh: () async {
+              await context.read<DashboardViewModel>().refresh();
+              if (context.mounted) {
+                await context.read<JigQueuesCubit>().load();
+              }
+            },
+            child: switch (state) {
             DashboardInitial() || DashboardLoading() => const Center(
                 child: CircularProgressIndicator(color: AppColors.amber),
               ),
@@ -46,6 +63,9 @@ class DashboardScreen extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 24),
                   children: [
                     _Greeting(user: user),
+                    // Jig-starvation early warning — stays until the line
+                    // recovers. Renders nothing when queues are healthy.
+                    if (showJigBanner) const JigQueueBanner(),
                     switch (role) {
                       UserRole.owner ||
                       UserRole.office ||
@@ -72,7 +92,8 @@ class DashboardScreen extends StatelessWidget {
           },
         );
       },
-    );
+        ),
+      );
   }
 }
 
@@ -145,7 +166,37 @@ class _ManagerDashboard extends StatelessWidget {
     // it renders at all (skip empty sections instead of leaving a
     // dangling heading with no cards under it — happens when a role
     // doesn't see any QC tile, for instance).
+    //
+    // Live jig-queue board (provided above in DashboardScreen). Drives the
+    // "Jig queues" tile's value + colour so managers see line-feed health at
+    // a glance and can drill into the dedicated board.
+    final jigBoard = context.watch<JigQueuesCubit>().state.board;
+    final jigTotal =
+        jigBoard?.queues.fold<int>(0, (s, q) => s + q.count) ?? 0;
+    final jigColor = jigBoard?.hasCritical == true
+        ? AppColors.error
+        : jigBoard?.hasLow == true
+            ? AppColors.warning
+            : AppColors.navy;
+
     final productionTiles = <Widget>[
+      StatCard(
+        title: 'Jig queues',
+        value: jigBoard == null ? '—' : '$jigTotal',
+        icon: Icons.build_circle_outlined,
+        color: jigColor,
+        onTap: () => context.pushNamed(RouteNames.jigQueues),
+        badge: (jigBoard?.hasLow ?? false)
+            ? Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: jigColor,
+                ),
+              )
+            : null,
+      ),
       StatCard(
         title: l.dashStatActiveTrailers,
         value: '${data.activeTrailers}',

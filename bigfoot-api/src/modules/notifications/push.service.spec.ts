@@ -138,6 +138,46 @@ describe('PushService', () => {
     });
   });
 
+  describe('sendJigQueueLow', () => {
+    it('should send to production_manager + owner + office + sales', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([{ id: BigInt(10) }]);
+      mockPrisma.pushNotification.createMany.mockResolvedValue({ count: 1 });
+
+      await service.sendJigQueueLow('XP_JIG', 'XP Jig Weld', 4, 'warning');
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            role: { in: ['production_manager', 'owner', 'office', 'sales'] },
+            isActive: true,
+          },
+        }),
+      );
+      expect(mockPrisma.pushNotification.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.arrayContaining([
+            expect.objectContaining({
+              notificationType: NotificationType.jig_queue_low,
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('critical severity says "critically" in the title (dedup key) and warns of a stall', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([{ id: BigInt(10) }]);
+      mockPrisma.pushNotification.createMany.mockResolvedValue({ count: 1 });
+
+      await service.sendJigQueueLow('YETI_JIG', 'Yeti Jig Weld', 1, 'critical');
+
+      const arg = mockPrisma.pushNotification.createMany.mock.calls.at(-1)?.[0];
+      const row = arg.data[0];
+      expect(row.title).toContain('critically');
+      expect(row.body).toContain('stall');
+      expect(row.body).toContain('1 trailer '); // singular noun for count 1
+    });
+  });
+
   describe('sendWorkerMessage', () => {
     it('should send to specific user', async () => {
       mockPrisma.pushNotification.createMany.mockResolvedValue({ count: 1 });

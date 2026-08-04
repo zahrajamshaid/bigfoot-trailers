@@ -7,6 +7,13 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { toQcSeriesScope } from '../../common/qc-series-scope';
+import {
+  JIG_CODES,
+  JIG_WARN_THRESHOLD,
+  JIG_CRITICAL_THRESHOLD,
+  jigSeverity,
+  JigSeverity,
+} from '../../common/jig-queue';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TrailerOptionsService } from '../trailers/trailer-options.service';
 import { AppError } from '../../common/errors/app-error';
@@ -41,6 +48,71 @@ export class ProductionService {
       where: { resolvedAt: null },
     });
     return { count };
+  }
+
+  // ---------------------------------------------------------------------------
+  // getJigQueues — how many trailers are queued at each jig (line start)
+  //
+  // Powers the dashboard jig-queue board and the low-queue banner. Each jig's
+  // count is its active + waiting steps (trailers currently at / about to enter
+  // that jig); severity flags a queue that's running low (≤5) or critical (≤2)
+  // so Mulberry sales / office / owner / PM can feed the line before it stalls.
+  // ---------------------------------------------------------------------------
+  async getJigQueues(): Promise<{
+    queues: Array<{
+      departmentId: number;
+      code: string;
+      displayName: string;
+      count: number;
+      severity: JigSeverity;
+    }>;
+    worstSeverity: JigSeverity;
+    warnThreshold: number;
+    criticalThreshold: number;
+  }> {
+    const depts = await this.prisma.department.findMany({
+      where: { code: { in: [...JIG_CODES] } },
+      select: { id: true, code: true, displayName: true },
+    });
+
+    // Keep the JIG_CODES ordering (XP → Yeti → Deck-Over → Gooseneck) so the
+    // board reads the same every time regardless of DB row order.
+    const ordered = JIG_CODES.map((code) => depts.find((d) => d.code === code)).filter(
+      (d): d is (typeof depts)[number] => d != null,
+    );
+
+    const queues = await Promise.all(
+      ordered.map(async (d) => {
+        const count = await this.prisma.productionStep.count({
+          where: {
+            departmentId: d.id,
+            status: {
+              in: [ProductionStepStatus.active, ProductionStepStatus.waiting],
+            },
+          },
+        });
+        return {
+          departmentId: d.id,
+          code: d.code,
+          displayName: d.displayName,
+          count,
+          severity: jigSeverity(count),
+        };
+      }),
+    );
+
+    const worstSeverity: JigSeverity = queues.some((q) => q.severity === 'critical')
+      ? 'critical'
+      : queues.some((q) => q.severity === 'warning')
+        ? 'warning'
+        : 'ok';
+
+    return {
+      queues,
+      worstSeverity,
+      warnThreshold: JIG_WARN_THRESHOLD,
+      criticalThreshold: JIG_CRITICAL_THRESHOLD,
+    };
   }
 
   // =========================================================================
@@ -157,9 +229,7 @@ export class ProductionService {
       where: {
         departmentId: step.departmentId,
         isActive: true,
-        ...(scope
-          ? { appliesToSeries: { in: [scope, QcSeriesScope.all] } }
-          : {}),
+        ...(scope ? { appliesToSeries: { in: [scope, QcSeriesScope.all] } } : {}),
         OR: addonClauses,
       },
       select: {
@@ -967,18 +1037,14 @@ export class ProductionService {
         soldToName: step.trailer.soldToName ?? null,
         saleStatus: step.trailer.saleStatus,
         isCustomerOrder: step.trailer.saleStatus === 'sold',
-        buyerName:
-          step.trailer.customer?.name ??
-          step.trailer.soldToName ??
-          null,
+        buyerName: step.trailer.customer?.name ?? step.trailer.soldToName ?? null,
         optionsNotes: step.trailer.optionsNotes,
         // How many options THIS department still has to fit + acknowledge on
         // this trailer. Non-zero blocks step completion, so the queue card can
         // warn the worker before they even open it.
         optionsToFit: step.trailer.addons.filter((a) =>
           a.departments.some(
-            (d) =>
-              d.departmentId === step.departmentId && d.acknowledgedAt === null,
+            (d) => d.departmentId === step.departmentId && d.acknowledgedAt === null,
           ),
         ).length,
         qbSoPdfUrl: step.trailer.qbSoPdfStorageUrl,

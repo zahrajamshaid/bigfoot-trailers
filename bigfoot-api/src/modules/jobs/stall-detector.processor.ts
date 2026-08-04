@@ -15,9 +15,19 @@ export class StallDetectorProcessor implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    // Check for stalled steps every 10 minutes
-    this.intervalRef = setInterval(() => this.detectStalls(), 10 * 60_000);
-    this.logger.log('Stall detector started (10m interval)');
+    // Every 10 minutes: detect stalled steps AND sweep the jig queues so a
+    // quietly-draining line is caught even when no steps are completing.
+    this.intervalRef = setInterval(() => this.tick(), 10 * 60_000);
+    this.logger.log('Stall detector + jig-queue sweep started (10m interval)');
+  }
+
+  private async tick() {
+    await this.detectStalls();
+    try {
+      await this.notificationsService.sweepJigQueues();
+    } catch (err) {
+      this.logger.error(`Jig-queue sweep failed: ${(err as Error)?.message}`);
+    }
   }
 
   onModuleDestroy() {

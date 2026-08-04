@@ -215,28 +215,42 @@ export class PushService implements OnModuleInit {
     });
   }
 
-  /** Jig Queue Low → production_manager only */
+  /**
+   * Jig Queue Low → production_manager + owner + office + sales.
+   * The people who enter work orders need to know before the line starves, so
+   * this goes wider than the PM. `severity` = 'critical' (≤2, line about to
+   * stop) or 'warning' (≤5, running low); the "critically" keyword in the
+   * critical title is what the dedup in onPossibleJigQueueLow matches on.
+   */
   async sendJigQueueLow(
     deptCode: string,
     deptName: string,
     count: number,
+    severity: 'warning' | 'critical',
   ): Promise<void> {
-    const managers = await this.prisma.user.findMany({
-      where: { role: 'production_manager', isActive: true },
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        role: { in: ['production_manager', 'owner', 'office', 'sales'] },
+        isActive: true,
+      },
       select: { id: true },
     });
-    if (managers.length === 0) return;
+    if (recipients.length === 0) return;
     const noun = count === 1 ? 'trailer' : 'trailers';
+    const critical = severity === 'critical';
     await this.send({
-      recipientUserIds: managers.map((m) => m.id),
+      recipientUserIds: recipients.map((r) => r.id),
       notificationType: NotificationType.jig_queue_low,
-      title: `Low ${deptName} queue`,
-      body:
-        `Only ${count} ${noun} left in ${deptName}. ` +
-        'Enter more work orders to keep the line fed.',
+      title: critical ? `⚠️ ${deptName} critically low` : `Low ${deptName} queue`,
+      body: critical
+        ? `Only ${count} ${noun} left in ${deptName} — production will stall. ` +
+          'Enter work orders now.'
+        : `Only ${count} ${noun} left in ${deptName}. ` +
+          'Enter more work orders to keep the line fed.',
       data: {
         deptCode,
         count: count.toString(),
+        severity,
       },
     });
   }

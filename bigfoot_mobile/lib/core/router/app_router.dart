@@ -31,6 +31,7 @@ import '../../features/payroll/view/point_matrix_screen.dart';
 import '../../features/payroll/view/weekly_report_screen.dart';
 import '../../features/payroll/view/worker_points_screen.dart';
 import '../../features/production/view/all_queues_screen.dart';
+import '../../features/jig_queues/view/jig_queues_screen.dart';
 import '../../features/production/view/queue_screen.dart';
 import '../../features/qc/view/checklist_management_screen.dart';
 import '../../features/qc/view/inspection_detail_screen.dart';
@@ -367,6 +368,11 @@ class AppRouter {
               name: RouteNames.productionReport,
               redirect: _productionReportAccess,
               builder: (context, state) => const ProductionReportScreen(),
+            ),
+            GoRoute(
+              path: '/jig-queues',
+              name: RouteNames.jigQueues,
+              builder: (context, state) => const JigQueuesScreen(),
             ),
             GoRoute(
               path: '/settings',

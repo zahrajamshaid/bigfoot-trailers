@@ -5,6 +5,7 @@ import { NotificationsGateway, WsEvent } from './notifications.gateway';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppError, ErrorCode } from '../../common/errors';
 import { NotificationType, ProductionStepStatus } from '@prisma/client';
+import { JIG_CODES, isJigCode, jigSeverity } from '../../common/jig-queue';
 
 // ---------------------------------------------------------------------------
 // Payload interfaces for each notification scenario
@@ -217,25 +218,25 @@ export class NotificationsService {
   }
 
   // =========================================================================
-  // onPossibleJigQueueLow — fires when a jig step completes
+  // onPossibleJigQueueLow — jig-starvation early warning
   //
-  // The four jig-weld departments (XP_JIG, YETI_JIG, DO_JIG, GN_WELD) are
-  // the start of the production line. When one of them drops below 3
-  // active+waiting steps, production managers should kick off more SOs so
-  // the welders never run out. We check after every jig-step completion
-  // and notify when the queue is low, with a 6-hour dedup so a slow
-  // afternoon doesn't spam the inbox.
+  // The four jig-weld departments (XP_JIG, YETI_JIG, DO_JIG, GN_WELD) are the
+  // start of every production line. When one runs low there's nothing left to
+  // weld and the whole line stalls, and getting fresh SOs entered takes time —
+  // so we warn early (≤5) and escalate to critical (≤2), pushing to Mulberry
+  // sales / office / owner / PM. Called both after every jig-step completion
+  // (immediate) and by the periodic sweep (catches a quiet line), with a
+  // 6-hour dedup per severity so it escalates warning → critical without
+  // spamming the inbox.
   // =========================================================================
   async onPossibleJigQueueLow(deptId: number): Promise<void> {
-    const JIG_CODES = new Set(['XP_JIG', 'YETI_JIG', 'DO_JIG', 'GN_WELD']);
-    const LOW_THRESHOLD = 3;
     const DEDUP_HOURS = 6;
 
     const dept = await this.prisma.department.findUnique({
       where: { id: deptId },
       select: { code: true, displayName: true },
     });
-    if (!dept || !JIG_CODES.has(dept.code)) return;
+    if (!dept || !isJigCode(dept.code)) return;
 
     const count = await this.prisma.productionStep.count({
       where: {
@@ -245,22 +246,43 @@ export class NotificationsService {
         },
       },
     });
-    if (count >= LOW_THRESHOLD) return;
+    const severity = jigSeverity(count);
+    if (severity === 'ok') return;
 
-    // Dedup: same dept + same notification type fired recently → skip.
-    // The dept code is in PushNotification.body so we can match it.
+    // Dedup within the window, keyed by dept + severity so a critical still
+    // fires even if a warning already went out. Critical bodies carry the word
+    // "critically", so we can match on it; a warning is suppressed by ANY
+    // recent alert for the same jig (warning OR critical).
     const cutoff = new Date(Date.now() - DEDUP_HOURS * 60 * 60 * 1000);
     const recent = await this.prisma.pushNotification.findFirst({
       where: {
         notificationType: NotificationType.jig_queue_low,
         createdAt: { gte: cutoff },
         body: { contains: dept.displayName },
+        ...(severity === 'critical' ? { title: { contains: 'critically' } } : {}),
       },
       select: { id: true },
     });
     if (recent) return;
 
-    await this.pushService.sendJigQueueLow(dept.code, dept.displayName, count);
+    await this.pushService.sendJigQueueLow(dept.code, dept.displayName, count, severity);
+  }
+
+  // =========================================================================
+  // sweepJigQueues — periodic proactive check of every jig
+  //
+  // Runs on the background job interval so a jig that quietly drains (no step
+  // completions happening) is still caught. Delegates to onPossibleJigQueueLow
+  // per jig, which handles severity + dedup.
+  // =========================================================================
+  async sweepJigQueues(): Promise<void> {
+    const depts = await this.prisma.department.findMany({
+      where: { code: { in: [...JIG_CODES] } },
+      select: { id: true },
+    });
+    for (const d of depts) {
+      await this.onPossibleJigQueueLow(d.id);
+    }
   }
 
   // =========================================================================

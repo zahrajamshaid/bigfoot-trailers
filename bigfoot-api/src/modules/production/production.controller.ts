@@ -55,6 +55,27 @@ export class ProductionController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /production/jig-queues
+  // ---------------------------------------------------------------------------
+  // How many trailers are queued at each jig (line start), with a severity flag
+  // per jig. Feeds the dashboard jig-queue board + the low-queue warning banner
+  // so Mulberry sales / office / owner / PM can feed the line before it stalls.
+  // ---------------------------------------------------------------------------
+  @Get('jig-queues')
+  @Roles(
+    UserRole.OWNER,
+    UserRole.OFFICE,
+    UserRole.PRODUCTION_MANAGER,
+    UserRole.SALES,
+    UserRole.QC_INSPECTOR,
+  )
+  @ApiOperation({ summary: 'Per-jig queue counts + low-queue severity' })
+  @ApiResponse({ status: 200, description: 'Jig queue board' })
+  async getJigQueues() {
+    return this.productionService.getJigQueues();
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /production/queue/all — production_manager, owner
   // ---------------------------------------------------------------------------
   @Get('queue/all')

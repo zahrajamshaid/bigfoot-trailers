@@ -19,6 +19,7 @@ abstract final class RouteNames {
   // ── Production ───────────────────────────────────────────────────────────
   static const String productionQueue = 'productionQueue';
   static const String productionAllQueues = 'productionAllQueues';
+  static const String jigQueues = 'jigQueues';
 
   // ── QC ───────────────────────────────────────────────────────────────────
   static const String qcQueue = 'qcQueue';
