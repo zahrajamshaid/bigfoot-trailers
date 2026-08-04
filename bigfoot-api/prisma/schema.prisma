@@ -164,8 +164,19 @@ enum NotificationType {
   // the line starves. Self-applies via ALTER TYPE in the notification
   // path so prod can pick it up without a separate db push.
   jig_queue_low
+  // Fires on a support/problem report: a new report notifies owner/office/PM,
+  // and a reply notifies the other party. Added to the DB enum by
+  // apply-support-tables (ALTER TYPE ... ADD VALUE IF NOT EXISTS).
+  support_message
 
   @@map("notification_type_enum")
+}
+
+enum SupportTicketStatus {
+  open
+  resolved
+
+  @@map("support_ticket_status_enum")
 }
 
 enum BatchType {
@@ -517,6 +528,8 @@ model User {
   productionStepChecks ProductionStepCheck[]
   postedAnnouncements  SystemAnnouncement[]      @relation("AnnouncementPostedBy")
   announcementAcks     SystemAnnouncementAck[]
+  reportedSupportTickets SupportTicket[]        @relation("SupportReporter")
+  sentSupportMessages    SupportTicketMessage[] @relation("SupportSender")
 
   @@index([role, isActive], map: "idx_users_role_active")
   @@map("users")
@@ -608,6 +621,42 @@ model WorkerMessage {
   toUser   User    @relation("MessageTo", fields: [toUserId], references: [id])
 
   @@map("worker_messages")
+}
+
+// -----------------------------------------------------------------------------
+// Support / problem reports — any user can raise a ticket ("something's wrong
+// with the app"), which notifies owner/office/PM. Two-way: admins reply on the
+// thread and the reporter sees it. Kept generic (not trailer-bound) so it works
+// for app bugs, access issues, whatever.
+// -----------------------------------------------------------------------------
+model SupportTicket {
+  id             BigInt              @id @default(autoincrement())
+  reporterUserId BigInt              @map("reporter_user_id")
+  subject        String              @db.VarChar(160)
+  status         SupportTicketStatus @default(open)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  reporter User                   @relation("SupportReporter", fields: [reporterUserId], references: [id])
+  messages SupportTicketMessage[]
+
+  @@index([status, updatedAt(sort: Desc)], map: "idx_support_tickets_status_updated")
+  @@index([reporterUserId, updatedAt(sort: Desc)], map: "idx_support_tickets_reporter")
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id           BigInt   @id @default(autoincrement())
+  ticketId     BigInt   @map("ticket_id")
+  senderUserId BigInt   @map("sender_user_id")
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User          @relation("SupportSender", fields: [senderUserId], references: [id])
+
+  @@index([ticketId, createdAt], map: "idx_support_messages_ticket")
+  @@map("support_ticket_messages")
 }
 
 // =============================================================================

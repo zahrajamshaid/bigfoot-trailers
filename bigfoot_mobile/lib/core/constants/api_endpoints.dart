@@ -52,6 +52,14 @@ abstract final class ApiEndpoints {
     static const String productionDepartments = '/production/departments';
   static const String productionStalledCount = '/production/stalled-count';
   static const String productionJigQueues = '/production/jig-queues';
+
+  // ── Support / problem reports ────────────────────────────────────────────
+  static const String supportTickets = '/support/tickets';
+  static const String supportOpenCount = '/support/tickets/open-count';
+  static String supportTicket(int id) => '/support/tickets/$id';
+  static String supportTicketMessages(int id) => '/support/tickets/$id/messages';
+  static String supportTicketResolve(int id) => '/support/tickets/$id/resolve';
+  static String supportTicketReopen(int id) => '/support/tickets/$id/reopen';
   static String productionQueue(int deptId) => '/production/queue/$deptId';
   static const String productionQueueAll = '/production/queue/all';
   static String stepComplete(int stepId) =>

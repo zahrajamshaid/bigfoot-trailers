@@ -32,6 +32,9 @@ import '../../features/payroll/view/weekly_report_screen.dart';
 import '../../features/payroll/view/worker_points_screen.dart';
 import '../../features/production/view/all_queues_screen.dart';
 import '../../features/jig_queues/view/jig_queues_screen.dart';
+import '../../features/support/view/report_problem_screen.dart';
+import '../../features/support/view/support_list_screen.dart';
+import '../../features/support/view/support_thread_screen.dart';
 import '../../features/production/view/queue_screen.dart';
 import '../../features/qc/view/checklist_management_screen.dart';
 import '../../features/qc/view/inspection_detail_screen.dart';
@@ -373,6 +376,23 @@ class AppRouter {
               path: '/jig-queues',
               name: RouteNames.jigQueues,
               builder: (context, state) => const JigQueuesScreen(),
+            ),
+            GoRoute(
+              path: '/report-problem',
+              name: RouteNames.supportReport,
+              builder: (context, state) => const ReportProblemScreen(),
+            ),
+            GoRoute(
+              path: '/support-tickets',
+              name: RouteNames.supportList,
+              builder: (context, state) => const SupportListScreen(),
+            ),
+            GoRoute(
+              path: '/support-tickets/:id',
+              name: RouteNames.supportThread,
+              builder: (context, state) => SupportThreadScreen(
+                ticketId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+              ),
             ),
             GoRoute(
               path: '/settings',

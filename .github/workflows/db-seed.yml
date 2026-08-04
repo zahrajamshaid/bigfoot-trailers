@@ -82,6 +82,7 @@ on:
           - fix-generate-workflow-7089-2026-07-28 # one-shot: build the missing 12-step XP workflow for SO 7089 (entered as misc, switched to 10K XP) + set pending_production at XP_JIG
           - fix-complete-single-pull-loads-2026-08-04 # one-shot: complete stuck single_pull loads SO 6930 + 6681 (→ delivered) and delete the duplicate scheduled single_pull on SO 6829
           - fix-jax-tropic-load-corrections-2026-08-04 # one-shot: 6930 delivered to Jacksonville yard (ready_for_delivery @ JAX) + 6681 linked to Tropic Trailers customer
+          - apply-support-tables-2026-08-04 # additive (idempotent): support_tickets + support_ticket_messages + support_ticket_status_enum + notification_type_enum 'support_message'
           - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
 
 concurrency:

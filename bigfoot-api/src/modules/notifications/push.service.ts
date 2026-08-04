@@ -255,6 +255,40 @@ export class PushService implements OnModuleInit {
     });
   }
 
+  /** Support ticket opened → the given admin recipients (owner/office/PM). */
+  async sendSupportTicketOpened(
+    ticketId: bigint,
+    subject: string,
+    reporterName: string,
+    recipientUserIds: bigint[],
+  ): Promise<void> {
+    if (recipientUserIds.length === 0) return;
+    await this.send({
+      recipientUserIds,
+      notificationType: NotificationType.support_message,
+      title: 'New problem report',
+      body: `${reporterName}: ${subject}`,
+      data: { ticketId: ticketId.toString(), kind: 'opened' },
+    });
+  }
+
+  /** Support ticket reply → the other party (reporter, or the admin tier). */
+  async sendSupportTicketReply(
+    ticketId: bigint,
+    subject: string,
+    senderName: string,
+    recipientUserIds: bigint[],
+  ): Promise<void> {
+    if (recipientUserIds.length === 0) return;
+    await this.send({
+      recipientUserIds,
+      notificationType: NotificationType.support_message,
+      title: `New reply — ${subject}`,
+      body: `${senderName} replied to your support thread`,
+      data: { ticketId: ticketId.toString(), kind: 'reply' },
+    });
+  }
+
   /** Trailer Stalled → production_manager + owner */
   async sendTrailerStalled(
     trailerId: bigint,

@@ -62,6 +62,9 @@ abstract final class RouteNames {
   // ── Notifications ───────────────────────────────────────────────────────
   static const String notificationsCenter = 'notificationsCenter';
   static const String workerMessages = 'workerMessages';
+  static const String supportReport = 'supportReport';
+  static const String supportList = 'supportList';
+  static const String supportThread = 'supportThread';
   static const String pdfViewer = 'pdfViewer';
 
   // ── Settings ─────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import '../../../shared/widgets/stat_card.dart';
 import '../../../core/network/dio_client.dart';
 import '../../jig_queues/viewmodel/jig_queues_cubit.dart';
 import '../../jig_queues/view/widgets/jig_queue_banner.dart';
+import '../../support/view/widgets/support_dashboard_card.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -86,6 +87,9 @@ class DashboardScreen extends StatelessWidget {
                         role == UserRole.productionManager ||
                         role == UserRole.sales)
                       const _StockInventoryCard(),
+                    // Support entry — admins get the reports inbox (with an
+                    // open-count badge), everyone else gets "Report a problem".
+                    const SupportDashboardCard(),
                   ],
                 ),
               ),

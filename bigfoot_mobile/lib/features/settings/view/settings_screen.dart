@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/router/route_names.dart';
 import '../../../core/i18n/locale_cubit.dart';
 import '../../../core/security/pin_storage.dart';
 import '../../../core/websocket/ws_client.dart';
@@ -249,6 +250,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 8),
 
+            // ── Support ───────────────────────────────────────────────────
+            _SectionHeader(title: 'Support'),
+            _SettingsTile(
+              icon: Icons.report_problem_outlined,
+              iconColor: AppColors.amber,
+              title: 'Report a problem',
+              subtitle: 'Something not working? Send it to the admins',
+              onTap: () => context.pushNamed(RouteNames.supportReport),
+            ),
+            _SettingsTile(
+              icon: Icons.forum_outlined,
+              iconColor: AppColors.navy,
+              title: 'My reports',
+              subtitle: 'See your problem reports and replies',
+              onTap: () => context.pushNamed(RouteNames.supportList),
+            ),
+
+            const SizedBox(height: 8),
+
             // ── About ─────────────────────────────────────────────────────
             _SectionHeader(title: l.settingsAboutSection),
             _SettingsTile(
@@ -425,6 +445,7 @@ class _SettingsTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget? trailing;
+  final VoidCallback? onTap;
 
   const _SettingsTile({
     required this.icon,
@@ -432,11 +453,13 @@ class _SettingsTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.trailing,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      onTap: onTap,
       leading: Container(
         width: 40,
         height: 40,
@@ -450,7 +473,9 @@ class _SettingsTile extends StatelessWidget {
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
       subtitle: Text(subtitle,
           style: const TextStyle(fontSize: 12, color: AppColors.disabled)),
-      trailing: trailing,
+      trailing: trailing ?? (onTap != null
+          ? const Icon(Icons.chevron_right, color: AppColors.disabled)
+          : null),
     );
   }
 }
