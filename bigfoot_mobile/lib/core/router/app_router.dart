@@ -399,30 +399,6 @@ class AppRouter {
               builder: (context, state) => const JigQueuesScreen(),
             ),
             GoRoute(
-              path: '/report-problem',
-              name: RouteNames.supportReport,
-              // Full-screen (root navigator) so it opens cleanly from anywhere,
-              // including the trailer detail which is itself a root-nav page.
-              parentNavigatorKey: _rootNavigatorKey,
-              builder: (context, state) => ReportProblemScreen(
-                prefillSo: state.uri.queryParameters['so'],
-              ),
-            ),
-            GoRoute(
-              path: '/support-tickets',
-              name: RouteNames.supportList,
-              parentNavigatorKey: _rootNavigatorKey,
-              builder: (context, state) => const SupportListScreen(),
-            ),
-            GoRoute(
-              path: '/support-tickets/:id',
-              name: RouteNames.supportThread,
-              parentNavigatorKey: _rootNavigatorKey,
-              builder: (context, state) => SupportThreadScreen(
-                ticketId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
-              ),
-            ),
-            GoRoute(
               path: '/settings',
               name: RouteNames.settings,
               builder: (context, state) => const SettingsScreen(),
@@ -459,6 +435,28 @@ class AppRouter {
           name: RouteNames.pdfViewer,
           builder: (context, state) => PdfViewerScreen(
             args: state.extra! as PdfViewerArgs,
+          ),
+        ),
+        // Support / problem reports — top-level full-screen (outside the shell)
+        // so they open from anywhere, including the trailer detail. Same pattern
+        // as /pdf-viewer, which is opened from the trailer detail and works.
+        GoRoute(
+          path: '/report-problem',
+          name: RouteNames.supportReport,
+          builder: (context, state) => ReportProblemScreen(
+            prefillSo: state.uri.queryParameters['so'],
+          ),
+        ),
+        GoRoute(
+          path: '/support-tickets',
+          name: RouteNames.supportList,
+          builder: (context, state) => const SupportListScreen(),
+        ),
+        GoRoute(
+          path: '/support-tickets/:id',
+          name: RouteNames.supportThread,
+          builder: (context, state) => SupportThreadScreen(
+            ticketId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
           ),
         ),
       ],
