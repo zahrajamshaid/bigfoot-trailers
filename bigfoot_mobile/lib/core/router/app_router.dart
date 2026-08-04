@@ -474,6 +474,7 @@ class AppRouter {
     final authState = context.read<AuthViewModel>().state;
     if (authState is Authenticated &&
         (authState.user.role == 'owner' ||
+            authState.user.role == 'office' ||
             authState.user.role == 'production_manager')) {
       return null;
     }
@@ -524,6 +525,7 @@ class AppRouter {
     final authState = context.read<AuthViewModel>().state;
     if (authState is Authenticated &&
         (authState.user.role == 'owner' ||
+            authState.user.role == 'office' ||
             authState.user.role == 'production_manager' ||
             authState.user.role == 'qc_inspector')) {
       return null;
