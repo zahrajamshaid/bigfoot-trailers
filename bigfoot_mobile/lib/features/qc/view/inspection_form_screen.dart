@@ -319,6 +319,50 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l.qcInspectTitle(item.soNumber)),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              switch (value) {
+                case 'report':
+                  // Report a problem straight from QC — prefill the SO so the
+                  // admin sees which trailer it's about.
+                  context.pushNamed(
+                    RouteNames.supportReport,
+                    queryParameters: {'so': item.soNumber.toString()},
+                  );
+                  break;
+                case 'myReports':
+                  context.pushNamed(RouteNames.supportList);
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: const [
+                    Icon(Icons.report_problem_outlined,
+                        size: 20, color: AppColors.amber),
+                    SizedBox(width: 8),
+                    Text('Report a problem'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'myReports',
+                child: Row(
+                  children: const [
+                    Icon(Icons.forum_outlined,
+                        size: 20, color: AppColors.navy),
+                    SizedBox(width: 8),
+                    Text('My reports'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
