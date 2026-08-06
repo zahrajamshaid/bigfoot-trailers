@@ -18,10 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Roles, UserRole } from '../../common/decorators/roles.decorator';
-import {
-  CurrentUser,
-  JwtPayload,
-} from '../../common/decorators/current-user.decorator';
+import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 import { AnnouncementsService } from './announcements.service';
 import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto';
 
@@ -53,10 +50,7 @@ export class AnnouncementsController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Acknowledged (or already acked)' })
   @ApiResponse({ status: 404, description: 'Announcement not found' })
-  async ack(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  async ack(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: JwtPayload) {
     return this.service.ack(BigInt(id), BigInt(user.sub));
   }
 
@@ -64,19 +58,11 @@ export class AnnouncementsController {
   // POST /admin/announcements — owner + production_manager
   // ---------------------------------------------------------------------------
   @Post('admin/announcements')
-  @Roles(
-    UserRole.OWNER,
-    UserRole.OFFICE,
-    UserRole.PRODUCTION_MANAGER,
-    UserRole.QC_INSPECTOR,
-  )
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Publish a new announcement to every user.' })
   @ApiResponse({ status: 201, description: 'Announcement created' })
-  async create(
-    @Body() dto: CreateAnnouncementDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  async create(@Body() dto: CreateAnnouncementDto, @CurrentUser() user: JwtPayload) {
     return this.service.create(dto, BigInt(user.sub));
   }
 
@@ -84,12 +70,7 @@ export class AnnouncementsController {
   // GET /admin/announcements — owner + production_manager
   // ---------------------------------------------------------------------------
   @Get('admin/announcements')
-  @Roles(
-    UserRole.OWNER,
-    UserRole.OFFICE,
-    UserRole.PRODUCTION_MANAGER,
-    UserRole.QC_INSPECTOR,
-  )
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({
     summary:
       'List every announcement with ack counts so the admin screen can show "X of Y acknowledged".',
@@ -103,12 +84,7 @@ export class AnnouncementsController {
   // PATCH /admin/announcements/:id — owner + production_manager
   // ---------------------------------------------------------------------------
   @Patch('admin/announcements/:id')
-  @Roles(
-    UserRole.OWNER,
-    UserRole.OFFICE,
-    UserRole.PRODUCTION_MANAGER,
-    UserRole.QC_INSPECTOR,
-  )
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @ApiOperation({ summary: 'Edit / deactivate / re-expire an announcement.' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Announcement updated' })
@@ -124,12 +100,7 @@ export class AnnouncementsController {
   // DELETE /admin/announcements/:id — owner + production_manager
   // ---------------------------------------------------------------------------
   @Delete('admin/announcements/:id')
-  @Roles(
-    UserRole.OWNER,
-    UserRole.OFFICE,
-    UserRole.PRODUCTION_MANAGER,
-    UserRole.QC_INSPECTOR,
-  )
+  @Roles(UserRole.OWNER, UserRole.OFFICE, UserRole.PRODUCTION_MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
