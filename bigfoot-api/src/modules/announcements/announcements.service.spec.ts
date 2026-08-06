@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Prisma } from '@prisma/client';
 import { ErrorCode } from '../../common/errors';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnnouncementsService } from './announcements.service';
@@ -13,22 +12,32 @@ const mockPrisma = {
     delete: jest.fn(),
   },
   systemAnnouncementAck: {
-    create: jest.fn(),
+    upsert: jest.fn(),
   },
   user: {
     count: jest.fn(),
   },
 };
 
+/// Build a findMany row for getPendingForUser. `ackedAt` null → never acked.
+function pendingRow(id: number, frequency: string, ackedAt: Date | null) {
+  return {
+    id: BigInt(id),
+    title: `t${id}`,
+    body: `b${id}`,
+    frequency,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    postedByUser: { fullName: 'Owner' },
+    acks: ackedAt ? [{ ackedAt }] : [],
+  };
+}
+
 describe('AnnouncementsService', () => {
   let service: AnnouncementsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AnnouncementsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [AnnouncementsService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<AnnouncementsService>(AnnouncementsService);
@@ -36,49 +45,61 @@ describe('AnnouncementsService', () => {
   });
 
   describe('getPendingForUser', () => {
-    it('filters to active + unexpired + not-acked-by-user, oldest first', async () => {
+    it('queries active + unexpired, oldest first, joining this user’s ack', async () => {
       mockPrisma.systemAnnouncement.findMany.mockResolvedValue([]);
 
       await service.getPendingForUser(BigInt(7));
 
       const call = mockPrisma.systemAnnouncement.findMany.mock.calls[0][0];
-      expect(call.where).toMatchObject({
-        isActive: true,
-        acks: { none: { userId: BigInt(7) } },
-      });
+      expect(call.where).toMatchObject({ isActive: true });
       expect(call.where.OR).toEqual([
         { expiresAt: null },
         { expiresAt: { gt: expect.any(Date) } },
       ]);
       expect(call.orderBy).toEqual({ createdAt: 'asc' });
+      // The per-user ack is joined so the frequency filter can run in code.
+      expect(call.select.acks.where).toEqual({ userId: BigInt(7) });
+    });
+
+    it('applies the per-frequency recurrence rules and strips acks', async () => {
+      const now = new Date();
+      const yesterday = new Date(now.getTime() - 26 * 3600 * 1000);
+      const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 3600 * 1000);
+      const anHourAgo = new Date(now.getTime() - 3600 * 1000);
+
+      mockPrisma.systemAnnouncement.findMany.mockResolvedValue([
+        pendingRow(1, 'once', null), // never acked → show
+        pendingRow(2, 'once', anHourAgo), // acked → hide forever
+        pendingRow(3, 'every_login', anHourAgo), // always show
+        pendingRow(4, 'daily', anHourAgo), // acked today → hide
+        pendingRow(5, 'daily', yesterday), // acked before today → show
+        pendingRow(6, 'weekly', yesterday), // acked this week → hide
+        pendingRow(7, 'weekly', eightDaysAgo), // acked >1wk ago → show
+      ]);
+
+      const result = await service.getPendingForUser(BigInt(7));
+      const ids = result.map((r) => Number(r.id));
+
+      expect(ids).toEqual([1, 3, 5, 7]);
+      // Response shape stays slim — the joined acks are not leaked.
+      expect((result[0] as any).acks).toBeUndefined();
     });
   });
 
   describe('ack', () => {
-    it('creates an ack row on first call', async () => {
+    it('upserts the ack (refreshing ackedAt) on ack', async () => {
       mockPrisma.systemAnnouncement.findUnique.mockResolvedValue({ id: BigInt(1) });
-      mockPrisma.systemAnnouncementAck.create.mockResolvedValue({});
+      mockPrisma.systemAnnouncementAck.upsert.mockResolvedValue({});
 
       const result = await service.ack(BigInt(1), BigInt(9));
 
       expect(result).toEqual({ acked: true });
-      expect(mockPrisma.systemAnnouncementAck.create).toHaveBeenCalledWith({
-        data: { announcementId: BigInt(1), userId: BigInt(9) },
+      const arg = mockPrisma.systemAnnouncementAck.upsert.mock.calls[0][0];
+      expect(arg.where).toEqual({
+        announcementId_userId: { announcementId: BigInt(1), userId: BigInt(9) },
       });
-    });
-
-    it('absorbs duplicate ack quietly via unique-constraint catch', async () => {
-      mockPrisma.systemAnnouncement.findUnique.mockResolvedValue({ id: BigInt(1) });
-      mockPrisma.systemAnnouncementAck.create.mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError('dup', {
-          code: 'P2002',
-          clientVersion: 'test',
-        }),
-      );
-
-      await expect(service.ack(BigInt(1), BigInt(9))).resolves.toEqual({
-        acked: true,
-      });
+      expect(arg.create).toEqual({ announcementId: BigInt(1), userId: BigInt(9) });
+      expect(arg.update.ackedAt).toBeInstanceOf(Date);
     });
 
     it('throws NOT_FOUND for unknown announcement', async () => {
@@ -95,7 +116,11 @@ describe('AnnouncementsService', () => {
       mockPrisma.systemAnnouncement.create.mockResolvedValue({ id: BigInt(1) });
 
       await service.create(
-        { title: ' Heads up ', body: ' Floor closes early ', expiresAt: '2026-07-01T18:00:00Z' },
+        {
+          title: ' Heads up ',
+          body: ' Floor closes early ',
+          expiresAt: '2026-07-01T18:00:00Z',
+        },
         BigInt(10),
       );
 
@@ -104,6 +129,20 @@ describe('AnnouncementsService', () => {
       expect(callData.body).toBe('Floor closes early');
       expect(callData.postedByUserId).toBe(BigInt(10));
       expect(callData.expiresAt).toBeInstanceOf(Date);
+    });
+
+    it('defaults frequency to "once" and persists an explicit one', async () => {
+      mockPrisma.systemAnnouncement.create.mockResolvedValue({ id: BigInt(1) });
+
+      await service.create({ body: 'A' }, BigInt(10));
+      expect(mockPrisma.systemAnnouncement.create.mock.calls[0][0].data.frequency).toBe(
+        'once',
+      );
+
+      await service.create({ body: 'B', frequency: 'daily' }, BigInt(10));
+      expect(mockPrisma.systemAnnouncement.create.mock.calls[1][0].data.frequency).toBe(
+        'daily',
+      );
     });
 
     it('treats missing title as null', async () => {
@@ -146,9 +185,9 @@ describe('AnnouncementsService', () => {
     it('throws NOT_FOUND for missing row', async () => {
       mockPrisma.systemAnnouncement.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.update(BigInt(1), { body: 'b' }),
-      ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
+      await expect(service.update(BigInt(1), { body: 'b' })).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('only sets the fields the caller actually sent', async () => {
@@ -159,6 +198,17 @@ describe('AnnouncementsService', () => {
 
       const data = mockPrisma.systemAnnouncement.update.mock.calls[0][0].data;
       expect(data).toEqual({ isActive: false });
+    });
+
+    it('updates frequency when provided', async () => {
+      mockPrisma.systemAnnouncement.findUnique.mockResolvedValue({ id: BigInt(1) });
+      mockPrisma.systemAnnouncement.update.mockResolvedValue({ id: BigInt(1) });
+
+      await service.update(BigInt(1), { frequency: 'weekly' });
+
+      expect(mockPrisma.systemAnnouncement.update.mock.calls[0][0].data).toEqual({
+        frequency: 'weekly',
+      });
     });
   });
 });

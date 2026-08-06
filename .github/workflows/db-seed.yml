@@ -85,6 +85,7 @@ on:
           - apply-support-tables-2026-08-04 # additive (idempotent): support_tickets + support_ticket_messages + support_ticket_status_enum + notification_type_enum 'support_message'
           - apply-stage-rates-2026-08-04 # additive (idempotent): add pay_dollars+worker_split to trailer_model_stage_costs, load flat pay+cost matrix (168 rows), set dept dollar rates to 1.0
           - apply-stage-pay-tables-2026-08-04 # additive (idempotent): stage_crew_members + production_step_payouts tables + backfill base payouts for historical completed steps
+          - apply-announcement-frequency # additive (idempotent): add system_announcements.frequency (once|every_login|daily|weekly, default 'once')
           - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
 
 concurrency:

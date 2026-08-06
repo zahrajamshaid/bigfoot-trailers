@@ -41,6 +41,7 @@ class AnnouncementRepositoryImpl implements AnnouncementRepository {
   Future<Announcement> create({
     String? title,
     required String body,
+    String? frequency,
     DateTime? expiresAt,
   }) async {
     final res = await _api.post<Map<String, dynamic>>(
@@ -48,6 +49,7 @@ class AnnouncementRepositoryImpl implements AnnouncementRepository {
       data: {
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         'body': body.trim(),
+        if (frequency != null) 'frequency': frequency,
         if (expiresAt != null) 'expiresAt': expiresAt.toUtc().toIso8601String(),
       },
       fromJson: (d) => d as Map<String, dynamic>,
@@ -60,6 +62,7 @@ class AnnouncementRepositoryImpl implements AnnouncementRepository {
     required int id,
     String? title,
     String? body,
+    String? frequency,
     bool? isActive,
     DateTime? expiresAt,
   }) async {
@@ -68,6 +71,7 @@ class AnnouncementRepositoryImpl implements AnnouncementRepository {
       data: {
         if (title != null) 'title': title.trim(),
         if (body != null) 'body': body.trim(),
+        if (frequency != null) 'frequency': frequency,
         if (isActive != null) 'isActive': isActive,
         if (expiresAt != null) 'expiresAt': expiresAt.toUtc().toIso8601String(),
       },

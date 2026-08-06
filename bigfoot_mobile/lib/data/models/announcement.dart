@@ -2,10 +2,37 @@
 ///
 /// `GET /announcements/pending` returns the slim shape (no ack-count fields);
 /// `GET /admin/announcements` returns the [AnnouncementWithStats] variant.
+/// How often an announcement re-appears for someone who has already seen it.
+/// Mirrors the backend `ANNOUNCEMENT_FREQUENCIES`.
+class AnnouncementFrequency {
+  static const String once = 'once';
+  static const String everyLogin = 'every_login';
+  static const String daily = 'daily';
+  static const String weekly = 'weekly';
+
+  static const List<String> all = [once, everyLogin, daily, weekly];
+
+  /// Human label for the frequency picker + admin card chip.
+  static String label(String value) {
+    switch (value) {
+      case everyLogin:
+        return 'Every login';
+      case daily:
+        return 'Daily';
+      case weekly:
+        return 'Weekly';
+      case once:
+      default:
+        return 'Once';
+    }
+  }
+}
+
 class Announcement {
   final int id;
   final String? title;
   final String body;
+  final String frequency;
   final DateTime? createdAt;
   final String? postedByName;
 
@@ -13,6 +40,7 @@ class Announcement {
     required this.id,
     this.title,
     required this.body,
+    this.frequency = AnnouncementFrequency.once,
     this.createdAt,
     this.postedByName,
   });
@@ -23,6 +51,7 @@ class Announcement {
       id: (json['id'] as num).toInt(),
       title: json['title'] as String?,
       body: json['body'] as String? ?? '',
+      frequency: json['frequency'] as String? ?? AnnouncementFrequency.once,
       createdAt: json['createdAt'] == null
           ? null
           : DateTime.tryParse(json['createdAt'].toString()),

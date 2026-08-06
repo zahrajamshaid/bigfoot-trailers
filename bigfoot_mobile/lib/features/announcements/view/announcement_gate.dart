@@ -27,6 +27,12 @@ class AnnouncementGate extends StatefulWidget {
 class _AnnouncementGateState extends State<AnnouncementGate>
     with WidgetsBindingObserver {
   final List<Announcement> _queue = [];
+  // Announcements the user has already acked in THIS app session. The backend
+  // keeps returning `every_login` (and same-day `daily` / same-week `weekly`)
+  // announcements on every poll, so without this a foreground-resume would
+  // re-pop a message the user just dismissed. Cleared on logout / re-login,
+  // so a fresh login (or cold boot) shows `every_login` messages again.
+  final Set<int> _ackedThisSession = {};
   bool _dialogShowing = false;
   bool _fetchInFlight = false;
   bool _hasFetchedSinceAuth = false;
@@ -66,9 +72,11 @@ class _AnnouncementGateState extends State<AnnouncementGate>
       final pending = await context.read<AnnouncementRepository>().getPending();
       if (!mounted) return;
       // De-dup against anything still queued so a re-poll while the user is
-      // still on the modal doesn't add duplicates.
+      // still on the modal doesn't add duplicates, and drop anything already
+      // acked this session (recurring announcements come back every poll).
       final existingIds = _queue.map((a) => a.id).toSet();
-      _queue.addAll(pending.where((a) => !existingIds.contains(a.id)));
+      _queue.addAll(pending.where((a) =>
+          !existingIds.contains(a.id) && !_ackedThisSession.contains(a.id)));
       _hasFetchedSinceAuth = true;
       _showNextIfNeeded();
     } catch (_) {
@@ -103,6 +111,9 @@ class _AnnouncementGateState extends State<AnnouncementGate>
             }
             if (!dialogCtx.mounted) return;
             Navigator.of(dialogCtx).pop();
+            // Remember it for this session so a foreground re-poll doesn't
+            // re-pop a recurring announcement we just dismissed.
+            _ackedThisSession.add(announcement.id);
             // Pop the just-acked one and chain to the next, if any.
             if (mounted) {
               setState(() {
@@ -132,12 +143,16 @@ class _AnnouncementGateState extends State<AnnouncementGate>
       listener: (_, state) {
         if (state is Authenticated) {
           _hasFetchedSinceAuth = false;
+          // Fresh login → clear the session-ack set so `every_login`
+          // announcements pop again for whoever just signed in.
+          _ackedThisSession.clear();
           _maybeFetch();
         } else {
           // Drop anything queued so a re-login as a different user doesn't
           // see the previous user's pending list.
           setState(() {
             _queue.clear();
+            _ackedThisSession.clear();
             _hasFetchedSinceAuth = false;
           });
         }

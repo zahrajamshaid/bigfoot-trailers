@@ -7,6 +7,7 @@ import '../../../core/router/route_names.dart';
 import '../../../core/i18n/locale_cubit.dart';
 import '../../../core/security/pin_storage.dart';
 import '../../../core/websocket/ws_client.dart';
+import '../../../data/models/user.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 
@@ -249,6 +250,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 8),
+
+            // ── Management ────────────────────────────────────────────────
+            // Announcements are open to owner, office, and the production
+            // manager (mirrors the backend @Roles + the /admin guard). PMs
+            // have no /admin tab, so this is their way in.
+            if (user != null &&
+                (user.role == UserRole.owner ||
+                    user.role == UserRole.office ||
+                    user.role == UserRole.productionManager)) ...[
+              _SectionHeader(title: 'Management'),
+              _SettingsTile(
+                icon: Icons.campaign_outlined,
+                iconColor: AppColors.navy,
+                title: 'Announcements',
+                subtitle: 'Post floor-wide messages and set how often they show',
+                onTap: () =>
+                    context.pushNamed(RouteNames.announcementsAdmin),
+              ),
+              const SizedBox(height: 8),
+            ],
 
             // ── Support ───────────────────────────────────────────────────
             _SectionHeader(title: 'Support'),

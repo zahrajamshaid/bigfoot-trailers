@@ -1095,6 +1095,9 @@ model SystemAnnouncement {
   body           String
   postedByUserId BigInt    @map("posted_by_user_id")
   isActive       Boolean   @default(true) @map("is_active")
+  /// How often the announcement re-appears for a user who has already seen it:
+  /// `once` (until acked), `every_login`, `daily`, or `weekly`.
+  frequency      String    @default("once") @map("frequency") @db.VarChar(16)
   expiresAt      DateTime? @map("expires_at") @db.Timestamptz
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
 

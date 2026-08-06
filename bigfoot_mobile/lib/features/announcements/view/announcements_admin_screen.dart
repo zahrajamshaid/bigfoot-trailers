@@ -196,6 +196,17 @@ class _Card extends StatelessWidget {
                 ),
                 Chip(
                   visualDensity: VisualDensity.compact,
+                  avatar: Icon(Icons.repeat,
+                      size: 14, color: Colors.grey.shade700),
+                  backgroundColor: AppColors.navy.withValues(alpha: 0.08),
+                  label: Text(
+                    AnnouncementFrequency.label(a.frequency),
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Chip(
+                  visualDensity: VisualDensity.compact,
                   backgroundColor: item.isActive
                       ? AppColors.success.withValues(alpha: 0.15)
                       : Colors.grey.shade300,
@@ -263,6 +274,7 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _bodyCtrl = TextEditingController();
+  String _frequency = AnnouncementFrequency.once;
   DateTime? _expiresAt;
   bool _saving = false;
 
@@ -271,6 +283,20 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     super.dispose();
+  }
+
+  static String _frequencyHint(String f) {
+    switch (f) {
+      case AnnouncementFrequency.everyLogin:
+        return 'Pops up every time the user opens the app.';
+      case AnnouncementFrequency.daily:
+        return 'Pops up once a day until it expires.';
+      case AnnouncementFrequency.weekly:
+        return 'Pops up once a week until it expires.';
+      case AnnouncementFrequency.once:
+      default:
+        return 'Shows until the user taps OK, then never again.';
+    }
   }
 
   Future<void> _pickExpiry() async {
@@ -295,6 +321,7 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
       await context.read<AnnouncementRepository>().create(
             title: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text,
             body: _bodyCtrl.text,
+            frequency: _frequency,
             expiresAt: _expiresAt,
           );
       navigator.pop(true);
@@ -345,6 +372,39 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? l.announcementsBodyRequired
                     : null,
+              ),
+              const SizedBox(height: 12),
+              // How often it re-appears for someone who's already seen it.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'How often should it show?',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final f in AnnouncementFrequency.all)
+                    ChoiceChip(
+                      label: Text(AnnouncementFrequency.label(f)),
+                      selected: _frequency == f,
+                      onSelected: (_) => setState(() => _frequency = f),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _frequencyHint(_frequency),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
               ),
               const SizedBox(height: 8),
               ListTile(

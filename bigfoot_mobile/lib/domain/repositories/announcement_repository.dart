@@ -14,6 +14,7 @@ abstract class AnnouncementRepository {
   Future<Announcement> create({
     String? title,
     required String body,
+    String? frequency,
     DateTime? expiresAt,
   });
 
@@ -21,6 +22,7 @@ abstract class AnnouncementRepository {
     required int id,
     String? title,
     String? body,
+    String? frequency,
     bool? isActive,
     DateTime? expiresAt,
   });
