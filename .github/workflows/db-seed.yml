@@ -86,6 +86,7 @@ on:
           - apply-stage-rates-2026-08-04 # additive (idempotent): add pay_dollars+worker_split to trailer_model_stage_costs, load flat pay+cost matrix (168 rows), set dept dollar rates to 1.0
           - apply-stage-pay-tables-2026-08-04 # additive (idempotent): stage_crew_members + production_step_payouts tables + backfill base payouts for historical completed steps
           - apply-announcement-frequency # additive (idempotent): add system_announcements.frequency (once|every_login|daily|weekly, default 'once')
+          - fix-reopen-stuck-qc2-2026-08-10 # one-shot (idempotent): re-open system-completed QC_2 on SO 7049/7050/7051 so they leave the no-active-step gap and re-enter the QC queue before paint prep
           - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
 
 concurrency:
