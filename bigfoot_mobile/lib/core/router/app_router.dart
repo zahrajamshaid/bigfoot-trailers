@@ -37,6 +37,7 @@ import '../../features/jig_queues/view/jig_queues_screen.dart';
 import '../../features/support/view/report_problem_screen.dart';
 import '../../features/support/view/support_list_screen.dart';
 import '../../features/support/view/support_thread_screen.dart';
+import '../../features/yard_audit/view/yard_audit_screen.dart';
 import '../../features/production/view/queue_screen.dart';
 import '../../features/qc/view/checklist_management_screen.dart';
 import '../../features/qc/view/inspection_detail_screen.dart';
@@ -459,8 +460,30 @@ class AppRouter {
             ticketId: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
           ),
         ),
+        // Yard audit — sales / admin / owner reconcile a yard against the app.
+        // Top-level (like /pdf-viewer) so it opens full-screen from the
+        // dashboard or Settings and pops back cleanly.
+        GoRoute(
+          path: '/yard-audit',
+          name: RouteNames.yardAudit,
+          redirect: _yardAuditAccess,
+          builder: (context, state) => const YardAuditScreen(),
+        ),
       ],
     );
+  }
+
+  /// Yard audit is for the people who own the lot's inventory: owner, office
+  /// (admin), and sales. Anyone else who deep-links here bounces home.
+  String? _yardAuditAccess(BuildContext context, GoRouterState state) {
+    final authState = context.read<AuthViewModel>().state;
+    if (authState is Authenticated &&
+        (authState.user.role == 'owner' ||
+            authState.user.role == 'office' ||
+            authState.user.role == 'sales')) {
+      return null;
+    }
+    return '/dashboard';
   }
 
   /// Redirect unauthenticated users to login, authenticated users away from login.

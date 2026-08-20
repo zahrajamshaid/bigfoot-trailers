@@ -154,6 +154,9 @@ abstract final class ApiEndpoints {
   static const String adminAnnouncements = '/admin/announcements';
   static String adminAnnouncement(int id) => '/admin/announcements/$id';
 
+  // ── Yard audit ─────────────────────────────────────────────────────────────
+  static const String yardAudit = '/yard-audit';
+
   // ── Health ───────────────────────────────────────────────────────────────
   static const String health = '/health';
 }

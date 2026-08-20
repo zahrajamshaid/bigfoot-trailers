@@ -166,6 +166,11 @@ class _ManagerDashboard extends StatelessWidget {
     final canSeeProductionReport = role == UserRole.owner ||
         role == UserRole.office ||
         role == UserRole.productionManager;
+    // Yard audit — owner / office (admin) / sales walk a lot and reconcile it
+    // against the app's inventory.
+    final canAuditYard = role == UserRole.owner ||
+        role == UserRole.office ||
+        role == UserRole.sales;
     // Build tiles up-front by section so each section can decide whether
     // it renders at all (skip empty sections instead of leaving a
     // dangling heading with no cards under it — happens when a role
@@ -386,6 +391,15 @@ class _ManagerDashboard extends StatelessWidget {
           queryParameters: {'readyForPickupAtMulberry': 'true'},
         ),
       ),
+      // Walk-the-lot reconciliation — owner / office / sales.
+      if (canAuditYard)
+        StatCard(
+          title: 'Yard Audit',
+          value: '${data.readyForDelivery}',
+          icon: Icons.fact_check_outlined,
+          color: AppColors.navy,
+          onTap: () => context.pushNamed(RouteNames.yardAudit),
+        ),
     ];
 
     // Health Check deep-link — owner + production_manager only.

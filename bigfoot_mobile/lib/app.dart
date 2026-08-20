@@ -356,6 +356,7 @@ class _BigfootAppState extends State<BigfootApp> with WidgetsBindingObserver {
         RepositoryProvider.value(value: _sl.messageRepository),
         RepositoryProvider.value(value: _sl.notificationRepository),
         RepositoryProvider.value(value: _sl.announcementRepository),
+        RepositoryProvider.value(value: _sl.yardAuditRepository),
       ],
       child: MultiBlocProvider(
         providers: [

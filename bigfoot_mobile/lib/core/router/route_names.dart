@@ -67,6 +67,7 @@ abstract final class RouteNames {
   static const String supportReport = 'supportReport';
   static const String supportList = 'supportList';
   static const String supportThread = 'supportThread';
+  static const String yardAudit = 'yardAudit';
   static const String pdfViewer = 'pdfViewer';
 
   // ── Settings ─────────────────────────────────────────────────────────────

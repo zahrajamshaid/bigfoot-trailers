@@ -30,6 +30,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { SupportModule } from './modules/support/support.module';
+import { YardAuditModule } from './modules/yard-audit/yard-audit.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -85,6 +86,7 @@ import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
     JobsModule,
     AnnouncementsModule,
     SupportModule,
+    YardAuditModule,
   ],
   providers: [
     // Global guards — execution order: Throttler → JWT → Roles

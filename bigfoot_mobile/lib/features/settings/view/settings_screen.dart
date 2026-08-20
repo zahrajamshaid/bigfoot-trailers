@@ -110,6 +110,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return BlocBuilder<AuthViewModel, AuthState>(
       builder: (context, authState) {
         final user = authState is Authenticated ? authState.user : null;
+        final role = user?.role;
+        final canAnnounce = role == UserRole.owner ||
+            role == UserRole.office ||
+            role == UserRole.productionManager;
+        final canAuditYard = role == UserRole.owner ||
+            role == UserRole.office ||
+            role == UserRole.sales;
 
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -252,22 +259,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
 
             // ── Management ────────────────────────────────────────────────
-            // Announcements are open to owner, office, and the production
-            // manager (mirrors the backend @Roles + the /admin guard). PMs
-            // have no /admin tab, so this is their way in.
-            if (user != null &&
-                (user.role == UserRole.owner ||
-                    user.role == UserRole.office ||
-                    user.role == UserRole.productionManager)) ...[
+            // Announcements: owner / office / production manager (PMs have no
+            // /admin tab, so this is their way in). Yard audit: owner / office
+            // / sales. The section shows if the user can reach either tool.
+            if (canAnnounce || canAuditYard) ...[
               _SectionHeader(title: 'Management'),
-              _SettingsTile(
-                icon: Icons.campaign_outlined,
-                iconColor: AppColors.navy,
-                title: 'Announcements',
-                subtitle: 'Post floor-wide messages and set how often they show',
-                onTap: () =>
-                    context.pushNamed(RouteNames.announcementsAdmin),
-              ),
+              if (canAnnounce)
+                _SettingsTile(
+                  icon: Icons.campaign_outlined,
+                  iconColor: AppColors.navy,
+                  title: 'Announcements',
+                  subtitle:
+                      'Post floor-wide messages and set how often they show',
+                  onTap: () => context.pushNamed(RouteNames.announcementsAdmin),
+                ),
+              if (canAuditYard)
+                _SettingsTile(
+                  icon: Icons.fact_check_outlined,
+                  iconColor: AppColors.navy,
+                  title: 'Yard audit',
+                  subtitle: 'Check a yard against the app; report anything missing',
+                  onTap: () => context.pushNamed(RouteNames.yardAudit),
+                ),
               const SizedBox(height: 8),
             ],
 
