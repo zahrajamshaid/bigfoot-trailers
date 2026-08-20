@@ -102,6 +102,11 @@ abstract final class ApiEndpoints {
       '/payroll/records/lock/$weekStart';
   static String payrollWorkerSummary(int userId) =>
       '/payroll/worker/$userId/summary';
+  static const String payrollAdjustments = '/payroll/adjustments';
+  static String payrollAdjustment(int id) => '/payroll/adjustments/$id';
+
+  // ── Production step crew (absence picker) ───────────────────────────────
+  static String stepCrew(int stepId) => '/production/steps/$stepId/crew';
 
   // ── Deliveries ───────────────────────────────────────────────────────────
   static const String deliveries = '/deliveries';

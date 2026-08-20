@@ -78,6 +78,12 @@ class WorkerPointsScreen extends StatelessWidget {
                 icon: const Icon(Icons.groups_outlined),
                 label: const Text('Stage crews'),
               ),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    context.pushNamed(RouteNames.payrollAdjustments),
+                icon: const Icon(Icons.tune),
+                label: const Text('Adjustments'),
+              ),
             ],
           ),
           const SizedBox(height: 16),

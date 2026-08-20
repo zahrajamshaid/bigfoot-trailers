@@ -12,6 +12,7 @@ import '../../core/network/dio_client.dart';
 import '../../domain/repositories/production_repository.dart';
 import '../models/department.dart';
 import '../models/queue_item.dart';
+import '../models/step_crew.dart';
 
 class ProductionRepositoryImpl implements ProductionRepository {
   final DioClient _api;
@@ -74,11 +75,21 @@ class ProductionRepositoryImpl implements ProductionRepository {
   }
 
   @override
+  Future<StepCrew> getStepCrew(int stepId) async {
+    final response = await _api.get<Map<String, dynamic>>(
+      ApiEndpoints.stepCrew(stepId),
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return StepCrew.fromJson(response.data!);
+  }
+
+  @override
   Future<StepCompletionResult> completeStep(
     int stepId, {
     String? notes,
     List<StepCheckResult>? checklistResults,
     PayAdjustments? payAdjustments,
+    List<int>? absentCrewUserIds,
   }) async {
     final data = <String, dynamic>{};
     if (notes != null && notes.isNotEmpty) data['notes'] = notes;
@@ -87,6 +98,9 @@ class ProductionRepositoryImpl implements ProductionRepository {
     }
     if (payAdjustments != null && !payAdjustments.isEmpty) {
       data['payAdjustments'] = payAdjustments.toJson();
+    }
+    if (absentCrewUserIds != null && absentCrewUserIds.isNotEmpty) {
+      data['absentCrewUserIds'] = absentCrewUserIds;
     }
 
     try {
@@ -138,12 +152,14 @@ class ProductionRepositoryImpl implements ProductionRepository {
     required int trailerId,
     required int stepId,
     String? reason,
+    List<int>? payStepIds,
   }) async {
     await _api.post<Map<String, dynamic>>(
       ApiEndpoints.trailerJumpToStep(trailerId),
       data: {
         'stepId': stepId,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
+        if (payStepIds != null && payStepIds.isNotEmpty) 'payStepIds': payStepIds,
       },
       fromJson: (d) => d as Map<String, dynamic>,
     );

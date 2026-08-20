@@ -1523,41 +1523,83 @@ class _StepTile extends StatelessWidget {
     final cubit = context.read<TrailerDetailViewModel>();
     final messenger = ScaffoldMessenger.of(context);
 
+    // Steps this forward-jump will force-complete (upstream, not yet complete).
+    // The PM confirms which were actually worked so their crews get paid.
+    final targetOrder = s.stepOrder as int;
+    final loadedState = cubit.state;
+    final allSteps = loadedState is TrailerDetailLoaded
+        ? loadedState.steps
+        : const <ProductionStepSummary>[];
+    final bypassed = allSteps
+        .where((st) => st.stepOrder < targetOrder && st.status != 'complete')
+        .toList()
+      ..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
+    final paySelected = <int>{...bypassed.map((st) => st.id)};
+
     final reasonCtrl = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.trailerDetailJumpTitle(s.stepOrder as int)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l.trailerDetailJumpBody(deptName as String),
-              style: const TextStyle(fontSize: 13),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(l.trailerDetailJumpTitle(s.stepOrder as int)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.trailerDetailJumpBody(deptName as String),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonCtrl,
+                  maxLength: 500,
+                  decoration: InputDecoration(
+                    labelText: l.trailerDetailJumpReasonLabel,
+                    hintText: l.trailerDetailJumpReasonHint,
+                    counterText: '',
+                  ),
+                ),
+                if (bypassed.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Pay crews for skipped steps that were actually worked:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  for (final st in bypassed)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: paySelected.contains(st.id),
+                      title: Text(
+                        st.departmentName ?? st.departmentCode ?? 'Step ${st.stepOrder}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      onChanged: (v) => setLocal(() {
+                        if (v == true) {
+                          paySelected.add(st.id);
+                        } else {
+                          paySelected.remove(st.id);
+                        }
+                      }),
+                    ),
+                ],
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonCtrl,
-              maxLength: 500,
-              decoration: InputDecoration(
-                labelText: l.trailerDetailJumpReasonLabel,
-                hintText: l.trailerDetailJumpReasonHint,
-                counterText: '',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.trailerDetailJumpConfirm),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.trailerDetailJumpConfirm),
-          ),
-        ],
       ),
     );
     if (confirmed != true) return;
@@ -1566,6 +1608,7 @@ class _StepTile extends StatelessWidget {
       await cubit.jumpToStep(
         (s.id is int) ? s.id as int : (s.id as num).toInt(),
         reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim(),
+        payStepIds: paySelected.isEmpty ? null : paySelected.toList(),
       );
       messenger.showSnackBar(
         SnackBar(

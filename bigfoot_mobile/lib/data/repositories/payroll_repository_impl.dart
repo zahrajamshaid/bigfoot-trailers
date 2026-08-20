@@ -2,11 +2,74 @@ import '../../core/constants/api_endpoints.dart';
 import '../../core/network/dio_client.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../models/payroll_record.dart';
+import '../models/payroll_adjustment.dart';
 
 class PayrollRepositoryImpl implements PayrollRepository {
   final DioClient _api;
 
   PayrollRepositoryImpl({required DioClient api}) : _api = api;
+
+  @override
+  Future<List<PayrollAdjustment>> getAdjustments({
+    String? weekStart,
+    int? userId,
+  }) async {
+    final resp = await _api.get<Map<String, dynamic>>(
+      ApiEndpoints.payrollAdjustments,
+      queryParameters: {
+        if (weekStart != null) 'weekStart': weekStart,
+        if (userId != null) 'userId': userId,
+      },
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    final list = (resp.data?['adjustments'] as List<dynamic>?) ?? const [];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(PayrollAdjustment.fromJson)
+        .toList();
+  }
+
+  @override
+  Future<PayrollAdjustment> createAdjustment({
+    required int userId,
+    required String effectiveDate,
+    required double dollars,
+    required String note,
+  }) async {
+    final resp = await _api.post<Map<String, dynamic>>(
+      ApiEndpoints.payrollAdjustments,
+      data: {
+        'userId': userId,
+        'effectiveDate': effectiveDate,
+        'dollars': dollars,
+        'note': note,
+      },
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return PayrollAdjustment.fromJson(resp.data!);
+  }
+
+  @override
+  Future<PayrollAdjustment> updateAdjustment({
+    required int id,
+    double? dollars,
+    String? note,
+  }) async {
+    final resp = await _api.patch<Map<String, dynamic>>(
+      ApiEndpoints.payrollAdjustment(id),
+      data: {
+        if (dollars != null) 'dollars': dollars,
+        if (note != null) 'note': note,
+      },
+      fromJson: (d) => d as Map<String, dynamic>,
+    );
+    return PayrollAdjustment.fromJson(resp.data!);
+  }
+
+  @override
+  Future<void> voidAdjustment(int id) async {
+    await _api.delete(ApiEndpoints.payrollAdjustment(id));
+  }
 
   @override
   Future<WorkerSummary> getWorkerSummary(int userId) async {

@@ -8,6 +8,7 @@ import '../../options/view/step_options_panel.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/router/route_names.dart';
 import '../../../data/models/queue_item.dart';
+import '../../../data/models/step_crew.dart';
 import '../../../domain/repositories/production_repository.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../viewmodel/production_viewmodel.dart';
@@ -54,6 +55,11 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
   // itemId -> note controller (lazy)
   final Map<int, TextEditingController> _noteControllers = {};
 
+  // Crew absence: for crew (split-pay) stages the roster loads pre-checked and
+  // the completer unchecks anyone absent so pay skips them.
+  StepCrew? _crew;
+  final Set<int> _absentUserIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -65,6 +71,72 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
       CurvedAnimation(parent: _successAnimCtrl, curve: Curves.elasticOut),
     );
     _loadChecklist();
+    _loadCrew();
+  }
+
+  Future<void> _loadCrew() async {
+    try {
+      final crew =
+          await context.read<ProductionViewModel>().loadStepCrew(widget.item.stepId);
+      if (!mounted) return;
+      // Only show the picker for real crew stages with more than one member.
+      if (crew.isCrewStage && crew.crew.length > 1) {
+        setState(() => _crew = crew);
+      }
+    } catch (_) {
+      // Non-fatal — no crew picker; completion proceeds paying the full roster.
+    }
+  }
+
+  Widget _crewSection() {
+    final crew = _crew;
+    if (crew == null) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.groups, size: 18, color: AppColors.navy),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${crew.departmentName} crew — uncheck anyone absent',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (final m in crew.crew)
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: !_absentUserIds.contains(m.userId),
+              title: Text(m.fullName),
+              subtitle: _absentUserIds.contains(m.userId)
+                  ? const Text('Absent — will not be paid',
+                      style: TextStyle(fontSize: 11, color: AppColors.error))
+                  : null,
+              onChanged: (present) => setState(() {
+                if (present == false) {
+                  _absentUserIds.add(m.userId);
+                } else {
+                  _absentUserIds.remove(m.userId);
+                }
+              }),
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadChecklist() async {
@@ -165,11 +237,13 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
         tireSwaps: _tireSwaps,
       );
 
+      final absent = _absentUserIds.toList();
       final result = await context.read<ProductionViewModel>().completeStep(
         widget.item.stepId,
         notes: _notesController.text.trim(),
         checklistResults: results.isEmpty ? null : results,
         payAdjustments: adjustments.isEmpty ? null : adjustments,
+        absentCrewUserIds: absent.isEmpty ? null : absent,
       );
 
       if (!mounted) return;
@@ -341,6 +415,8 @@ class _StepCompletionDialogState extends State<StepCompletionDialog>
                 ),
               ),
               const SizedBox(height: 12),
+
+              _crewSection(),
 
               // Options on this trailer. Anything THIS department fits must be
               // acknowledged before the step can be completed — the API

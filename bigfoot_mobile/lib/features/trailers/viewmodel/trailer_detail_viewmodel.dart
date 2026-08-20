@@ -352,11 +352,12 @@ class TrailerDetailViewModel extends Cubit<TrailerDetailState> {
   /// Admin override — place the trailer at [stepId]. Throws on failure so the
   /// caller can surface the API error to the user; refreshes detail state on
   /// success.
-  Future<void> jumpToStep(int stepId, {String? reason}) async {
+  Future<void> jumpToStep(int stepId, {String? reason, List<int>? payStepIds}) async {
     await _productionRepository.jumpToStep(
       trailerId: trailerId,
       stepId: stepId,
       reason: reason,
+      payStepIds: payStepIds,
     );
     if (!isClosed) await load();
   }

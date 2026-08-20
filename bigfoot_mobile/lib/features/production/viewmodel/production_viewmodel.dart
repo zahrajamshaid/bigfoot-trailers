@@ -8,6 +8,7 @@ import '../../../core/websocket/ws_client.dart';
 import '../../../core/websocket/ws_events.dart';
 import '../../../data/models/department.dart';
 import '../../../data/models/queue_item.dart';
+import '../../../data/models/step_crew.dart';
 import '../../../domain/repositories/production_repository.dart';
 
 // ── States ───────────────────────────────────────────────────────────────────
@@ -257,6 +258,7 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
     String? notes,
     List<StepCheckResult>? checklistResults,
     PayAdjustments? payAdjustments,
+    List<int>? absentCrewUserIds,
   }) async {
     try {
       final result = await _repository.completeStep(
@@ -264,6 +266,7 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
         notes: notes,
         checklistResults: checklistResults,
         payAdjustments: payAdjustments,
+        absentCrewUserIds: absentCrewUserIds,
       );
 
       final current = state;
@@ -280,6 +283,8 @@ class ProductionViewModel extends Cubit<ProductionQueueState> {
 
   Future<List<StepChecklistItem>> loadStepChecklist(int stepId) =>
       _repository.getStepChecklistItems(stepId);
+
+  Future<StepCrew> loadStepCrew(int stepId) => _repository.getStepCrew(stepId);
 
   Future<void> reverseStep(int stepId) async {
     try {

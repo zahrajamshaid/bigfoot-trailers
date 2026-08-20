@@ -33,6 +33,7 @@ import '../../features/payroll/view/stage_rates_matrix_screen.dart';
 import '../../features/payroll/view/point_matrix_screen.dart';
 import '../../features/payroll/view/weekly_report_screen.dart';
 import '../../features/payroll/view/worker_points_screen.dart';
+import '../../features/payroll/view/payroll_adjustments_screen.dart';
 import '../../features/production/view/all_queues_screen.dart';
 import '../../features/jig_queues/view/jig_queues_screen.dart';
 import '../../features/support/view/report_problem_screen.dart';
@@ -313,6 +314,14 @@ class AppRouter {
                   redirect: _ownerOnly,
                   builder: (context, state) =>
                       const SecureScreen(child: StageCrewsScreen()),
+                ),
+                GoRoute(
+                  path: 'adjustments',
+                  name: RouteNames.payrollAdjustments,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  redirect: _ownerOnly,
+                  builder: (context, state) =>
+                      const SecureScreen(child: PayrollAdjustmentsScreen()),
                 ),
                 GoRoute(
                   path: 'pay-cost-matrix',

@@ -1,5 +1,6 @@
 import '../../data/models/department.dart';
 import '../../data/models/queue_item.dart';
+import '../../data/models/step_crew.dart';
 
 class StepChecklistItem {
   final int id;
@@ -79,7 +80,11 @@ abstract class ProductionRepository {
     String? notes,
     List<StepCheckResult>? checklistResults,
     PayAdjustments? payAdjustments,
+    List<int>? absentCrewUserIds,
   });
+
+  /// The step department's crew, for the completion-screen absence picker.
+  Future<StepCrew> getStepCrew(int stepId);
   Future<void> reverseStep(int stepId);
   Future<void> reorderQueue(int departmentId, List<int> stepIds);
 
@@ -91,5 +96,6 @@ abstract class ProductionRepository {
     required int trailerId,
     required int stepId,
     String? reason,
+    List<int>? payStepIds,
   });
 }
