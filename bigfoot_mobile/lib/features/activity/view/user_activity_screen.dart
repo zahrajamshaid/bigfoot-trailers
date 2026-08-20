@@ -103,6 +103,15 @@ class _UserActivityScreenState extends State<UserActivityScreen> {
               ],
               selected: {_range},
               onSelectionChanged: (s) => _setRange(s.first),
+              // The bar sits on the navy app-bar, so default (dark) text is
+              // unreadable. White text for unselected; navy-on-white for the
+              // selected segment.
+              style: SegmentedButton.styleFrom(
+                foregroundColor: Colors.white,
+                selectedForegroundColor: AppColors.navy,
+                selectedBackgroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white70),
+              ),
             ),
           ),
         ),

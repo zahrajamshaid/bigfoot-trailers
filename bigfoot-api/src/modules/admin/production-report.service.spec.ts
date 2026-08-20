@@ -74,6 +74,47 @@ describe('ProductionReportService', () => {
   });
 
   // ==========================================================================
+  // computeWipCost — cost-matrix cells are CUMULATIVE totals, never summed
+  // ==========================================================================
+  describe('computeWipCost', () => {
+    it('reads the stage value (no summation): so-far = last completed cell, total = final cell', async () => {
+      // 10K XP: cumulative cost cells climb by stage. QC_1 (dept 99) has no
+      // cost cell. The trailer has completed through PAINT_PREP.
+      mockPrisma.trailer.findMany.mockResolvedValue([
+        {
+          id: 100n,
+          soNumber: '7100',
+          trailerModelId: 1,
+          trailerModel: { code: '10K_XP', displayName: '10K XP', series: 'xp' },
+          productionSteps: [
+            { departmentId: 1, status: 'complete', stepOrder: 1 }, // XP_JIG 3489
+            { departmentId: 99, status: 'complete', stepOrder: 2 }, // QC_1 (no cost)
+            { departmentId: 2, status: 'complete', stepOrder: 3 }, // XP_FIN 4089
+            { departmentId: 5, status: 'complete', stepOrder: 5 }, // PAINT_PREP 4099
+            { departmentId: 9, status: 'waiting', stepOrder: 9 }, // WOOD 5299 (final)
+          ],
+        },
+      ]);
+      mockPrisma.trailerModelStageCost.findMany.mockResolvedValue([
+        { trailerModelId: 1, departmentId: 1, costDollars: new Prisma.Decimal('3489') },
+        { trailerModelId: 1, departmentId: 2, costDollars: new Prisma.Decimal('4089') },
+        { trailerModelId: 1, departmentId: 5, costDollars: new Prisma.Decimal('4099') },
+        { trailerModelId: 1, departmentId: 9, costDollars: new Prisma.Decimal('5299') },
+      ]);
+
+      const result = await (service as any).computeWipCost();
+
+      expect(result.perTrailer).toHaveLength(1);
+      // Cost so far = furthest COMPLETED cost-bearing stage (PAINT_PREP), NOT
+      // 3489+4089+4099. Total = final cost-bearing stage (WOOD), NOT the sum.
+      expect(result.perTrailer[0].cumulativeDollars).toBe(4099);
+      expect(result.perTrailer[0].projectedDollars).toBe(5299);
+      expect(result.totalCumulativeDollars).toBe(4099);
+      expect(result.totalProjectedDollars).toBe(5299);
+    });
+  });
+
+  // ==========================================================================
   // upsertStageCost
   // ==========================================================================
   describe('upsertStageCost', () => {
@@ -98,8 +139,8 @@ describe('ProductionReportService', () => {
       });
 
       const args = mockPrisma.trailerModelStageCost.upsert.mock.calls[0][0];
-      const whereDate = args.where
-        .trailerModelId_departmentId_effectiveFrom.effectiveFrom as Date;
+      const whereDate = args.where.trailerModelId_departmentId_effectiveFrom
+        .effectiveFrom as Date;
       expect(whereDate.toISOString()).toBe('2026-06-19T00:00:00.000Z');
     });
   });
@@ -187,9 +228,9 @@ describe('ProductionReportService', () => {
     });
 
     it('rejects an invalid period', async () => {
-      await expect(
-        service.getReport({ period: 'forever' as any }),
-      ).rejects.toMatchObject({ errorCode: ErrorCode.BAD_REQUEST });
+      await expect(service.getReport({ period: 'forever' as any })).rejects.toMatchObject(
+        { errorCode: ErrorCode.BAD_REQUEST },
+      );
     });
 
     it('snaps weekly windows to Sunday and exposes inclusive end', async () => {
@@ -384,9 +425,7 @@ describe('ProductionReportService', () => {
       const yeti = result.current.soldVsBuilt.perModel.find(
         (m) => m.modelCode === 'YETI_14K',
       );
-      expect(xp).toEqual(
-        expect.objectContaining({ sold: 6, built: 2, series: 'xp' }),
-      );
+      expect(xp).toEqual(expect.objectContaining({ sold: 6, built: 2, series: 'xp' }));
       expect(yeti).toEqual(
         expect.objectContaining({ sold: 1, built: 1, series: 'yeti' }),
       );
@@ -421,9 +460,7 @@ describe('ProductionReportService', () => {
           },
         ])
         // Predecessor query: stepOrder=1 for trailer 100 is XP_JIG (id=1)
-        .mockResolvedValueOnce([
-          { trailerId: 100n, stepOrder: 1, departmentId: 1 },
-        ]);
+        .mockResolvedValueOnce([{ trailerId: 100n, stepOrder: 1, departmentId: 1 }]);
 
       const result = await service.getReport({
         period: 'weekly',
@@ -479,9 +516,7 @@ describe('ProductionReportService', () => {
           },
         ])
         // Predecessor lookup for QC active steps — trailer 101's step 1 is XP_JIG.
-        .mockResolvedValueOnce([
-          { trailerId: 101n, stepOrder: 1, departmentId: 1 },
-        ]);
+        .mockResolvedValueOnce([{ trailerId: 101n, stepOrder: 1, departmentId: 1 }]);
 
       const result = await service.getReport({
         period: 'weekly',

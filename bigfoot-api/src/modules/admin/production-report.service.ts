@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppError, ErrorCode } from '../../common/errors';
-import {
-  HealthCheckPeriod,
-  HEALTH_CHECK_PERIODS,
-} from './dto/health-check-query.dto';
+import { HealthCheckPeriod, HEALTH_CHECK_PERIODS } from './dto/health-check-query.dto';
 
 export interface UpsertStageCostInput {
   trailerModelId: number;
@@ -80,9 +77,7 @@ export class ProductionReportService {
         'costDollars must be greater than or equal to 0',
       );
     }
-    const effectiveFrom = dto.effectiveFrom
-      ? new Date(dto.effectiveFrom)
-      : new Date();
+    const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date();
     const effectiveDateOnly = new Date(
       Date.UTC(
         effectiveFrom.getUTCFullYear(),
@@ -197,10 +192,7 @@ export class ProductionReportService {
         const start = parseDateOnly(params.start);
         const inclusiveEnd = parseDateOnly(params.end);
         if (inclusiveEnd.getTime() < start.getTime()) {
-          throw new AppError(
-            ErrorCode.BAD_REQUEST,
-            '`end` must be on or after `start`',
-          );
+          throw new AppError(ErrorCode.BAD_REQUEST, '`end` must be on or after `start`');
         }
         return { period, start, end: addDays(inclusiveEnd, 1) };
       }
@@ -527,16 +519,11 @@ export class ProductionReportService {
     for (const step of activeSteps) {
       let bucketDeptId = step.departmentId;
       if (step.department.isQcStep) {
-        const prior = priorByTrailer.get(
-          `${step.trailerId}:${step.stepOrder - 1}`,
-        );
+        const prior = priorByTrailer.get(`${step.trailerId}:${step.stepOrder - 1}`);
         if (prior == null) continue; // step_order=1 is never QC, so this is a data anomaly — skip rather than miscount
         bucketDeptId = prior;
       }
-      waitingByDeptId.set(
-        bucketDeptId,
-        (waitingByDeptId.get(bucketDeptId) ?? 0) + 1,
-      );
+      waitingByDeptId.set(bucketDeptId, (waitingByDeptId.get(bucketDeptId) ?? 0) + 1);
       // "Sold here" — count of sold trailers currently active at this
       // dept (with QC active steps rolled back into the prior prod dept
       // exactly like the waiting count, so a sold trailer parked at QC_2
@@ -544,10 +531,7 @@ export class ProductionReportService {
       // "sold not started" badge, which only ever lit up the first
       // welding dept and obscured how much sold work is actually mid-build.
       if (step.trailer.saleStatus === 'sold') {
-        soldByDeptId.set(
-          bucketDeptId,
-          (soldByDeptId.get(bucketDeptId) ?? 0) + 1,
-        );
+        soldByDeptId.set(bucketDeptId, (soldByDeptId.get(bucketDeptId) ?? 0) + 1);
       }
     }
 
@@ -563,10 +547,7 @@ export class ProductionReportService {
       soldHere: soldByDeptId.get(d.id) ?? 0,
     }));
 
-    const soldHereTotal = Array.from(soldByDeptId.values()).reduce(
-      (a, b) => a + b,
-      0,
-    );
+    const soldHereTotal = Array.from(soldByDeptId.values()).reduce((a, b) => a + b, 0);
 
     return {
       inProduction: inProductionCount,
@@ -591,7 +572,7 @@ export class ProductionReportService {
           select: { code: true, displayName: true, series: true },
         },
         productionSteps: {
-          select: { departmentId: true, status: true },
+          select: { departmentId: true, status: true, stepOrder: true },
         },
       },
     });
@@ -613,9 +594,7 @@ export class ProductionReportService {
 
     const modelIds = [...new Set(trailers.map((t) => t.trailerModelId))];
     const deptIds = [
-      ...new Set(
-        trailers.flatMap((t) => t.productionSteps.map((s) => s.departmentId)),
-      ),
+      ...new Set(trailers.flatMap((t) => t.productionSteps.map((s) => s.departmentId))),
     ];
     const cells = await this.prisma.trailerModelStageCost.findMany({
       where: {
@@ -637,21 +616,28 @@ export class ProductionReportService {
 
     const costFor = new Map<string, number>();
     for (const c of cells) {
-      costFor.set(
-        `${c.trailerModelId}:${c.departmentId}`,
-        Number(c.costDollars),
-      );
+      costFor.set(`${c.trailerModelId}:${c.departmentId}`, Number(c.costDollars));
     }
 
     let totalCumulative = 0;
     let totalProjected = 0;
     const perTrailer = trailers.map((t) => {
+      // The cost-matrix cell for each stage is the CUMULATIVE total cost of the
+      // trailer THROUGH that stage (not an incremental per-stage amount), so we
+      // must NOT sum across stages — we read the value at the relevant stage.
+      //   projected (total build cost) = cell at the final cost-bearing stage
+      //   cumulative (cost so far)     = cell at the furthest COMPLETED stage
+      // Walk the steps in workflow order and take the last cost-bearing cell.
+      const stepsInOrder = [...t.productionSteps].sort(
+        (a, b) => a.stepOrder - b.stepOrder,
+      );
       let cumulative = 0;
       let projected = 0;
-      for (const s of t.productionSteps) {
-        const cost = costFor.get(`${t.trailerModelId}:${s.departmentId}`) ?? 0;
-        projected += cost;
-        if (s.status === 'complete') cumulative += cost;
+      for (const s of stepsInOrder) {
+        const cost = costFor.get(`${t.trailerModelId}:${s.departmentId}`);
+        if (cost == null) continue; // QC / no-cost stage — skip
+        projected = cost; // ends at the last cost-bearing stage = total
+        if (s.status === 'complete') cumulative = cost; // last completed cell
       }
       totalCumulative += cumulative;
       totalProjected += projected;
@@ -681,10 +667,7 @@ export class ProductionReportService {
 
 function parseDateOnly(s: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    throw new AppError(
-      ErrorCode.BAD_REQUEST,
-      `date must be YYYY-MM-DD (got "${s}")`,
-    );
+    throw new AppError(ErrorCode.BAD_REQUEST, `date must be YYYY-MM-DD (got "${s}")`);
   }
   return new Date(`${s}T00:00:00Z`);
 }
@@ -694,20 +677,12 @@ function isoDate(d: Date): string {
 }
 
 function addDays(d: Date, days: number): Date {
-  return new Date(
-    Date.UTC(
-      d.getUTCFullYear(),
-      d.getUTCMonth(),
-      d.getUTCDate() + days,
-    ),
-  );
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + days));
 }
 
 function startOfWeek(d: Date): Date {
   const dow = d.getUTCDay(); // Sun=0 … Sat=6
-  return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow),
-  );
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow));
 }
 
 function startOfMonth(d: Date): Date {
@@ -716,9 +691,7 @@ function startOfMonth(d: Date): Date {
 
 function todayUtc(): Date {
   const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
 function round2(n: number): number {
