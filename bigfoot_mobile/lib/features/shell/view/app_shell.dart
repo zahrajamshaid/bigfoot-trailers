@@ -16,6 +16,7 @@ import '../../../l10n/generated/app_localizations.dart';
 import '../../../shared/widgets/brand_logo_avatar.dart';
 import '../../../shared/widgets/hover_tap.dart';
 import '../../announcements/view/announcement_gate.dart';
+import '../../activity/view/activity_heartbeat.dart';
 import '../../auth/viewmodel/auth_viewmodel.dart';
 import '../../notifications/viewmodel/notifications_viewmodel.dart';
 
@@ -155,7 +156,8 @@ class _AppShellState extends State<AppShell> {
                 if (didPop) return;
                 _handleBackPress(context);
               },
-              child: AnnouncementGate(
+              child: ActivityHeartbeat(
+                child: AnnouncementGate(
                 child: Scaffold(
                 drawer: useDrawer
                     ? _NavDrawer(tabs: tabs, currentIndex: currentIndex)
@@ -331,6 +333,7 @@ class _AppShellState extends State<AppShell> {
                             .toList(),
                       )
                     : null,
+              ),
               ),
               ),
             );

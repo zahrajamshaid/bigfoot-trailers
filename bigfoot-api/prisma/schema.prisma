@@ -533,6 +533,7 @@ model User {
   sentSupportMessages    SupportTicketMessage[] @relation("SupportSender")
   stageCrewSlots         StageCrewMember[]      @relation("StageCrew")
   stepPayouts            ProductionStepPayout[] @relation("StepPayouts")
+  activityDays           UserActivityDaily[]
 
   @@index([role, isActive], map: "idx_users_role_active")
   @@map("users")
@@ -1123,6 +1124,27 @@ model SystemAnnouncementAck {
   @@unique([announcementId, userId], map: "uq_announcement_ack_per_user")
   @@index([userId, ackedAt(sort: Desc)], map: "idx_announcement_acks_user")
   @@map("system_announcement_acks")
+}
+
+/// One row per (user, UTC day) rolling up how much the user actually used the
+/// app that day. Fed by a ~60s foreground heartbeat: `activeSeconds` sums the
+/// real in-app time (idle gaps longer than the heartbeat window are not
+/// counted), and firstSeenAt / lastSeenAt bracket the day. Powers the admin
+/// "User Activity" screen (daily active users + time-on-app).
+model UserActivityDaily {
+  id            BigInt   @id @default(autoincrement())
+  userId        BigInt   @map("user_id")
+  day           DateTime @map("day") @db.Date
+  firstSeenAt   DateTime @map("first_seen_at") @db.Timestamptz
+  lastSeenAt    DateTime @map("last_seen_at") @db.Timestamptz
+  activeSeconds Int      @default(0) @map("active_seconds")
+  pingCount     Int      @default(0) @map("ping_count")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, day], map: "uq_user_activity_day")
+  @@index([day], map: "idx_user_activity_day")
+  @@map("user_activity_daily")
 }
 
 // =============================================================================

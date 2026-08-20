@@ -134,6 +134,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         subtitle: l.adminNavAuditSubtitle,
                         onTap: () => context.pushNamed(RouteNames.auditLog),
                       ),
+                    if (_isFullAdmin(context))
+                      _NavTile(
+                        icon: Icons.timeline,
+                        title: 'User Activity',
+                        subtitle: 'Daily active users and time-on-app',
+                        onTap: () =>
+                            context.pushNamed(RouteNames.userActivity),
+                      ),
                     _NavTile(
                       icon: Icons.monitor_heart_outlined,
                       title: 'Health Check',

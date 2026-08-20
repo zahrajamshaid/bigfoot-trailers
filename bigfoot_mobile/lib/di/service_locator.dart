@@ -20,6 +20,8 @@ import '../data/repositories/announcement_repository_impl.dart';
 import '../domain/repositories/announcement_repository.dart';
 import '../data/repositories/yard_audit_repository_impl.dart';
 import '../domain/repositories/yard_audit_repository.dart';
+import '../data/repositories/activity_repository_impl.dart';
+import '../domain/repositories/activity_repository.dart';
 import '../data/repositories/trailer_repository_impl.dart';
 import '../domain/repositories/admin_repository.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -64,6 +66,7 @@ class ServiceLocator {
     required this.storageRepository,
     required this.announcementRepository,
     required this.yardAuditRepository,
+    required this.activityRepository,
   });
 
   // Infrastructure
@@ -90,6 +93,7 @@ class ServiceLocator {
   final StorageRepository storageRepository;
   final AnnouncementRepository announcementRepository;
   final YardAuditRepository yardAuditRepository;
+  final ActivityRepository activityRepository;
 
   /// Builds the full dependency graph. `onAuthExpired` is called by the auth
   /// interceptor when refresh fails so the app can redirect to login.
@@ -148,6 +152,7 @@ class ServiceLocator {
       storageRepository: StorageRepositoryImpl(api: dioClient),
       announcementRepository: AnnouncementRepositoryImpl(api: dioClient),
       yardAuditRepository: YardAuditRepositoryImpl(api: dioClient),
+      activityRepository: ActivityRepositoryImpl(api: dioClient),
     );
   }
 

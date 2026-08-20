@@ -157,6 +157,11 @@ abstract final class ApiEndpoints {
   // ── Yard audit ─────────────────────────────────────────────────────────────
   static const String yardAudit = '/yard-audit';
 
+  // ── Activity / usage ───────────────────────────────────────────────────────
+  static const String activityHeartbeat = '/activity/heartbeat';
+  static const String activitySummary = '/activity/summary';
+  static String activityUserDaily(int userId) => '/activity/summary/$userId';
+
   // ── Health ───────────────────────────────────────────────────────────────
   static const String health = '/health';
 }

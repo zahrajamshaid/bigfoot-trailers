@@ -55,6 +55,7 @@ abstract final class RouteNames {
   static const String productionReport = 'productionReport';
   static const String productionCostMatrix = 'productionCostMatrix';
   static const String announcementsAdmin = 'announcementsAdmin';
+  static const String userActivity = 'userActivity';
 
   // ── Customers ────────────────────────────────────────────────────────────
   static const String customerList = 'customerList';
