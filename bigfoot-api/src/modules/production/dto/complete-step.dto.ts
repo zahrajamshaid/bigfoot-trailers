@@ -76,4 +76,14 @@ export class CompleteStepDto {
   @ValidateNested()
   @Type(() => PayAdjustmentsDto)
   payAdjustments?: PayAdjustmentsDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Crew members (userIds) who were absent for this completion. On a crew stage they are skipped from the pay split; each present member still earns their slot rate.',
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  absentCrewUserIds?: number[];
 }

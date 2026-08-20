@@ -75,6 +75,28 @@ describe('StagePayService', () => {
     ]);
   });
 
+  it('absent crew members are skipped; present keep their own slot rate', async () => {
+    const tx = makeTx([
+      { slot: 0, userId: BigInt(101) },
+      { slot: 1, userId: BigInt(102) },
+      { slot: 2, userId: BigInt(103) },
+    ]);
+    await svc.recordPayouts(tx, {
+      ...base,
+      deptCode: 'GN_WELD',
+      series: 'gooseneck_dump',
+      payDollars: 665,
+      workerSplit: [665, 500, 400],
+      absentCrewUserIds: [BigInt(102)], // slot-1 out
+    });
+    const r = rows(tx);
+    expect(r).toHaveLength(2);
+    expect(r.map((x: any) => [x.userId, Number(x.dollars)])).toEqual([
+      [BigInt(101), 665],
+      [BigInt(103), 400],
+    ]);
+  });
+
   it('crew stage with NO roster → completer gets the primary rate', async () => {
     const tx = makeTx([]); // no roster
     await svc.recordPayouts(tx, {

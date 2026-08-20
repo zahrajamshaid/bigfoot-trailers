@@ -526,8 +526,90 @@ export class PayrollService {
       };
     });
 
-    // Sort by total points descending
-    workers.sort((a, b) => b.totalPoints - a.totalPoints);
+    // ── Manual adjustments (bonus / correction / deduction) for this week ────
+    // Folded into each worker's gross. Not tied to a department or trailer, so
+    // they ride alongside the computed step payouts as their own lines.
+    const adjustments = await this.prisma.payrollAdjustment.findMany({
+      where: {
+        voidedAt: null,
+        effectiveDate: { gte: weekStartDate, lte: weekEndDate },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        userId: true,
+        dollars: true,
+        note: true,
+        effectiveDate: true,
+        user: { select: { fullName: true, email: true } },
+      },
+    });
+    const adjByUser = new Map<
+      string,
+      {
+        userId: bigint;
+        fullName: string;
+        email: string | null;
+        items: Array<{
+          id: string;
+          dollars: number;
+          note: string;
+          effectiveDate: string;
+        }>;
+        total: number;
+      }
+    >();
+    for (const a of adjustments) {
+      const k = a.userId.toString();
+      let e = adjByUser.get(k);
+      if (!e) {
+        e = {
+          userId: a.userId,
+          fullName: a.user.fullName,
+          email: a.user.email,
+          items: [],
+          total: 0,
+        };
+        adjByUser.set(k, e);
+      }
+      const d = Number(a.dollars);
+      e.items.push({
+        id: a.id.toString(),
+        dollars: d,
+        note: a.note,
+        effectiveDate: a.effectiveDate.toISOString().slice(0, 10),
+      });
+      e.total += d;
+    }
+
+    const workersOut = workers.map((w) => {
+      const adj = adjByUser.get(w.userId.toString());
+      adjByUser.delete(w.userId.toString());
+      return {
+        ...w,
+        adjustments: adj?.items ?? [],
+        adjustmentsTotal: +(adj?.total ?? 0).toFixed(2),
+        totalGrossPay: +(w.totalGrossPay + (adj?.total ?? 0)).toFixed(2),
+      };
+    });
+    // Workers with only manual adjustments this week (no step payouts).
+    for (const adj of adjByUser.values()) {
+      workersOut.push({
+        userId: adj.userId,
+        fullName: adj.fullName,
+        email: adj.email,
+        totalPoints: 0,
+        totalGrossPay: +adj.total.toFixed(2),
+        totalStepsCompleted: 0,
+        totalReworkCount: 0,
+        departments: [],
+        adjustments: adj.items,
+        adjustmentsTotal: +adj.total.toFixed(2),
+      });
+    }
+
+    // Sort by gross pay descending so adjustment-only workers land sensibly.
+    workersOut.sort((a, b) => b.totalGrossPay - a.totalGrossPay);
 
     return {
       weekStartDate: weekStart,
@@ -535,8 +617,123 @@ export class PayrollService {
       isLocked: lockedRecord?.isLocked ?? false,
       lockedAt: lockedRecord?.lockedAt ?? null,
       lockedBy: lockedRecord?.lockedByUser ?? null,
-      workers,
+      workers: workersOut,
     };
+  }
+
+  // ===========================================================================
+  // Manual payroll adjustments (owner / office / production_manager)
+  //   A line-item added to a worker's pay for a given week — bonus, correction,
+  //   or deduction (dollars may be negative). Rolls into the weekly report.
+  // ===========================================================================
+  private static readonly adjustmentSelect = {
+    id: true,
+    userId: true,
+    effectiveDate: true,
+    dollars: true,
+    note: true,
+    createdByUserId: true,
+    createdAt: true,
+    user: { select: { fullName: true, email: true } },
+  } satisfies Prisma.PayrollAdjustmentSelect;
+
+  private mapAdjustment(a: {
+    id: bigint;
+    userId: bigint;
+    effectiveDate: Date;
+    dollars: Prisma.Decimal;
+    note: string;
+    createdByUserId: bigint;
+    createdAt: Date;
+    user: { fullName: string; email: string | null };
+  }) {
+    return {
+      id: a.id.toString(),
+      userId: a.userId.toString(),
+      fullName: a.user.fullName,
+      effectiveDate: a.effectiveDate.toISOString().slice(0, 10),
+      dollars: Number(a.dollars),
+      note: a.note,
+      createdByUserId: a.createdByUserId.toString(),
+      createdAt: a.createdAt,
+    };
+  }
+
+  async createAdjustment(
+    input: { userId: number; effectiveDate: string; dollars: number; note: string },
+    createdByUserId: bigint,
+  ) {
+    const day = new Date(input.effectiveDate);
+    if (Number.isNaN(day.getTime())) {
+      throw new AppError(ErrorCode.BAD_REQUEST, 'effectiveDate must be a valid date');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(input.userId) },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, `User ${input.userId} not found`);
+    }
+    const created = await this.prisma.payrollAdjustment.create({
+      data: {
+        userId: BigInt(input.userId),
+        effectiveDate: day,
+        dollars: new Prisma.Decimal(input.dollars),
+        note: input.note.trim(),
+        createdByUserId,
+      },
+      select: PayrollService.adjustmentSelect,
+    });
+    return this.mapAdjustment(created);
+  }
+
+  async listAdjustments(weekStart?: string, userId?: number) {
+    const where: Prisma.PayrollAdjustmentWhereInput = { voidedAt: null };
+    if (weekStart) {
+      const start = new Date(weekStart);
+      const end = new Date(start);
+      end.setUTCDate(end.getUTCDate() + 6);
+      where.effectiveDate = { gte: start, lte: end };
+    }
+    if (userId) where.userId = BigInt(userId);
+    const rows = await this.prisma.payrollAdjustment.findMany({
+      where,
+      orderBy: [{ effectiveDate: 'desc' }, { createdAt: 'desc' }],
+      select: PayrollService.adjustmentSelect,
+    });
+    return rows.map((r) => this.mapAdjustment(r));
+  }
+
+  async updateAdjustment(id: bigint, patch: { dollars?: number; note?: string }) {
+    await this.assertAdjustmentExists(id);
+    const data: Prisma.PayrollAdjustmentUpdateInput = {};
+    if (patch.dollars !== undefined) data.dollars = new Prisma.Decimal(patch.dollars);
+    if (patch.note !== undefined) data.note = patch.note.trim();
+    const updated = await this.prisma.payrollAdjustment.update({
+      where: { id },
+      data,
+      select: PayrollService.adjustmentSelect,
+    });
+    return this.mapAdjustment(updated);
+  }
+
+  async voidAdjustment(id: bigint, voidedByUserId: bigint): Promise<{ voided: true }> {
+    await this.assertAdjustmentExists(id);
+    await this.prisma.payrollAdjustment.update({
+      where: { id },
+      data: { voidedAt: new Date(), voidedByUserId },
+    });
+    return { voided: true };
+  }
+
+  private async assertAdjustmentExists(id: bigint): Promise<void> {
+    const existing = await this.prisma.payrollAdjustment.findFirst({
+      where: { id, voidedAt: null },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Payroll adjustment ${id} not found`);
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * Admin override that places a trailer at a specific production step.
@@ -24,4 +24,14 @@ export class JumpToStepDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Bypassed (upstream) step ids the PM confirms were actually worked. Their crews are paid as the jump force-completes them (crew stages only).',
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  payStepIds?: number[];
 }

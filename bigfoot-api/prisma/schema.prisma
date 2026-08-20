@@ -534,6 +534,7 @@ model User {
   stageCrewSlots         StageCrewMember[]      @relation("StageCrew")
   stepPayouts            ProductionStepPayout[] @relation("StepPayouts")
   activityDays           UserActivityDaily[]
+  payrollAdjustments     PayrollAdjustment[]    @relation("PayrollAdjustmentUser")
 
   @@index([role, isActive], map: "idx_users_role_active")
   @@map("users")
@@ -1145,6 +1146,28 @@ model UserActivityDaily {
   @@unique([userId, day], map: "uq_user_activity_day")
   @@index([day], map: "idx_user_activity_day")
   @@map("user_activity_daily")
+}
+
+/// Manual payroll line-item a manager adds to a worker's pay for a given week
+/// (bonus, correction, deduction — dollars may be negative). Rolls into the
+/// worker's weekly total alongside the computed step payouts. Soft-voided
+/// rather than deleted so the trail is kept.
+model PayrollAdjustment {
+  id              BigInt    @id @default(autoincrement())
+  userId          BigInt    @map("user_id")
+  effectiveDate   DateTime  @map("effective_date") @db.Date
+  dollars         Decimal   @db.Decimal(10, 2)
+  note            String    @db.VarChar(200)
+  createdByUserId BigInt    @map("created_by_user_id")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  voidedAt        DateTime? @map("voided_at") @db.Timestamptz
+  voidedByUserId  BigInt?   @map("voided_by_user_id")
+
+  user User @relation("PayrollAdjustmentUser", fields: [userId], references: [id])
+
+  @@index([effectiveDate], map: "idx_payroll_adjustments_date")
+  @@index([userId, effectiveDate], map: "idx_payroll_adjustments_user_date")
+  @@map("payroll_adjustments")
 }
 
 // =============================================================================

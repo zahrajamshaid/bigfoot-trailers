@@ -137,6 +137,16 @@ export class ProductionController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /production/steps/:step_id/crew — worker, production_manager, owner
+  // ---------------------------------------------------------------------------
+  @Get('steps/:step_id/crew')
+  @Roles(UserRole.WORKER, UserRole.PRODUCTION_MANAGER, UserRole.OWNER)
+  @ApiOperation({ summary: "The step department's crew for the absence picker" })
+  @ApiParam({ name: 'step_id', type: 'number' })
+  async getStepCrew(@Param('step_id', ParseIntPipe) stepId: number) {
+    return this.productionService.getStepCrew(BigInt(stepId));
+  }
+
   // POST /production/steps/:step_id/complete — worker, production_manager, owner
   // ---------------------------------------------------------------------------
   @Post('steps/:step_id/complete')
@@ -157,6 +167,7 @@ export class ProductionController {
       dto.notes,
       dto.checklistResults,
       dto.payAdjustments,
+      dto.absentCrewUserIds,
     );
   }
 
@@ -216,6 +227,7 @@ export class ProductionController {
       BigInt(dto.stepId),
       BigInt(requester.sub),
       dto.reason,
+      dto.payStepIds,
     );
   }
 

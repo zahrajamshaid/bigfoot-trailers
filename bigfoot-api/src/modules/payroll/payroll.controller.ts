@@ -27,6 +27,9 @@ import {
   CreateDollarRateDto,
   QueryDollarRatesDto,
   QueryPayrollRecordsDto,
+  CreatePayrollAdjustmentDto,
+  UpdatePayrollAdjustmentDto,
+  QueryPayrollAdjustmentsDto,
 } from './dto';
 import { SetStageCrewDto } from './dto/set-stage-crew.dto';
 import { SetStageRateDto } from './dto/set-stage-rate.dto';
@@ -243,5 +246,44 @@ export class PayrollController {
     @Body() dto: SetStageCrewDto,
   ) {
     return this.payrollService.setStageCrew(deptId, dto.userIds);
+  }
+
+  // ── Manual payroll adjustments ──────────────────────────────────────────
+  @Get('adjustments')
+  @ApiOperation({ summary: 'List manual payroll line-items (optionally by week/worker)' })
+  async listAdjustments(@Query() q: QueryPayrollAdjustmentsDto) {
+    const adjustments = await this.payrollService.listAdjustments(q.weekStart, q.userId);
+    return { adjustments };
+  }
+
+  @Post('adjustments')
+  @ApiOperation({
+    summary: 'Add a manual payroll line-item (bonus/correction/deduction)',
+  })
+  async createAdjustment(
+    @Body() dto: CreatePayrollAdjustmentDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.payrollService.createAdjustment(dto, BigInt(user.sub));
+  }
+
+  @Patch('adjustments/:id')
+  @ApiOperation({ summary: 'Edit a manual payroll line-item' })
+  @ApiParam({ name: 'id', type: 'number' })
+  async updateAdjustment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePayrollAdjustmentDto,
+  ) {
+    return this.payrollService.updateAdjustment(BigInt(id), dto);
+  }
+
+  @Delete('adjustments/:id')
+  @ApiOperation({ summary: 'Void a manual payroll line-item (soft delete)' })
+  @ApiParam({ name: 'id', type: 'number' })
+  async voidAdjustment(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.payrollService.voidAdjustment(BigInt(id), BigInt(user.sub));
   }
 }

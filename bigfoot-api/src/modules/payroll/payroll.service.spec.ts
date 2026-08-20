@@ -39,6 +39,12 @@ const mockPrisma: Record<string, any> = {
   productionStepPayout: {
     findMany: jest.fn(),
   },
+  payrollAdjustment: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
   trailerModelStageCost: {
     findMany: jest.fn(),
   },
@@ -108,6 +114,8 @@ describe('PayrollService', () => {
 
     service = module.get<PayrollService>(PayrollService);
     jest.clearAllMocks();
+    // Default: no manual adjustments (individual tests override).
+    mockPrisma.payrollAdjustment.findMany.mockResolvedValue([]);
   });
 
   // =========================================================================
@@ -339,6 +347,61 @@ describe('PayrollService', () => {
       expect(result.workers[0].totalPoints).toBe(3.5);
       expect(result.workers[0].totalGrossPay).toBe(43.75); // 3.5 * 12.5
       expect(result.workers[0].totalStepsCompleted).toBe(1);
+    });
+
+    it('folds a manual adjustment into the worker gross and lists it', async () => {
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([
+        payoutRow(10, 1, 'XP_JIG', 'XP Jig Weld', 1, 100),
+      ]);
+      mockPrisma.deptDollarRate.findMany.mockResolvedValue([
+        {
+          departmentId: 1,
+          dollarPerPoint: new Prisma.Decimal(1),
+          effectiveFrom: new Date('2026-01-01'),
+        },
+      ]);
+      mockPrisma.payrollRecord.findFirst.mockResolvedValue(null);
+      mockPrisma.payrollAdjustment.findMany.mockResolvedValue([
+        {
+          id: BigInt(7),
+          userId: BigInt(10),
+          dollars: new Prisma.Decimal(50),
+          note: 'bonus',
+          effectiveDate: new Date('2026-03-23'),
+          user: { fullName: 'W10', email: null },
+        },
+      ]);
+
+      const result = await service.findWeeklyReport('2026-03-22');
+      const w = result.workers.find((x: any) => x.userId.toString() === '10') as any;
+      expect(w.adjustmentsTotal).toBe(50);
+      expect(w.adjustments).toHaveLength(1);
+      expect(w.totalGrossPay).toBe(150); // 100 base + 50 adjustment
+    });
+
+    it('shows a worker who has only a manual adjustment this week', async () => {
+      mockPrisma.productionStepPayout.findMany.mockResolvedValue([]);
+      mockPrisma.deptDollarRate.findMany.mockResolvedValue([]);
+      mockPrisma.payrollRecord.findFirst.mockResolvedValue(null);
+      mockPrisma.payrollAdjustment.findMany.mockResolvedValue([
+        {
+          id: BigInt(8),
+          userId: BigInt(20),
+          dollars: new Prisma.Decimal(-30),
+          note: 'deduction',
+          effectiveDate: new Date('2026-03-24'),
+          user: { fullName: 'W20', email: null },
+        },
+      ]);
+
+      const result = await service.findWeeklyReport('2026-03-22');
+      expect(result.workers).toHaveLength(1);
+      expect(result.workers[0]).toMatchObject({
+        fullName: 'W20',
+        totalGrossPay: -30,
+        totalStepsCompleted: 0,
+      });
+      expect((result.workers[0] as any).adjustments).toHaveLength(1);
     });
 
     it('collapses a base + adjustment payout on the same step into one line', async () => {

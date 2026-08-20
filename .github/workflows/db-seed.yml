@@ -88,6 +88,7 @@ on:
           - apply-announcement-frequency # additive (idempotent): add system_announcements.frequency (once|every_login|daily|weekly, default 'once')
           - fix-reopen-stuck-qc2-2026-08-10 # one-shot (idempotent): re-open system-completed QC_2 on SO 7049/7050/7051 so they leave the no-active-step gap and re-enter the QC queue before paint prep
           - apply-user-activity-table # additive (idempotent): CREATE TABLE user_activity_daily — backs the admin User Activity screen (daily active users + time-on-app)
+          - apply-payroll-adjustments-table # additive (idempotent): CREATE TABLE payroll_adjustments — manual payroll line-items (bonus/correction/deduction) in the weekly report
           - dump-api-logs # diagnostic: print the last ~300 lines of the API container stdout (interceptor warnings, etc.)
 
 concurrency:

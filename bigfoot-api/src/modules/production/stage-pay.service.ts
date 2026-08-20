@@ -23,6 +23,9 @@ export interface RecordPayoutsParams {
   /** worker_split from the stage rate (crew stages only), highest→lowest. */
   workerSplit: number[] | null;
   adjustments?: PayAdjustmentsInput;
+  /** Crew members who were absent for this completion — skipped from the crew
+   *  split (each present member still earns their own slot rate). */
+  absentCrewUserIds?: bigint[];
 }
 
 // Series that run the gooseneck line — the ">30ft on GN" adjustment tiers.
@@ -73,14 +76,18 @@ export class StagePayService {
 
     // ── Base pay ──────────────────────────────────────────────────────────
     if (split) {
-      // Crew stage: pay each roster member their slot's rate.
+      // Crew stage: pay each PRESENT roster member their slot's rate. Absent
+      // members (unchecked at completion) are skipped — each present member
+      // keeps their own slot rate; the absent slot is simply not paid.
+      const absent = new Set((p.absentCrewUserIds ?? []).map((id) => id.toString()));
       const roster = await tx.stageCrewMember.findMany({
         where: { departmentId: p.departmentId },
         orderBy: { slot: 'asc' },
         select: { slot: true, userId: true },
       });
-      if (roster.length > 0) {
-        for (const m of roster) {
+      const presentRoster = roster.filter((m) => !absent.has(m.userId.toString()));
+      if (presentRoster.length > 0) {
+        for (const m of presentRoster) {
           const rate = split[m.slot];
           if (rate != null) {
             rows.push({

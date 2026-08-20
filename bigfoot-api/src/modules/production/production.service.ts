@@ -249,6 +249,63 @@ export class ProductionService {
   }
 
   // =========================================================================
+  // GET /production/steps/:step_id/crew
+  //
+  // The fixed crew for a step's department, so the completion screen can
+  // pre-check everyone and let the completer uncheck whoever's absent. Only
+  // meaningful for crew (split) stages; single-worker stages return isCrewStage
+  // false and the completer alone is paid.
+  // =========================================================================
+  async getStepCrew(stepId: bigint) {
+    const step = await this.prisma.productionStep.findUnique({
+      where: { id: stepId },
+      select: {
+        departmentId: true,
+        department: { select: { displayName: true } },
+        trailer: { select: { trailerModelId: true } },
+      },
+    });
+    if (!step) throw new AppError(ErrorCode.NOT_FOUND, 'Production step not found');
+
+    let isCrewStage = false;
+    try {
+      const rate = await this.prisma.trailerModelStageCost.findFirst({
+        where: {
+          trailerModelId: step.trailer.trailerModelId,
+          departmentId: step.departmentId,
+          effectiveFrom: { lte: new Date() },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: new Date() } }],
+        },
+        orderBy: { effectiveFrom: 'desc' },
+        select: { workerSplit: true },
+      });
+      isCrewStage =
+        Array.isArray(rate?.workerSplit) && (rate!.workerSplit as unknown[]).length > 1;
+    } catch {
+      isCrewStage = false;
+    }
+
+    const roster = await this.prisma.stageCrewMember.findMany({
+      where: { departmentId: step.departmentId },
+      orderBy: { slot: 'asc' },
+      select: {
+        slot: true,
+        userId: true,
+        user: { select: { fullName: true } },
+      },
+    });
+
+    return {
+      departmentName: step.department.displayName,
+      isCrewStage,
+      crew: roster.map((m) => ({
+        slot: m.slot,
+        userId: m.userId.toString(),
+        fullName: m.user.fullName,
+      })),
+    };
+  }
+
   // POST /production/steps/:step_id/complete
   // =========================================================================
   async completeStep(
@@ -257,6 +314,7 @@ export class ProductionService {
     notes?: string,
     checklistResults?: StepCheckResultDto[],
     payAdjustments?: PayAdjustmentsInput,
+    absentCrewUserIds?: number[],
   ) {
     const step = await this.prisma.productionStep.findUnique({
       where: { id: stepId },
@@ -532,6 +590,7 @@ export class ProductionService {
           payDollars: pointsAwarded,
           workerSplit: stageWorkerSplit,
           adjustments: payAdjustments,
+          absentCrewUserIds: absentCrewUserIds?.map((n) => BigInt(n)),
         });
       } catch (err) {
         this.logger.warn(
@@ -693,6 +752,9 @@ export class ProductionService {
     targetStepId: bigint,
     adminUserId: bigint,
     reason?: string,
+    // Upstream step ids the PM confirms were actually worked — their crews get
+    // paid as the jump force-completes them (crew stages only).
+    payStepIds?: number[],
   ) {
     const target = await this.prisma.productionStep.findUnique({
       where: { id: targetStepId },
@@ -747,11 +809,27 @@ export class ProductionService {
     ]);
     const deptRows = await this.prisma.department.findMany({
       where: { id: { in: [...affectedDeptIds] } },
-      select: { id: true, displayName: true },
+      select: { id: true, displayName: true, code: true },
     });
     const deptNameById = new Map<number, string>(
       deptRows.map((d) => [d.id, d.displayName]),
     );
+    const deptCodeById = new Map<number, string>(deptRows.map((d) => [d.id, d.code]));
+
+    // Pay context for confirmed jumped steps (crew stages get paid on jump).
+    const paySet = new Set((payStepIds ?? []).map((n) => BigInt(n).toString()));
+    const trailerForPay =
+      paySet.size > 0
+        ? await this.prisma.trailer.findUnique({
+            where: { id: trailerId },
+            select: {
+              trailerModelId: true,
+              sizeFt: true,
+              color: true,
+              trailerModel: { select: { series: true } },
+            },
+          })
+        : null;
 
     const now = new Date();
 
@@ -773,6 +851,45 @@ export class ProductionService {
             pointsAwarded: new Prisma.Decimal(0),
           },
         });
+
+        // If the PM confirmed this bypassed step was actually worked, pay its
+        // crew. Crew (split) stages pay the roster; single-worker stages are
+        // left for a manual adjustment (we can't know who did it on a jump).
+        if (trailerForPay && paySet.has(s.id.toString())) {
+          try {
+            const rate = await tx.trailerModelStageCost.findFirst({
+              where: {
+                trailerModelId: trailerForPay.trailerModelId,
+                departmentId: s.departmentId,
+                effectiveFrom: { lte: now },
+                OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+              },
+              orderBy: { effectiveFrom: 'desc' },
+              select: { payDollars: true, workerSplit: true },
+            });
+            const split = Array.isArray(rate?.workerSplit)
+              ? (rate!.workerSplit as unknown[]).map(Number)
+              : null;
+            if (rate && split && split.length > 1) {
+              await this.stagePay.recordPayouts(tx, {
+                stepId: s.id,
+                departmentId: s.departmentId,
+                deptCode: deptCodeById.get(s.departmentId) ?? '',
+                series: trailerForPay.trailerModel.series,
+                sizeFt: trailerForPay.sizeFt,
+                color: trailerForPay.color,
+                completedByUserId: adminUserId,
+                isRework: false,
+                payDollars: Number(rate.payDollars),
+                workerSplit: split,
+              });
+            }
+          } catch (err) {
+            this.logger.warn(
+              `Jump-pay failed for step ${s.id}: ${(err as Error)?.message}`,
+            );
+          }
+        }
       }
 
       // Target step: activate (or reactivate if previously complete).
