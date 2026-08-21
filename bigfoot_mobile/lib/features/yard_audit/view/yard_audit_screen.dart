@@ -61,7 +61,13 @@ class _YardAuditScreenState extends State<YardAuditScreen> {
   void _selectYard(StockLocationGroup g) {
     setState(() {
       _selected = g;
-      _missing.clear();
+      // Default every trailer to "not found" (toggle OFF). The auditor walks
+      // the lot and toggles ON each trailer they actually see — anything left
+      // off at submit is reported missing. (Requested: start all off instead
+      // of having to toggle them all off manually.)
+      _missing
+        ..clear()
+        ..addAll(g.trailers.map((t) => t.trailerId));
       _extras.clear();
     });
   }
@@ -325,8 +331,8 @@ class _AuditListState extends State<_AuditList> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Toggle OFF any trailer you can\'t find on the lot. '
-                  '${missing.length} marked missing.',
+                  'Toggle ON each trailer you find on the lot. '
+                  '${missing.length} still not found.',
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
