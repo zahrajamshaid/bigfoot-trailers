@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '13.0'
+platform :ios, '15.0'
 
 # CocoaPods analytics slows down `pod install`. Keep it off.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -40,5 +40,10 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    # Keep every pod at the app's minimum (iOS 15) so no dependency pins a
+    # lower MinimumOSVersion — App Store Connect requires 15.0+ (warning 90068).
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
   end
 end

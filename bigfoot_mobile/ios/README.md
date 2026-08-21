@@ -4,8 +4,8 @@ Everything that could be done from a non-Mac is already in this repo:
 
 - `Runner/Info.plist` — permission strings, ATS local-networking, push background modes, URL schemes
 - `Runner/Runner.entitlements` — `aps-environment = development` (Xcode flips it to `production` automatically when archiving with a distribution profile)
-- `Podfile` — platform `iOS 13.0`, standard Flutter podhelper integration
-- `project.pbxproj` — `IPHONEOS_DEPLOYMENT_TARGET = 13.0`
+- `Podfile` — platform `iOS 15.0` (App Store Connect requires 15.0+; warning 90068), standard Flutter podhelper integration + a post_install that pins every pod to 15.0
+- `project.pbxproj` — `IPHONEOS_DEPLOYMENT_TARGET = 15.0`
 
 What still has to happen on a Mac (one-time, ~15 min):
 
