@@ -267,7 +267,7 @@ class _YardPicker extends StatelessWidget {
 }
 
 // ── Audit list for a chosen yard ─────────────────────────────────────────────
-class _AuditList extends StatelessWidget {
+class _AuditList extends StatefulWidget {
   final StockLocationGroup yard;
   final Set<int> missing;
   final List<AuditExtra> extras;
@@ -285,7 +285,31 @@ class _AuditList extends StatelessWidget {
   });
 
   @override
+  State<_AuditList> createState() => _AuditListState();
+}
+
+class _AuditListState extends State<_AuditList> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final yard = widget.yard;
+    final missing = widget.missing;
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? yard.trailers
+        : yard.trailers.where((t) {
+            return t.soNumber.toLowerCase().contains(q) ||
+                (t.model?.toLowerCase().contains(q) ?? false);
+          }).toList();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: [
@@ -310,17 +334,44 @@ class _AuditList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+        // Search by SO number or model — handy on a big lot.
+        TextField(
+          controller: _searchCtrl,
+          onChanged: (v) => setState(() => _query = v),
+          decoration: InputDecoration(
+            hintText: 'Search SO or model',
+            prefixIcon: const Icon(Icons.search),
+            isDense: true,
+            border: const OutlineInputBorder(),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _query = '');
+                    },
+                  ),
+          ),
+        ),
+        const SizedBox(height: 8),
         if (yard.trailers.isEmpty)
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text('The app lists no trailers at ${yard.name}.',
                 style: TextStyle(color: Colors.grey.shade600)),
+          )
+        else if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('No trailers match "$_query".',
+                style: TextStyle(color: Colors.grey.shade600)),
           ),
-        for (final t in yard.trailers)
+        for (final t in filtered)
           _TrailerRow(
             trailer: t,
             present: !missing.contains(t.trailerId),
-            onChanged: (v) => onToggle(t.trailerId, v),
+            onChanged: (v) => widget.onToggle(t.trailerId, v),
           ),
         const SizedBox(height: 16),
         Row(
@@ -333,27 +384,27 @@ class _AuditList extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w600)),
             ),
             TextButton.icon(
-              onPressed: onAddExtra,
+              onPressed: widget.onAddExtra,
               icon: const Icon(Icons.add, size: 18),
               label: const Text('Add'),
             ),
           ],
         ),
-        for (var i = 0; i < extras.length; i++)
+        for (var i = 0; i < widget.extras.length; i++)
           Card(
             color: AppColors.navy.withValues(alpha: 0.04),
             child: ListTile(
               dense: true,
               leading: const Icon(Icons.help_outline, color: AppColors.amber),
-              title: Text(extras[i].soNumber.trim().isEmpty
+              title: Text(widget.extras[i].soNumber.trim().isEmpty
                   ? 'Unknown trailer'
-                  : 'SO ${extras[i].soNumber.trim()}'),
-              subtitle: extras[i].note.trim().isEmpty
+                  : 'SO ${widget.extras[i].soNumber.trim()}'),
+              subtitle: widget.extras[i].note.trim().isEmpty
                   ? null
-                  : Text(extras[i].note.trim()),
+                  : Text(widget.extras[i].note.trim()),
               trailing: IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                onPressed: () => onRemoveExtra(i),
+                onPressed: () => widget.onRemoveExtra(i),
               ),
             ),
           ),
